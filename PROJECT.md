@@ -29,7 +29,11 @@ and stable. Optional stats.nba.com sources never block a game; `--cdn-only` skip
   only if that is unambiguous; otherwise the period is left short and reported (5-on-court check fails).
 - Substitutions are replayed in log order; everyone on court is closed at period end.
 - Every resolution or problem is written to `Game.stintNotes` and printed by validate-all.
-- Result: identical to gamerotation (to 0.1s) on all 19 games where both exist (14 × 2026-27, 5 × 2025-26).
+- Each stint carries the substitution events that opened/closed it, so +/- and fouls are cut by event order
+  (a player can be subbed several times at the same clock). Zero-length stints mid-period are kept (they can
+  carry +/- from free throws); empty ones at period start (between-periods subs) are dropped.
+- Result: identical to gamerotation (to 0.1s) on all 24 games where both exist (14 × 2026-27, 10 × 2025-26),
+  including 2 of the 3 box-score mismatches below.
 
 Path A (stints from gamerotation) is no longer used; the gamerotation parser remains for the cross-check.
 
@@ -69,9 +73,9 @@ their first appearance (rule: not yet with team; 33) and players who left withou
 
 ### +/- attribution (verified against box score and gamerotation PT_DIFF)
 Stint +/- is computed from the play-by-play running score. Same-second events around a substitution follow
-NBA's rule: free throws count for the players on court when the foul was committed (FTs logged after the
-sub but from a foul logged before it go to the outgoing player); FTs from a foul logged after the sub
-(e.g. a technical) go to the incoming player. Other events follow log order. Result: matches every
+NBA's rule: free throws count for the players on court when the foul was committed — each FT belongs to the
+latest same-second foul of its kind (technical FT ↔ technical foul, other FTs ↔ other fouls); if that foul
+was logged before the sub, the FT goes to the outgoing player. Other events follow log order. Result: matches every
 gamerotation PT_DIFF in the fixtures except one where PT_DIFF itself disagrees with the box score
 (0022600002, Brunson, last 7.7s) — ours agrees with the box score.
 
@@ -80,11 +84,30 @@ technicals excluded).
 
 ## Validation
 `npm test` runs Vitest on committed fixtures (`tests/fixtures/*.raw.json.gz`, raw responses gzipped):
-8 games incl. OT (0022501147) and 2OT (0022500811) from 2025-26, blowouts (0022600088, 0022600092), and
-games with tricky same-second sub/FT sequences (0022600085, 0022600090). Checks per game: minutes ±1s,
+12 games incl. OT (0022501147, 0022500458 — a full OT with no event for two players) and 2OT (0022500811),
+blowouts (0022600088, 0022600092), and tricky same-second sub/FT sequences (0022600085, 0022600090,
+0022500020 zero-length stint, 0022500184 technical + and-one FTs, 0022500643 double sub at one clock). Checks per game: minutes ±1s,
 5 on court per team at all times, fouls = PF, stint +/- = box +/-, no overlaps, stints inside periods,
-DNP players have no stints, stint +/- = PT_DIFF. Negative tests prove each check catches broken data.
+DNP players have no stints, stints = gamerotation, stint +/- = PT_DIFF; plus box-score self-consistency
+(team minutes = 5 × game length, team +/- = 5 × margin) to tell box-score errors apart. Negative tests prove each check catches broken data.
 `npm run validate-all` runs the same checks over every fetched game and the roster-list comparison.
+
+## Validation results (2026-10-23)
+| Season | Games | Pass all checks | gamerotation cross-check |
+|---|---|---|---|
+| 2025-26 | 1230 | 1226 | 10/10 identical |
+| 2026-27 | 14 | 14 | 14/14 identical |
+
+The 4 failing 2025-26 games (kept as-is, reported every run):
+- 0022500093 — box score wrong: HOU minutes total 13880s instead of 14400s; Kevin Durant's Q4 stint
+  (8:40, 12 points in play-by-play) is missing from his box minutes. gamerotation agrees with Path B.
+- 0022500374 — box +/- off by 1 for 2 TOR players; gamerotation PT_DIFF agrees with Path B.
+- 0022500722, 0022500753 — +/- off by 1–2 for a few players in same-second FT/sub sequences where NBA's
+  attribution contradicts the rule it follows elsewhere (e.g. FTs between two sub batches go to the final
+  lineup). Not reproducible by a consistent rule; stints and minutes are unaffected.
+
+Size: 2025-26 + 2026-27 = 1244 games, ~9.2 MB of JSON in git (7.4 KB/game; ~2.3 MB gzipped total).
+One team-season in the browser ≈ 0.6 MB raw / ~0.15 MB gzipped. Raw cache ≈ 0.43 MB/game (526 MB, gitignored).
 
 ## How to update data
 ```
@@ -108,12 +131,11 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
 - Step 0 (connectivity probe): done — all endpoints OK.
 - Step 1 (fetch): done — 14/14 finished games fetched (as of 2026-10-23).
 - Step 2 (normalize): done.
-- Step 3 (validation): done — 14/14 season games and 8/8 fixtures pass all checks.
+- Step 3 (validation): done.
+- Path B (stints from play-by-play) is the primary source; 2025-26 backfilled via CDN (1230/1230 fetched).
+- Next: Step 4 (pattern engine), developed and tested on 2025-26.
 
 ## Open problems
-- stats.nba.com reliability: on 2026-10-23 `gamerotation` went from occasional 500s to mostly timeouts/500s
-  (~1 min per game with retries, some games failing after 4 attempts). Failed games are skipped and retried
-  on the next run. If this persists, implement Path B (stints from play-by-play); the +/- attribution and
-  validation already work from play-by-play, so gamerotation would then serve only as a cross-check.
+- stats.nba.com is slow/flaky (timeouts, 500s). It is optional now; `--cdn-only` skips it.
 - 2026-27 box scores carry no inactive players/reasons (yet); roster list used instead (no reasons).
 - Appearance rule misjudges fringe two-way/G-League players (see above); fine for rotation players.
