@@ -12,7 +12,8 @@ let ok = true;
 const check = async (label: string, f: () => Promise<string>) => {
   const t = Date.now();
   try {
-    console.log(`OK    ${label} (${Date.now() - t + 0}ms) ${await f()}`);
+    const detail = await f();
+    console.log(`OK    ${label} (${Date.now() - t}ms) ${detail}`);
   } catch (e) {
     ok = false;
     console.log(`FAIL  ${label}: ${(e as Error).message}`);
