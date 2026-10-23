@@ -264,7 +264,10 @@ Workflow: `.github/workflows/data-update.yml` → `scripts/ci-update.ts`.
   `main` (scheduled workflows only run from the default branch).
 - **What it does**: `fetch-season --cdn-only --strict` (Path B, cdn.nba.com only) → `normalize` → `validate-all` →
   `npm test`. If every step passes and there are new games, it commits `data/` to `main` as
-  "data: N new games through YYYY-MM-DD" and pushes; Vercel then redeploys production. No new games → no commit.
+  "data: N new games through YYYY-MM-DD" and pushes; Vercel then redeploys production. The schedule feed is
+  downloaded and `schedule.json` rewritten on every run, so with no new games but a changed schedule (postponed or
+  rescheduled game) it commits "data: schedule update (N games changed)" and the B2B / 3-in-4 tags are fixed the
+  next morning. Neither → no commit.
 - **Incremental without a cache**: the runner has no raw cache; already-committed games are read from
   `data/<season>/index.json` and skipped. `normalize` only (re)writes games whose raw data is present and rebuilds
   the index/appearances from all committed game files. `validation.json` is not committed by CI (it holds the

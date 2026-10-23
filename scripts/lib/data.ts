@@ -3,7 +3,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Game, GameIndexEntry } from '../../src/domain/types.ts';
+import type { Game, GameIndexEntry, ScheduleEntry } from '../../src/domain/types.ts';
 
 export const DATA_DIR = 'data';
 
@@ -49,6 +49,24 @@ export function newGamesSummary(before: GameIndexEntry[], after: GameIndexEntry[
   const through = added.reduce<string | null>((m, g) => (m === null || g.date > m ? g.date : m), null);
   return { n: added.length, through };
 }
+
+/** Schedule entries added, removed or changed (date, teams, status) between two versions of all schedules. */
+export function scheduleChanges(before: ScheduleEntry[], after: ScheduleEntry[]): number {
+  const key = (e: ScheduleEntry) => `${e.date}|${e.home}|${e.away}|${e.status}|${e.label ?? ''}`;
+  const b = new Map(before.map((e) => [e.id, key(e)]));
+  const a = new Map(after.map((e) => [e.id, key(e)]));
+  let n = 0;
+  for (const [id, k] of a) if (b.get(id) !== k) n++;
+  for (const id of b.keys()) if (!a.has(id)) n++;
+  return n;
+}
+
+export function readSchedule(season: string, dir = DATA_DIR): ScheduleEntry[] {
+  const f = join(dir, season, 'schedule.json');
+  return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as ScheduleEntry[]) : [];
+}
+
+export const scheduleCommitMessage = (n: number) => `data: schedule update (${n} game${n === 1 ? '' : 's'} changed)`;
 
 export const commitMessage = (s: { n: number; through: string | null }) => `data: ${s.n} new game${s.n === 1 ? '' : 's'} through ${s.through}`;
 
