@@ -121,9 +121,14 @@ export function scoreAt(g: Game, t: number): [number, number] {
 }
 
 /** Players on court at elapsed t (stints are [start, end) ; zero-length stints are never "on court"). */
+/** The player's stint covering moment t (in at s ≤ t < out at e; zero-length stints never count). */
+export function stintAt(p: PlayerGame, t: number, periods: number): Stint | undefined {
+  const tt = Math.min(t, gameLength(periods) - 1e-6);
+  return p.stints.find(([s, e]) => e > s && s <= tt && tt < e);
+}
+
 export function onCourtAt(g: Game, team: string, t: number): PlayerGame[] {
-  const tt = Math.min(t, gameLength(g.periods) - 1e-6);
-  return g.players.filter((p) => p.team === team && p.stints.some(([s, e]) => e > s && s <= tt && tt < e));
+  return g.players.filter((p) => p.team === team && stintAt(p, t, g.periods) !== undefined);
 }
 
 export interface LineupSegment {
@@ -185,6 +190,36 @@ export function cursorInfo(g: Game, t: number, segments?: Record<string, LineupS
           .sort((a, b) => b.p.min - a.p.min),
       };
     }),
+  };
+}
+
+/**
+ * Hover readout on a player's row at moment t: clock + score (his team first), both lineups at that moment (from
+ * cursorInfo, i.e. the lineup cursor's own on-court logic) with fouls so far, and his stint at t (null = off court).
+ */
+export interface HoverReadout {
+  t: number;
+  clock: string;
+  player: PlayerGame;
+  /** [his team, opponent]. */
+  teams: { team: string; score: number; players: { p: PlayerGame; fouls: number; me: boolean }[] }[];
+  stint: Stint | null;
+}
+
+export function hoverReadout(g: Game, playerId: number, t: number, segments?: Record<string, LineupSegment[]>): HoverReadout {
+  const player = g.players.find((p) => p.id === playerId)!;
+  const c = cursorInfo(g, t, segments);
+  const order = player.team === g.home.tri ? [g.home.tri, g.away.tri] : [g.away.tri, g.home.tri];
+  return {
+    t: c.t,
+    clock: c.clock,
+    player,
+    teams: order.map((team) => ({
+      team,
+      score: team === g.home.tri ? c.score[0] : c.score[1],
+      players: c.teams.find((x) => x.team === team)!.players.map((x) => ({ ...x, me: x.p.id === playerId })),
+    })),
+    stint: stintAt(player, c.t, g.periods) ?? null,
   };
 }
 

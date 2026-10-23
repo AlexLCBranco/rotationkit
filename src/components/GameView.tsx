@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadGame, loadIndex, loadSchedule } from '../app/data.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, shortDate, signed } from '../app/labels.ts';
-import type { Nav, Route } from '../app/route.ts';
+import { parse, type Nav, type Route } from '../app/route.ts';
 import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
 import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
 import { GameList, type ListGame } from './GameList.tsx';
 import { ScheduleChips } from './ScheduleChips.tsx';
 import { Tabs } from './Tabs.tsx';
+import { ReadoutMenu } from './ReadoutMenu.tsx';
+import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { seasonOf } from '../domain/season.ts';
 import { REG_PERIODS } from '../domain/time.ts';
 import type { Game, QualityNote } from '../domain/types.ts';
@@ -68,6 +70,9 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   // URL always names the team and the actual game (so "latest" becomes bookmarkable).
   useEffect(() => {
     if (fresh && (route.game !== fresh.id || route.team !== team || route.season !== gameSeason)) {
+      // Skip if the user navigated since this render (e.g. picked another team): never overwrite their choice.
+      const live = parse(location.hash);
+      if (live.view !== 'game' || live.game !== route.game || (live.team && live.team !== route.team)) return;
       nav({ ...route, game: fresh.id, team, season: gameSeason }, { replace: true });
     }
   }, [fresh, team, gameSeason, route, nav]);
@@ -98,7 +103,9 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
       .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)); // oldest first
     return { games, sched, ours };
   }, [meta, team]);
-  const pos = picker && g ? picker.games.findIndex((x) => x.id === g.id) : -1;
+  // The game being opened (not the one still on screen while it loads), so quick ↑/↓ or ◀ ▶ never skip or repeat.
+  const current = id ?? g?.id ?? null;
+  const pos = picker && current ? picker.games.findIndex((x) => x.id === current) : -1;
   const older = picker && pos > 0 ? picker.games[pos - 1] : undefined;
   const newer = picker && pos >= 0 ? picker.games[pos + 1] : undefined;
   const open = (id: string) => nav({ ...route, game: id, team, season: gameSeason });
@@ -143,7 +150,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
         {!collapsed && picker && (
           <GameList
             games={picker.games}
-            selected={g?.id ?? null}
+            selected={current}
             onSelect={open}
             seasons={seasons}
             season={gameSeason}
@@ -239,6 +246,7 @@ function GameBody({
 }) {
   const segments = useMemo(() => segmentsByTeam(g), [g]);
   const names = useGameNames(g);
+  const [readout, setReadout] = useState(loadReadout);
   return (
     <>
       {g.quality && (
@@ -256,14 +264,21 @@ function GameBody({
           <input type="checkbox" checked={trouble} onChange={(e) => setTrouble(e.target.checked)} />
           <span>Foul trouble colors</span>
         </label>
-        <span className="muted">Hover the chart for details; click (tap on phone) to pin the lineup cursor.</span>
+        <ReadoutMenu
+          value={readout}
+          onChange={(r) => {
+            setReadout(r);
+            saveReadout(r);
+          }}
+        />
+        <span className="muted">Hover a row for both lineups at that moment; click to pin the lineup cursor.</span>
       </div>
       {cursor?.pinned && (
         <div className="gc-sticky-panel">
           <CursorPanel g={g} cursor={cursor} segments={segments} names={names} onClose={() => setCursor(null)} />
         </div>
       )}
-      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} />
+      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} names={names} segments={segments} readout={readout} />
       {[g.away, g.home].map((t) => (
         <section key={t.tri} className="team-extras">
           <h2>{t.tri}: minutes & fouls by quarter</h2>

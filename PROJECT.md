@@ -176,8 +176,16 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   PLAYER | MIN | Q1–Q4 (+OT) | PF, then one compact row per player: headshot (cdn.nba.com, falls back to initials) |
   name (blue) | MIN (bold) | stints on a dark track, **one bar per quarter** like the reference | PF. Starters by
   minutes, dashed divider, bench by minutes, DNP/inactive rows with a DNP badge (reason on hover/tap).
-  Hover (desktop) / tap (phone) shows a floating tooltip next to the pointer. Minutes and durations are truncated
-  to the second like NBA box scores (22:07.8 → 22:07).
+  Minutes and durations are truncated to the second like NBA box scores (22:07.8 → 22:07).
+  - **Hover readout** on a player's row (on a bar or an empty part of it): header "Q1 8:30 · PHI 12–10 BOS" (his
+    team first), then both lineups at that moment (his team, then the opponent slightly muted; short names, the
+    hovered player highlighted, fouls so far as a small yellow number when > 0), then his stint line, smaller:
+    "Maxey: in Q1 12:00 → out Q1 6:12 · 5:48 · +/- +4", or "Maxey (off court)". Data: `hoverReadout` in
+    `gameChart.ts`, built on `cursorInfo` / `onCourtAt` (the lineup cursor's logic; `stintAt` is the one "on court
+    at t" rule, in at s ≤ t < out at e). Foul ticks and DNP badges keep their own text. "⚙ Readout" in the chart
+    toolbar: lineups both teams / hovered player's team only / off, stint details, foul counts (default all on;
+    localStorage `rk.readout`, read and written inside try/catch). The card is placed beside the pointer, above the
+    hovered row (below it if there is no room), always inside the window.
   - Every stint shows its duration: inside the bar when ≥ 2:00 (12 px, dark on color), otherwise beside the bar,
     in the lane above, or (rarely) a lane below — never dropped, never overlapping (`layoutRow` in
     `src/domain/gameChart.ts`). Bar width stays proportional to time; the timeline never goes below 18 px/min

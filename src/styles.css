@@ -411,3 +411,21 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .gl-tags .chip-tag { font-size: 10px; line-height: 14px; padding: 0 5px; }
 .gl-empty { padding: 10px; }
 .gl-table tbody tr[aria-selected='true'] td:not(.gl-result):not(.rest-days) { color: #fff; }
+
+/* Hover readout (game chart) */
+.gc-tip { position: fixed; z-index: 60; }
+.gc-tip.rd { white-space: normal; max-width: 460px; padding: 8px 11px; font-weight: 500; display: flex; flex-direction: column; gap: 5px; }
+.rd-head { font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.rd-lineup { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 9px; font-size: 13px; }
+.rd-lineup.opp { color: #b5b5b5; font-size: 12px; }
+.rd-tri { font-weight: 700; color: var(--muted); min-width: 32px; }
+.rd-p { white-space: nowrap; }
+.rd-p.me { background: #2b3a55; color: #fff; font-weight: 700; padding: 0 5px; border-radius: 4px; }
+.rd-pf { display: inline-block; margin-left: 3px; padding: 0 4px; border-radius: 3px; background: #3a3a3a; color: #f5c542; font-size: 10px; font-weight: 700; line-height: 14px; vertical-align: 1px; }
+.rd-stint { font-size: 11.5px; color: #c8c8c8; border-top: 1px solid #2c2c2c; padding-top: 4px; font-variant-numeric: tabular-nums; }
+.rd-menu { position: relative; }
+.rd-gear { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 9px; font-size: 13px; cursor: pointer; }
+.rd-panel { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; width: 260px; background: #1d1d1d; border: 1px solid #3a3a3a; border-radius: 8px; padding: 10px 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.rd-panel fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rd-panel legend { color: var(--muted); font-size: 12px; margin-bottom: 2px; padding: 0; }
+.rd-panel label { display: flex; gap: 6px; align-items: center; cursor: pointer; }

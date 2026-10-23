@@ -5,12 +5,15 @@
 // Name + MIN are frozen on the left and PF on the right; the timeline scrolls sideways inside its own box when
 // the screen is narrower than the minimum scale.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatMin, reasonText, signed } from '../app/labels.ts';
 import { shortNames } from '../app/names.ts';
 import { teamName } from '../app/teams.ts';
 import { CHART } from '../domain/config.ts';
-import { axisTicks, clockLabel, foulReadout, layoutRow, periodName, scoreAt, timelineWidth, type RowLayout } from '../domain/gameChart.ts';
+import type { ReadoutSettings } from '../app/readoutSettings.ts';
+import {
+  axisTicks, clockLabel, foulReadout, hoverReadout, layoutRow, periodName, scoreAt, timelineWidth, type HoverReadout, type LineupSegment, type RowLayout,
+} from '../domain/gameChart.ts';
 import { blowoutIntervals } from '../domain/patterns.ts';
 import { gameLength, periodEnd, periodStart } from '../domain/time.ts';
 import type { Game, PlayerGame, Stint, TeamInfo } from '../domain/types.ts';
@@ -50,15 +53,53 @@ function useWidth<T extends HTMLElement>() {
 
 export const totalPlayed = (p: PlayerGame) => p.stints.reduce((x, [s, e]) => x + e - s, 0);
 
-const describeStint = (name: string, s: Stint) => {
+/** "Maxey: in Q1 12:00 → out Q1 6:12 · 5:48 · +/- +4", or "Maxey (off court)". */
+export const stintLine = (name: string, s: Stint | null) => {
+  if (!s) return `${name} (off court)`;
   const fouls = s[3]?.length ? ` · ${s[3].length} foul${s[3].length > 1 ? 's' : ''}` : '';
-  return `${name} · in ${clockLabel(s[0], true)} → out ${clockLabel(s[1])} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${fouls}`;
+  return `${name}: in ${clockLabel(s[0], true)} → out ${clockLabel(s[1])} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${fouls}`;
 };
 
+function ReadoutCard({ r, names, settings }: { r: HoverReadout; names: Map<number, string>; settings: ReadoutSettings }) {
+  const [mine, theirs] = r.teams as [HoverReadout['teams'][number], HoverReadout['teams'][number]];
+  const name = (p: PlayerGame) => names.get(p.id) ?? p.name;
+  const lineup = (t: HoverReadout['teams'][number], muted: boolean) => (
+    <div className={`rd-lineup${muted ? ' opp' : ''}`} data-testid="readout-lineup" data-team={t.team}>
+      <span className="rd-tri">{t.team}</span>
+      {t.players.map((x) => (
+        <span key={x.p.id} className={`rd-p${x.me ? ' me' : ''}`} data-testid="readout-player" data-player={x.p.id} data-fouls={x.fouls}>
+          {name(x.p)}
+          {settings.fouls && x.fouls > 0 && (
+            <span className="rd-pf" data-testid="readout-fouls">
+              {x.fouls}
+            </span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+  return (
+    <>
+      <div className="rd-head" data-testid="readout-head">
+        {r.clock} · {mine.team} {mine.score}–{theirs.score} {theirs.team}
+      </div>
+      {settings.lineups !== 'off' && lineup(mine, false)}
+      {settings.lineups === 'both' && lineup(theirs, true)}
+      {settings.stint && (
+        <div className="rd-stint" data-testid="readout-stint">
+          {stintLine(name(r.player), r.stint)}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Readout anchor in viewport coordinates: pointer x and the hovered row's top/bottom (the card never covers it). */
 interface Tip {
   x: number;
-  y: number;
-  text: string;
+  top: number;
+  bottom: number;
+  content: { kind: 'text'; text: string } | { kind: 'player'; id: number; t: number };
 }
 
 interface Props {
@@ -66,9 +107,12 @@ interface Props {
   trouble: boolean;
   cursor: Cursor | null;
   setCursor: (c: Cursor | null) => void;
+  names: Map<number, string>;
+  segments: Record<string, LineupSegment[]>;
+  readout: ReadoutSettings;
 }
 
-export function GameChart({ g, trouble, cursor, setCursor }: Props) {
+export function GameChart({ g, trouble, cursor, setCursor, names, segments, readout }: Props) {
   const phone = usePhone();
   const cols = phone ? COLS.phone : COLS.desktop;
   const [boxRef, boxW] = useWidth<HTMLDivElement>();
@@ -82,11 +126,13 @@ export function GameChart({ g, trouble, cursor, setCursor }: Props) {
   // Text of the hovered item (stint / foul tick / DNP); a ref so the move handler sees it in the same event.
   const item = useRef<string | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
+  // A new game: drop the readout (it may point at a player of the previous game).
+  useEffect(() => {
+    setTip(null);
+    item.current = null;
+  }, [g.id]);
 
-  const local = (clientX: number, clientY: number) => {
-    const r = contentRef.current!.getBoundingClientRect();
-    return { x: clientX - r.left, y: clientY - r.top };
-  };
+  const local = (clientX: number) => clientX - contentRef.current!.getBoundingClientRect().left;
   const tAt = (x: number) => {
     const tx = x - cols.left;
     return tx < 0 || tx > W ? null : Math.max(0, Math.min(total, tx / k));
@@ -95,12 +141,47 @@ export function GameChart({ g, trouble, cursor, setCursor }: Props) {
     const [h, a] = scoreAt(g, t);
     return `${clockLabel(t, t < total)} · ${g.away.tri} ${a}–${h} ${g.home.tri}`;
   };
-  /** Items (stints, foul ticks, DNP badges) report their text here; shown at the pointer or tap position. */
-  const show = (text: string) => (e: React.PointerEvent | React.MouseEvent) => {
-    const { x, y } = local(e.clientX, e.clientY);
-    item.current = text;
-    setTip({ x, y, text });
+  /** Anchor at the pointer, above/below the row under it. */
+  const anchor = (e: { clientX: number; clientY: number; target: EventTarget | null }) => {
+    const row = (e.target as Element | null)?.closest?.('.gc-row')?.getBoundingClientRect();
+    return { x: e.clientX, top: row?.top ?? e.clientY - 10, bottom: row?.bottom ?? e.clientY + 10 };
   };
+  /** The player whose timeline (track) is under the pointer, if any. */
+  const trackPlayer = (target: EventTarget | null) => {
+    const el = target as Element | null;
+    if (!el?.closest?.('.gc-track')) return null;
+    const id = el.closest('[data-testid=gc-player-row]')?.getAttribute('data-player');
+    return id ? Number(id) : null;
+  };
+  /** Foul ticks and DNP badges report their own text here (it wins over the row readout). */
+  const show = (text: string) => (e: React.PointerEvent | React.MouseEvent) => {
+    item.current = text;
+    setTip({ ...anchor(e), content: { kind: 'text', text } });
+  };
+  const tipFor = (e: React.PointerEvent | React.MouseEvent, t: number | null): Tip | null => {
+    if (item.current) return { ...anchor(e), content: { kind: 'text', text: item.current } };
+    const id = trackPlayer(e.target);
+    if (id !== null && t !== null) return { ...anchor(e), content: { kind: 'player', id, t } };
+    return t !== null ? { ...anchor(e), content: { kind: 'text', text: cursorText(t) } } : null;
+  };
+  // Place the card: beside the pointer, above the hovered row (below if no room), always inside the window.
+  const tipRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = tipRef.current;
+    if (!el || !tip) return;
+    const m = 8;
+    const { width: w, height: h } = el.getBoundingClientRect();
+    let left = tip.x + 14;
+    if (left + w > innerWidth - m) left = tip.x - w - 14;
+    left = Math.max(m, Math.min(left, innerWidth - w - m));
+    const above = tip.top - h - 6;
+    const below = tip.bottom + 6;
+    let top = above >= m ? above : below + h <= innerHeight - m ? below : tip.top - m > innerHeight - tip.bottom - m ? m : innerHeight - h - m;
+    top = Math.max(m, Math.min(top, innerHeight - h - m));
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    el.style.visibility = 'visible';
+  });
 
   return (
     <div className="gc-box" ref={boxRef} data-testid="game-chart">
@@ -109,15 +190,11 @@ export function GameChart({ g, trouble, cursor, setCursor }: Props) {
         ref={contentRef}
         style={{ width: cols.left + W + cols.pf }}
         onPointerMove={(e) => {
-          const { x, y } = local(e.clientX, e.clientY);
-          const t = tAt(x);
+          const t = tAt(local(e.clientX));
           if (dragging.current || (e.pointerType === 'mouse' && !cursor?.pinned)) {
             if (t !== null) setCursor({ t, pinned: dragging.current || !!cursor?.pinned });
           }
-          if (e.pointerType === 'mouse') {
-            const text = item.current ?? (t !== null ? cursorText(t) : null);
-            setTip(text ? { x, y, text } : null);
-          }
+          if (e.pointerType === 'mouse') setTip(tipFor(e, t));
         }}
         onPointerLeave={(e) => {
           if (e.pointerType !== 'mouse') return;
@@ -127,15 +204,14 @@ export function GameChart({ g, trouble, cursor, setCursor }: Props) {
         }}
         onPointerUp={() => (dragging.current = false)}
         onClick={(e) => {
-          const { x, y } = local(e.clientX, e.clientY);
-          const t = tAt(x);
+          const t = tAt(local(e.clientX));
           if (t === null) return;
-          // Mouse: click pins/unpins. Touch: tap pins the cursor there.
+          // Mouse: click pins/unpins. Touch: tap pins the cursor there and shows the readout.
           const mouse = e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === 'mouse';
           if (cursor?.pinned && mouse) setCursor({ t, pinned: false });
           else {
             setCursor({ t, pinned: true });
-            if (!mouse) setTip({ x, y, text: cursorText(t) });
+            if (!mouse) setTip(tipFor(e, t));
           }
         }}
       >
@@ -172,11 +248,18 @@ export function GameChart({ g, trouble, cursor, setCursor }: Props) {
         )}
         {tip && (
           <div
-            className="gc-tip"
+            className={`gc-tip${tip.content.kind === 'player' ? ' rd' : ''}`}
+            ref={tipRef}
             data-testid="chart-tip"
-            style={{ left: tip.x, top: tip.y, transform: `translate(${tip.x > cols.left + W * 0.6 ? 'calc(-100% - 12px)' : '12px'}, -120%)` }}
+            data-t={tip.content.kind === 'player' ? tip.content.t : undefined}
+            data-player={tip.content.kind === 'player' ? tip.content.id : undefined}
+            style={{ visibility: 'hidden' }}
           >
-            {tip.text}
+            {tip.content.kind === 'text' ? (
+              tip.content.text
+            ) : g.players.some((p) => tip.content.kind === 'player' && p.id === tip.content.id) ? (
+              <ReadoutCard r={hoverReadout(g, tip.content.id, tip.content.t, segments)} names={names} settings={readout} />
+            ) : null}
           </div>
         )}
       </div>
@@ -358,30 +441,20 @@ function PlayerRow({
       </div>
       <div className="gc-track" style={{ width: W, height: r.height }}>
         {band}
-        {r.bars.map((b, i) => {
-          const text = describeStint(p.name, b.st);
-          return (
-            <div
-              key={i}
-              className="gc-bar"
-              style={{ left: b.x, width: b.w, top: y.bar, height: CHART.barPx }}
-              data-testid="stint"
-              data-start={b.st[0]}
-              data-end={b.st[1]}
-              onPointerEnter={show(text)}
-              onPointerLeave={leave}
-              onClick={(e) => {
-                if (e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === 'mouse') return;
-                e.stopPropagation();
-                show(text)(e);
-              }}
-            >
-              {b.segments.map((s, j) => (
-                <i key={j} className={`gc-seg ${trouble ? `lvl-${s.level}` : 'lvl-neutral'}`} style={{ left: s.x - b.x, width: s.w }} />
-              ))}
-            </div>
-          );
-        })}
+        {r.bars.map((b, i) => (
+          <div
+            key={i}
+            className="gc-bar"
+            style={{ left: b.x, width: b.w, top: y.bar, height: CHART.barPx }}
+            data-testid="stint"
+            data-start={b.st[0]}
+            data-end={b.st[1]}
+          >
+            {b.segments.map((s, j) => (
+              <i key={j} className={`gc-seg ${trouble ? `lvl-${s.level}` : 'lvl-neutral'}`} style={{ left: s.x - b.x, width: s.w }} />
+            ))}
+          </div>
+        ))}
         {r.bars.map((b, i) => (
           <span
             key={`l${i}`}
