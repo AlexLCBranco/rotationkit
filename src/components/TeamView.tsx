@@ -13,6 +13,7 @@ import { Filters } from './Filters.tsx';
 import { Header } from './Header.tsx';
 import { HeatDefs, HeatStrip } from './HeatStrip.tsx';
 import { Headshot, TeamLogo } from './Headshot.tsx';
+import { PatternChart } from './PatternChart.tsx';
 
 interface Props {
   seasons: string[];
@@ -165,6 +166,7 @@ function TeamBlock({
     return { games, idx, rest: restForTeam(schedule, team) };
   }, [season, team, !!ww]);
   const [hover, setHover] = useState<{ player: number; bucket: number; x: number; y: number } | null>(null);
+  const [view, setView] = useState<'typical' | 'heat'>('typical');
 
   const computed = useMemo(() => {
     if (data.status !== 'ok') return null;
@@ -191,71 +193,85 @@ function TeamBlock({
         <>
           <SelectionSummary sel={computed.sel} names={computed.names} seasons={seasons} onSwitchSeason={(s) => go({ season: s })} />
           {wwNote && <p className="muted">{wwNote}</p>}
-          {computed.tp.players.length === 0 ? (
-            <p className="muted">No games match these filters.</p>
-          ) : (
-            <div className="tp-grid" data-testid="team-grid" onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}>
-              <div className="tp-row tp-head">
-                <span className="tp-player">Player</span>
-                <span className="tp-min">MIN</span>
-                <span className="tp-quarters">
-                  {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
-                    <span key={q}>{q}</span>
-                  ))}
-                </span>
-                <span className="tp-gp" title="Games played / games in selection">
-                  GP
-                </span>
-              </div>
-              {computed.tp.players.map((p) => (
-                <div className="tp-row" key={p.id} data-testid="player-row">
-                  <span className="tp-player">
-                    <Headshot id={p.id} name={p.name} />
-                    <button
-                      className={`tp-name${Math.max(...(computed.names.get(p.id) ?? p.name).split(/[\s-]+/).map((w) => w.length)) > 10 ? ' long' : ''}`}
-                      onClick={() => nav({ view: 'player', team, player: p.id, season, filters })}
-                    >
-                      {computed.names.get(p.id) ?? p.name}
-                    </button>
-                  </span>
-                  <span className="tp-min">{formatMin(p.avgMin)}</span>
-                  <HeatStrip
-                    shares={p.onCourt}
-                    bucketSeconds={computed.tp.bucketSeconds}
-                    active={hover?.player === p.id ? hover.bucket : null}
-                    onHover={(b, e) => {
-                      const r = (e.currentTarget as Element).closest('.tp-grid')!.getBoundingClientRect();
-                      setHover({ player: p.id, bucket: b, x: e.clientX - r.left, y: e.clientY - r.top });
-                    }}
-                  />
-                  <span className="tp-gp">
-                    {p.gamesPlayed}
-                    <span className="muted">/{computed.tp.games}</span>
-                  </span>
-                </div>
-              ))}
-              {hp && hover && (
-                <div className="gc-tip" data-testid="pattern-tip" style={{ left: hover.x, top: hover.y, transform: `translate(${hover.x > 500 ? 'calc(-100% - 12px)' : '12px'}, -120%)` }}>
-                  <strong>{computed.names.get(hp.id) ?? hp.name}</strong> · {bucketLabel(hover.bucket, computed.tp.bucketSeconds)} ·{' '}
-                  {hp.eligibleAtMid[hover.bucket]! > 0
-                    ? `on court in ${hp.onAtMid[hover.bucket]} of ${hp.eligibleAtMid[hover.bucket]} games${hp.onCourt[hover.bucket] != null ? ` (${Math.round(hp.onCourt[hover.bucket]! * 100)}% of the time)` : ''}`
-                    : 'only garbage time here (excluded)'}
-                  {computed.tp.blowoutAtMid[hover.bucket]! > 0 ? ` · ${computed.tp.blowoutAtMid[hover.bucket]} garbage-time game(s) excluded` : ''}
-                </div>
-              )}
+          {computed.tp.players.length > 0 && (
+            <div className="seg view-seg" role="group" aria-label="Pattern view">
+              <button aria-pressed={view === 'typical'} onClick={() => setView('typical')}>
+                Typical stints
+              </button>
+              <button aria-pressed={view === 'heat'} onClick={() => setView('heat')}>
+                Heat map
+              </button>
             </div>
           )}
-          <div className="legend tp-legend" aria-label="Color scale">
-            <span>On court:</span>
-            <span className="chip">
-              <i className="ramp" /> 0% → 100% of games
-            </span>
-            <span className="chip">
-              <i className="excluded-swatch" />
-              only garbage time (excluded)
-            </span>
-            <span className="muted">Hover or tap a strip for details.</span>
-          </div>
+          {computed.tp.players.length === 0 ? (
+            <p className="muted">No games match these filters.</p>
+          ) : view === 'typical' ? (
+            <PatternChart sel={computed.sel} tp={computed.tp} names={computed.names} onPlayer={(id) => nav({ view: 'player', team, player: id, season, filters })} />
+          ) : (
+            <>
+              <div className="tp-grid" data-testid="team-grid" onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}>
+                <div className="tp-row tp-head">
+                  <span className="tp-player">Player</span>
+                  <span className="tp-min">MIN</span>
+                  <span className="tp-quarters">
+                    {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
+                      <span key={q}>{q}</span>
+                    ))}
+                  </span>
+                  <span className="tp-gp" title="Games played / games in selection">
+                    GP
+                  </span>
+                </div>
+                {computed.tp.players.map((p) => (
+                  <div className="tp-row" key={p.id} data-testid="player-row">
+                    <span className="tp-player">
+                      <Headshot id={p.id} name={p.name} />
+                      <button
+                        className={`tp-name${Math.max(...(computed.names.get(p.id) ?? p.name).split(/[\s-]+/).map((w) => w.length)) > 10 ? ' long' : ''}`}
+                        onClick={() => nav({ view: 'player', team, player: p.id, season, filters })}
+                      >
+                        {computed.names.get(p.id) ?? p.name}
+                      </button>
+                    </span>
+                    <span className="tp-min">{formatMin(p.avgMin)}</span>
+                    <HeatStrip
+                      shares={p.onCourt}
+                      bucketSeconds={computed.tp.bucketSeconds}
+                      active={hover?.player === p.id ? hover.bucket : null}
+                      onHover={(b, e) => {
+                        const r = (e.currentTarget as Element).closest('.tp-grid')!.getBoundingClientRect();
+                        setHover({ player: p.id, bucket: b, x: e.clientX - r.left, y: e.clientY - r.top });
+                      }}
+                    />
+                    <span className="tp-gp">
+                      {p.gamesPlayed}
+                      <span className="muted">/{computed.tp.games}</span>
+                    </span>
+                  </div>
+                ))}
+                {hp && hover && (
+                  <div className="gc-tip" data-testid="pattern-tip" style={{ left: hover.x, top: hover.y, transform: `translate(${hover.x > 500 ? 'calc(-100% - 12px)' : '12px'}, -120%)` }}>
+                    <strong>{computed.names.get(hp.id) ?? hp.name}</strong> · {bucketLabel(hover.bucket, computed.tp.bucketSeconds)} ·{' '}
+                    {hp.eligibleAtMid[hover.bucket]! > 0
+                      ? `on court in ${hp.onAtMid[hover.bucket]} of ${hp.eligibleAtMid[hover.bucket]} games${hp.onCourt[hover.bucket] != null ? ` (${Math.round(hp.onCourt[hover.bucket]! * 100)}% of the time)` : ''}`
+                      : 'only garbage time here (excluded)'}
+                    {computed.tp.blowoutAtMid[hover.bucket]! > 0 ? ` · ${computed.tp.blowoutAtMid[hover.bucket]} garbage-time game(s) excluded` : ''}
+                  </div>
+                )}
+              </div>
+              <div className="legend tp-legend" aria-label="Color scale">
+                <span>On court:</span>
+                <span className="chip">
+                  <i className="ramp" /> 0% → 100% of games
+                </span>
+                <span className="chip">
+                  <i className="excluded-swatch" />
+                  only garbage time (excluded)
+                </span>
+                <span className="muted">Hover or tap a strip for details.</span>
+              </div>
+            </>
+          )}
           {computed.qa.length > 0 && <AveragesTable qa={computed.qa} sel={computed.sel} names={computed.names} />}
         </>
       )}

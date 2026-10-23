@@ -243,3 +243,34 @@ describe('shortNames', () => {
     expect([...n.values()]).toEqual(['Jalen Williams', 'Jaylin Williams', 'K. Williams', 'Caruso']);
   });
 });
+
+describe('typicalStints', () => {
+  it('one game → exactly his stints (split at quarter lines), share 1', async () => {
+    const { typicalStints } = await import('../src/domain/patterns.ts');
+    const g = game('2026-03-01', 'AAA', 'BBB', [pl(1, 'AAA', [[0, 447, 0], [720, 1100, 0], [1100, 1440, 0], [1500, 2000, 0]])]);
+    expect(typicalStints(selectGames([g], '2025-26', 'AAA', F({ blowout: false })), 1)).toEqual([
+      { start: 0, end: 447, share: 1 },
+      { start: 720, end: 1440, share: 1 },
+      { start: 1500, end: 2000, share: 1 },
+    ]);
+  });
+  it('several games → stretches he plays in at least half of them, with the share', async () => {
+    const { typicalStints } = await import('../src/domain/patterns.ts');
+    // On 0–400 in all 4 games; 400–600 in 2 of 4 (counts, ≥ half); 600–700 in 1 of 4 (not typical).
+    const gs = [
+      [[0, 700, 0]],
+      [[0, 600, 0]],
+      [[0, 400, 0]],
+      [[0, 400, 0]],
+    ].map((st, i) => game(`2026-03-0${i + 1}`, 'AAA', 'BBB', [pl(1, 'AAA', st as Stint[])]));
+    const t = typicalStints(selectGames(gs, '2025-26', 'AAA', F({ blowout: false })), 1);
+    expect(t).toHaveLength(1);
+    expect(t[0]).toMatchObject({ start: 0, end: 600 });
+    expect(t[0]!.share).toBeCloseTo((4 * 400 + 2 * 200) / (4 * 600), 6);
+  });
+  it('garbage time is left out when the blowout filter is on', async () => {
+    const { typicalStints } = await import('../src/domain/patterns.ts');
+    const g = game('2026-03-01', 'AAA', 'BBB', [pl(1, 'AAA', [[2160, 2880, 0]])], { margin: [[0, 0], [2200, 30]] });
+    expect(typicalStints(selectGames([g], '2025-26', 'AAA', F({ blowout: true })), 1)).toEqual([{ start: 2160, end: 2520, share: 1 }]);
+  });
+});

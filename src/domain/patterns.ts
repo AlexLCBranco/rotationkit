@@ -365,3 +365,56 @@ export function minutesTrend(sel: Selection, playerId: number, idx: AppearanceIn
   const avg = played.length ? played.reduce((x, y) => x + y.min, 0) / played.length : null;
   return { points, avg };
 }
+
+export interface TypicalStint {
+  start: number;
+  end: number;
+  /** Share of eligible game-time he was on court during this stretch (0.5–1). */
+  share: number;
+}
+
+/**
+ * "Typical rotation": the stretches of regulation where he was on court in at least half of the selection's
+ * games he played (exact to the second, not bucketed), split at quarter lines like the game chart. With one
+ * game this is exactly that game's stints. Garbage time is left out when the blowout filter is on.
+ * Stretches under `minSeconds` are dropped when more than one game is involved (noise at substitution times).
+ */
+export function typicalStints(sel: Selection, playerId: number, minSeconds = 10, cfg: BlowoutConfig = PATTERN_CONFIG.blowout): TypicalStint[] {
+  type G = { on: Interval[]; excl: Interval[] };
+  const gs: G[] = [];
+  for (const g of sel.games) {
+    const p = g.players.find((x) => x.id === playerId && x.team === sel.team);
+    if (!p?.played || !p.stints.length) continue;
+    gs.push({
+      on: p.stints.filter(([s, e]) => e > s && s < REGULATION_LEN).map(([s, e]) => [s, Math.min(e, REGULATION_LEN)] as Interval),
+      excl: sel.filters.blowout ? blowoutIntervals(g, cfg) : [],
+    });
+  }
+  if (!gs.length) return [];
+  const cuts = new Set<number>([0, REGULATION_LEN, 720, 1440, 2160]);
+  for (const g of gs) for (const [a, b] of [...g.on, ...g.excl]) if (a <= REGULATION_LEN) (cuts.add(a), cuts.add(Math.min(b, REGULATION_LEN)));
+  const xs = [...cuts].sort((a, b) => a - b);
+  const out: (TypicalStint & { onTime: number; eligTime: number })[] = [];
+  for (let i = 0; i < xs.length - 1; i++) {
+    const [a, b] = [xs[i]!, xs[i + 1]!];
+    const m = (a + b) / 2;
+    let elig = 0;
+    let on = 0;
+    for (const g of gs) {
+      if (g.excl.some(([x, y]) => x <= m && m < y)) continue;
+      elig++;
+      if (g.on.some(([x, y]) => x <= m && m < y)) on++;
+    }
+    if (!elig || on * 2 < elig) continue;
+    const last = out[out.length - 1];
+    const quarterLine = a % 720 === 0;
+    if (last && last.end === a && !quarterLine) {
+      last.end = b;
+      last.onTime += on * (b - a);
+      last.eligTime += elig * (b - a);
+    } else out.push({ start: a, end: b, share: 0, onTime: on * (b - a), eligTime: elig * (b - a) });
+  }
+  return out
+    .filter((s) => gs.length === 1 || s.end - s.start >= minSeconds)
+    .map(({ start, end, onTime, eligTime }) => ({ start, end, share: onTime / eligTime }));
+}

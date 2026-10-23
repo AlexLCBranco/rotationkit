@@ -135,9 +135,13 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
 ## UI (`src/App.tsx`, `src/components/`, `src/app/`)
 - **Team pattern view** (main): team picker, season (defaults to the current season), Last 5 / Last 10 /
   Season, All / Home / Away, "Hide blowout time" (default on), With… / Without… + player. One row per player
-  sorted by average minutes: short name | 48-minute heat strip (viridis scale, colorblind-safe; 0% is near the
-  background; striped = only blowout time) | avg MIN | games played / games in selection. Quarter dividers,
-  light ticks every 3 minutes. Hover/tap a strip → sticky readout "Q2 6:00–5:30 · on court in 7 of 10 games".
+  sorted by average minutes, drawn in the game chart's design (`PatternChart.tsx`): headshot + name | avg MIN |
+  quarter timeline | games played / games in selection. Default view **Typical stints**: green bars for the
+  stretches he is on court in at least half of his eligible games (`typicalStints` in `patterns.ts`: exact sweep,
+  split at quarter lines, garbage time excluded, regulation only), duration inside the bar (same label rules as
+  the game chart). Bright green = 75%+ of games, darker = 50–75%. With one game it is exactly that game's
+  stints. A row with no such stretch says so. Hover/tap → "Q2 6:00 · on court in 7 of 10 games" plus the
+  stretch's share. **Heat map** toggle keeps the older 30-second green-ramp strips (striped = only garbage time).
 - **Labels**: plain words, e.g. "Last 10 games without F. Wagner · based on 10 games" (= the 10 most recent
   games he missed). Short name = family name; first initial added when two team-mates share it. With/without
   shows both group sizes and marks the "without" count *estimated* when any game lacked an official list.

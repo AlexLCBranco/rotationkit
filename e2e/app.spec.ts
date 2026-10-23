@@ -72,7 +72,9 @@ test('filters change the "based on N games" count and the plain-words label', as
   await expect(page.getByTestId('ww-groups')).not.toContainText('estimated');
   await page.getByRole('button', { name: 'Season' }).click();
   await expect(label(page)).toHaveText('All 2025-26 games without F. Wagner · based on 48 games');
-  // Strip readout on hover/tap.
+  // Typical stints are the default; strip readout on hover/tap in the heat map.
+  await expect(page.getByTestId('pattern-chart')).toBeVisible();
+  await page.getByRole('button', { name: 'Heat map' }).click();
   await page.locator('svg.heat').first().click({ position: { x: 1, y: 5 } });
   await expect(page.getByTestId('pattern-tip')).toContainText(/Q1 12:00–11:30 · on court in \d+ of \d+ games/);
   await noHorizontalScroll(page);
@@ -102,7 +104,7 @@ test('player drill-down and single-game chart open from clicks; flagged game sho
   const errors = trackErrors(page);
   await page.goto('/#/team/HOU?s=2025-26');
   await expect(page.getByTestId('flag-summary')).toContainText('1 game in this selection has a data note');
-  await page.getByRole('button', { name: 'Durant', exact: true }).click();
+  await page.getByRole('button', { name: /^(Kevin )?Durant$/ }).click();
   await expect(page.getByTestId('player-grid')).toBeVisible();
   await expect(page.locator('h1')).toContainText('Kevin Durant');
   const rows = page.getByTestId('game-row');
@@ -140,5 +142,31 @@ test('single-game chart: 2OT game axis, blowout shading, DNP rows with reasons',
   await noHorizontalScroll(page);
   await shot(page, 'game-blowout', info.project.name);
   await expect(page.getByTestId('quality-warning')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('team page with one game shows exactly that game\'s stints, numbers inside', async ({ page }, info) => {
+  const errors = trackErrors(page);
+  const g = index('2026-27').find((x) => x.home === 'DET' || x.away === 'DET') as unknown as { id: string };
+  const game = JSON.parse(readFileSync(`data/2026-27/games/${g.id}.json`, 'utf8')) as {
+    players: { id: number; team: string; played: boolean; stints: [number, number, number][] }[];
+  };
+  await page.goto('/#/team/DET?s=2026-27');
+  await expect(label(page)).toContainText('based on 1 game');
+  await expect(page.getByTestId('pattern-chart')).toBeVisible();
+  const played = game.players.filter((p) => p.team === 'DET' && p.played && p.stints.some(([s, e]) => e > s));
+  expect(played.length).toBeGreaterThan(5);
+  for (const p of played) {
+    const row = page.locator(`[data-testid=player-row][data-player="${p.id}"]`);
+    const bars = await row.getByTestId('typical-stint').evaluateAll((els) => els.map((e) => [Number(e.dataset.start), Number(e.dataset.end)]));
+    const want = p.stints.filter(([s, e]) => e > s && s < 2880).map(([s, e]) => [s, Math.min(e, 2880)]);
+    expect(bars, `player ${p.id}`).toEqual(want);
+  }
+  expect(await page.locator('[data-testid=pattern-chart] [data-testid=stint-label][data-inside=true]').count()).toBeGreaterThan(10);
+  // Hover readout.
+  await page.locator('[data-testid=pattern-chart] .gc-track').nth(1).click({ position: { x: 5, y: 20 } });
+  await expect(page.getByTestId('pattern-tip')).toContainText(/Q1 1[12]:\d\d · on court in [01] of 1 game\b/);
+  await noHorizontalScroll(page);
+  await shot(page, 'team-one-game', info.project.name);
   expect(errors).toEqual([]);
 });
