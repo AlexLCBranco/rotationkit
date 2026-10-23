@@ -2,11 +2,15 @@
 // Incremental: games whose required (CDN) sources are cached are skipped.
 // Failed games are logged to cache/fetch-errors.json and skipped, never filled in.
 //
-// Usage: npm run fetch-season -- [--season 2025-26] [--cdn-only] [--retry-optional]
+// Already-committed games (data/<season>/index.json) are skipped too, so this works without the raw cache
+// (CI runner).
+//
+// Usage: npm run fetch-season -- [--season 2025-26] [--cdn-only] [--retry-optional] [--strict]
 //   no --season       current season, from the CDN schedule
 //   --season X        a past season; game list from stats.nba.com leaguegamelog (one request)
 //   --cdn-only        skip stats.nba.com per-game sources (gamerotation cross-check, roster list)
 //   --retry-optional  also retry missing stats.nba.com sources of already-fetched games
+//   --strict          exit with an error if any game failed to fetch (used by the daily CI update)
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -15,6 +19,7 @@ import {
   refetchSource, seasonFile, type GameFetchResult, type SeasonGames,
 } from './lib/cache.ts';
 import { fetchJson } from './lib/http.ts';
+import { gamesToFetch, readIndex } from './lib/data.ts';
 import { finished, parseSchedule, regularSeason, SCHEDULE_URL } from '../src/shared/nba-schedule/parse.ts';
 import { fetchScheduleJson } from '../src/shared/nba-schedule/node.ts';
 
@@ -24,6 +29,7 @@ const arg = (name: string) => {
 };
 const cdnOnly = process.argv.includes('--cdn-only');
 const retryOptional = process.argv.includes('--retry-optional');
+const strict = process.argv.includes('--strict');
 
 const rawSchedule = await fetchScheduleJson({ onRetry: (a, d, e) => console.warn(`  retry ${a} in ${d / 1000}s: schedule (${e.message})`) });
 mkdirSync(CACHE_DIR, { recursive: true });
@@ -50,8 +56,12 @@ list.games.sort((a, b) => a.date.localeCompare(b.date) || a.gameId.localeCompare
 mkdirSync(dirname(seasonFile(season)), { recursive: true });
 writeFileSync(seasonFile(season), JSON.stringify(list));
 
-const todo = list.games.filter((g) => !isFetched(g.gameId) || (retryOptional && !cdnOnly && missingOptional(g.gameId).length));
-console.log(`season ${season}: ${list.games.length} finished regular-season games, ${todo.length} to fetch${cdnOnly ? ' (CDN only)' : ''}`);
+const inData = new Set(readIndex(season).map((g) => g.id));
+const todo = [
+  ...gamesToFetch(list.games, inData, isFetched),
+  ...(retryOptional && !cdnOnly ? list.games.filter((g) => isFetched(g.gameId) && missingOptional(g.gameId).length) : []),
+];
+console.log(`season ${season}: ${list.games.length} finished regular-season games, ${inData.size} already in data/, ${todo.length} to fetch${cdnOnly ? ' (CDN only)' : ''}`);
 
 const failed: GameFetchResult[] = [];
 const warnings: GameFetchResult[] = [];
@@ -79,4 +89,8 @@ console.log(`\ndone: ${todo.length - failed.length} fetched, ${failed.length} fa
 if (failed.length) {
   console.log('failed games (skipped, re-run to retry):');
   for (const f of failed) console.log(`  ${f.gameId}: ${f.errors.join('; ')}`);
+}
+if (failed.length && strict) {
+  console.error(`--strict: ${failed.length} game(s) failed to fetch`);
+  process.exitCode = 1;
 }

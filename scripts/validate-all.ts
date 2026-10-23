@@ -1,26 +1,41 @@
-// Run the data-integrity checks over every fetched game, compare Path B stints with gamerotation where
-// it was fetched, and compare the official roster list with the appearance rule.
+// Run the data-integrity checks over every game in data/ (re-normalized from raw where the raw cache has it,
+// otherwise the committed normalized file), compare Path B stints with gamerotation where it was fetched, and
+// compare the official roster list with the appearance rule.
 // Writes data/<season>/validation.json. Reports problems only; never changes data.
+// Exit code 1 if any game fails a check and is not listed in data/known-issues.json, or fails to normalize.
 // Usage: npm run validate-all -- [--season 2025-26]
 
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fetchedSeasonGames, loadRaw, seasonsFromArgs } from './lib/games.ts';
+import { loadRaw } from './lib/games.ts';
+import { isFetched } from './lib/cache.ts';
+import { dataSeasons, readDataGame, readIndex, readKnownIssues, unexpectedFailures } from './lib/data.ts';
 import { normalizeGame } from '../src/domain/normalize.ts';
 import { validateGame, type Issue } from '../src/domain/validate.ts';
 import { compareRosterToRule } from '../src/domain/rosterCheck.ts';
 import { compareStints, type StintDiff } from '../src/domain/compareStints.ts';
 import type { Game } from '../src/domain/types.ts';
 
+const known = readKnownIssues();
+const argSeason = (() => {
+  const i = process.argv.indexOf('--season');
+  return i >= 0 ? process.argv[i + 1] : undefined;
+})();
 let bad = false;
-for (const season of seasonsFromArgs()) {
-  const ids = fetchedSeasonGames(season);
+for (const season of argSeason ? [argSeason] : dataSeasons()) {
+  const ids = readIndex(season).map((e) => e.id);
   const games: Game[] = [];
   const errors: { id: string; error: string }[] = [];
   const rotation = { compared: 0, matched: 0, unavailable: 0, diffs: [] as ({ game: string } & StintDiff)[] };
   const rotationVerdict = new Map<string, string>();
   for (const id of ids) {
     try {
+      if (!isFetched(id)) {
+        // No raw cache (e.g. CI runner): validate the committed normalized game.
+        games.push(readDataGame(season, id));
+        rotation.unavailable++;
+        continue;
+      }
       const raw = loadRaw(id);
       const g = normalizeGame(raw);
       games.push(g);
@@ -49,8 +64,10 @@ for (const season of seasonsFromArgs()) {
   for (const e of errors) console.log(`  ${e.id} [normalize] ${e.error}`);
   const boxBad = new Set(issues.filter((i) => i.check.startsWith('box-')).map((i) => i.game));
   const otherBad = [...failedGames].filter((id) => !boxBad.has(id));
+  const unexpected = unexpectedFailures(failedGames, known);
   for (const id of failedGames) console.log(`  ${id}: ${rotationVerdict.get(id) ?? 'no gamerotation (run fetch-game to get the cross-check)'}`);
   console.log(`  → ${boxBad.size} failed game(s) have an internally inconsistent box score; ${otherBad.length} other(s)${otherBad.length ? ': ' + otherBad.join(', ') : ''}`);
+  console.log(`  → ${failedGames.size - unexpected.length} known (data/known-issues.json), ${unexpected.length} NEW${unexpected.length ? ': ' + unexpected.join(', ') : ''}`);
 
   const notes = games.filter((g) => g.stintNotes?.length);
   console.log(`\nstint reconstruction notes: ${notes.length} game(s)`);
@@ -70,8 +87,8 @@ for (const season of seasonsFromArgs()) {
 
   writeFileSync(
     join('data', season, 'validation.json'),
-    JSON.stringify({ at: new Date().toISOString(), season, games: ids.length, failed: [...failedGames], issues, errors, stintNotes: notes.map((g) => ({ game: g.id, notes: g.stintNotes })), rotation, roster }),
+    JSON.stringify({ season, games: ids.length, failed: [...failedGames], issues, errors, stintNotes: notes.map((g) => ({ game: g.id, notes: g.stintNotes })), rotation, roster }),
   );
-  if (issues.length || errors.length) bad = true;
+  if (unexpected.length || errors.length) bad = true;
 }
 if (bad) process.exitCode = 1;

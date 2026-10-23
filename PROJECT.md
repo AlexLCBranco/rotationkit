@@ -211,6 +211,29 @@ Self-contained schedule-feed reader, also used by the NBA calendar project (copi
 `data/` to `dist/data/`; the app only reads those JSON files (never NBA.com). Vercel deploys `main` to
 production; feature branches get preview deployments. Vercel connected to the repo on 2026-10-23.
 
+## Automatic daily data updates (GitHub Actions)
+Workflow: `.github/workflows/data-update.yml` → `scripts/ci-update.ts`.
+- **Schedule**: every day at **11:00 UTC** (after all US games have finished). Takes effect once the workflow is on
+  `main` (scheduled workflows only run from the default branch).
+- **What it does**: `fetch-season --cdn-only --strict` (Path B, cdn.nba.com only) → `normalize` → `validate-all` →
+  `npm test`. If every step passes and there are new games, it commits `data/` to `main` as
+  "data: N new games through YYYY-MM-DD" and pushes; Vercel then redeploys production. No new games → no commit.
+- **Incremental without a cache**: the runner has no raw cache; already-committed games are read from
+  `data/<season>/index.json` and skipped. `normalize` only (re)writes games whose raw data is present and rebuilds
+  the index/appearances from all committed game files. `validation.json` is not committed by CI (it holds the
+  gamerotation cross-check from full local runs).
+- **Failure = nothing committed.** Any step failing (CDN unreachable or blocked, a game that fails to download,
+  normalize error, a validation problem not listed in `data/known-issues.json`, a failing test) fails the run; GitHub
+  emails the repository owner. To investigate: Actions tab → "Daily data update" → the failed run's log; the line
+  `Data update FAILED at "<step>"` names the step. A new, reviewed data problem can be accepted by adding the game
+  to `data/known-issues.json` (with the reason) in a normal commit.
+- **Manual run**: GitHub → Actions → "Daily data update" → "Run workflow" (branch `main`). Locally, a dry run:
+  `npx tsx scripts/ci-update.ts` (add `--commit` to commit and push).
+- **Commit author**: `github-actions[bot]` by default; set repository variables `DATA_COMMIT_NAME` /
+  `DATA_COMMIT_EMAIL` to commit as someone else (e.g. if Vercel's Hobby plan refuses bot-authored commits).
+- Pushes to `claude/**` branches that touch the pipeline run the same steps as a dry run (never commit), which
+  also checks that cdn.nba.com answers GitHub's runners.
+
 ## How to update data
 ```
 npm install
@@ -219,8 +242,8 @@ git add data && git commit -m "Update data" && git push
 ```
 - `update-data` covers the current season. `fetch-season` is incremental; failed games are listed and logged
   to `cache/fetch-errors.json` (re-run to retry). Add `-- --cdn-only` if stats.nba.com is misbehaving.
-- `validate-all` must report 0 failed games before committing; if not, look at the reported check/player.
-  Data is never patched to pass a check.
+- `validate-all` must report 0 NEW failing games before committing (known ones are listed in
+  `data/known-issues.json`); if not, look at the reported check/player. Data is never patched to pass a check.
 - Past season (one-off): `npm run fetch-season -- --season 2025-26 --cdn-only`, then `npm run normalize` and
   `npm run validate-all` (both default to every cached season; `-- --season X` for one).
 - Missing stats.nba.com cross-check data can be retried later: `npm run fetch-season -- --retry-optional`.
