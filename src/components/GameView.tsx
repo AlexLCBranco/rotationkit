@@ -5,7 +5,7 @@ import { formatMin, shortDate, signed } from '../app/labels.ts';
 import type { Nav, Route } from '../app/route.ts';
 import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
 import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
-import { GamePicker, type PickerGame } from './GamePicker.tsx';
+import { GameList, type ListGame } from './GameList.tsx';
 import { ScheduleChips } from './ScheduleChips.tsx';
 import { Tabs } from './Tabs.tsx';
 import { seasonOf } from '../domain/season.ts';
@@ -60,7 +60,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   useEffect(() => void remember('rk.trouble', trouble ? '1' : '0'), [trouble]);
   useEffect(() => setCursor(null), [g?.id]);
 
-  // Whose games the picker lists: the URL's team if it played, else the remembered team if it played, else home.
+  // Whose games the list shows: the URL's team if it played, else the remembered team if it played, else home.
   const fresh = loaded.status === 'ok' ? loaded.value : null;
   const team = fresh
     ? [route.team, rememberedTeam, fresh.home.tri].find((t): t is string => !!t && (fresh.home.tri === t || fresh.away.tri === t))!
@@ -77,13 +77,15 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
     const [index, schedule] = meta.value;
     const sched = schedule ?? index;
     const ours = scheduleTags(sched, team);
-    const games: PickerGame[] = index
+    const games: ListGame[] = index
       .filter((e) => plays(e, team))
       .map((e) => {
         const home = e.home === team;
         return {
           id: e.id,
           date: e.date,
+          team,
+          teamId: home ? e.hid : e.aid,
           opp: home ? e.away : e.home,
           oppId: home ? e.aid : e.hid,
           home,
@@ -93,17 +95,32 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
           tags: ours.get(e.id),
         };
       })
-      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)); // oldest first
     return { games, sched, ours };
   }, [meta, team]);
   const pos = picker && g ? picker.games.findIndex((x) => x.id === g.id) : -1;
-  const older = picker && pos >= 0 ? picker.games[pos + 1] : undefined;
-  const newer = picker && pos > 0 ? picker.games[pos - 1] : undefined;
+  const older = picker && pos > 0 ? picker.games[pos - 1] : undefined;
+  const newer = picker && pos >= 0 ? picker.games[pos + 1] : undefined;
   const open = (id: string) => nav({ ...route, game: id, team, season: gameSeason });
   const pickTeam = (t: string) => nav({ ...route, game: 'latest', team: t, season: gameSeason });
+  const pickSeason = (x: string) => nav({ ...route, game: 'latest', team, season: x });
+  const [collapsed, setCollapsed] = useState(() => remember('rk.list') === 'collapsed');
+  useEffect(() => void remember('rk.list', collapsed ? 'collapsed' : 'open'), [collapsed]);
+  const seasonSelect = (
+    <label className="field">
+      <span>Season</span>
+      <select value={gameSeason} aria-label="Season" onChange={(e) => pickSeason(e.target.value)}>
+        {[...seasons].reverse().map((x) => (
+          <option key={x} value={x}>
+            {x}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 
   return (
-    <div className="page wide">
+    <div className="page main-screen">
       <Header>
         <Tabs
           active="games"
@@ -121,43 +138,59 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
             ))}
           </select>
         </label>
-        <label className="field">
-          <span>Season</span>
-          <select value={gameSeason} aria-label="Season" onChange={(e) => nav({ ...route, game: 'latest', team, season: e.target.value })}>
-            {[...seasons].reverse().map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
       </Header>
-      {picker && (
-        <div className="game-nav">
-          <button className="gp-arrow" disabled={!older} onClick={() => older && open(older.id)} title="Previous (older) game" data-testid="prev-game">
-            ◀
-          </button>
-          <GamePicker games={picker.games} selected={g?.id ?? null} onSelect={open} />
-          <button className="gp-arrow" disabled={!newer} onClick={() => newer && open(newer.id)} title="Next (newer) game" data-testid="next-game">
-            ▶
-          </button>
-          <span className="muted">
-            Game {picker.games.length - pos} of {picker.games.length} · {gameSeason}
-          </span>
+      <div className={`gv-layout${collapsed ? ' collapsed' : ''}`}>
+        {!collapsed && picker && (
+          <GameList
+            games={picker.games}
+            selected={g?.id ?? null}
+            onSelect={open}
+            seasons={seasons}
+            season={gameSeason}
+            onSeason={pickSeason}
+            onCollapse={() => setCollapsed(true)}
+          />
+        )}
+        <div className="gv-main">
+          <div className="game-nav">
+            {collapsed && (
+              <>
+                <button className="gl-expand" onClick={() => setCollapsed(false)} title="Show the game list" data-testid="list-expand">
+                  ☰ Games
+                </button>
+                {seasonSelect}
+              </>
+            )}
+            {picker && (
+              <>
+                <button className="gp-arrow" disabled={!older} onClick={() => older && open(older.id)} title="Previous (older) game" data-testid="prev-game">
+                  ◀
+                </button>
+                <button className="gp-arrow" disabled={!newer} onClick={() => newer && open(newer.id)} title="Next (newer) game" data-testid="next-game">
+                  ▶
+                </button>
+                {pos >= 0 && (
+                  <span className="muted" data-testid="game-count">
+                    Game {pos + 1} of {picker.games.length} · {gameSeason}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+          {!g && (meta.status === 'loading' || loaded.status === 'loading') && id !== null && <p className="muted">Loading…</p>}
+          {id === null && (
+            <p className="muted" data-testid="no-games">
+              No {route.team ? teamName(route.team) : ''} games in {gameSeason} yet.
+            </p>
+          )}
+          {meta.status === 'error' && <p className="error">Could not load games: {meta.error}</p>}
+          {loaded.status === 'error' && id && <p className="error">Could not load game: {loaded.error}</p>}
+          {g && picker && team && (g.home.tri === team || g.away.tri === team) && (
+            <GameHeader g={g} team={team} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
+          )}
+          {g && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
         </div>
-      )}
-      {!g && (meta.status === 'loading' || loaded.status === 'loading') && id !== null && <p className="muted">Loading…</p>}
-      {id === null && (
-        <p className="muted" data-testid="no-games">
-          No {route.team ? teamName(route.team) : ''} games in {gameSeason} yet.
-        </p>
-      )}
-      {meta.status === 'error' && <p className="error">Could not load games: {meta.error}</p>}
-      {loaded.status === 'error' && id && <p className="error">Could not load game: {loaded.error}</p>}
-      {g && picker && team && (g.home.tri === team || g.away.tri === team) && (
-        <GameHeader g={g} team={team} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
-      )}
-      {g && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
+      </div>
     </div>
   );
 }
