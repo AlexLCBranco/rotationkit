@@ -181,7 +181,7 @@ Self-contained schedule-feed reader, also used by the NBA calendar project (copi
 ## Deploy (Vercel)
 `vercel.json`: install `npm ci`, build `npm run build` (typecheck + Vite), output `dist/`. The build copies
 `data/` to `dist/data/`; the app only reads those JSON files (never NBA.com). Vercel deploys `main` to
-production; feature branches get preview deployments.
+production; feature branches get preview deployments. Vercel connected to the repo on 2026-10-23.
 
 ## How to update data
 ```
