@@ -1,0 +1,164 @@
+// Pattern engine on tiny hand-made games where the right answer is obvious.
+
+import { describe, expect, it } from 'vitest';
+import { blowoutIntervals, DEFAULT_FILTERS, playerGames, selectGames, teamPattern, type Filters } from '../src/domain/patterns.ts';
+import { seasonOf } from '../src/domain/season.ts';
+import type { Game, PlayerGame, Stint } from '../src/domain/types.ts';
+
+const FULL: Stint[] = [[0, 720, 0], [720, 1440, 0], [1440, 2160, 0], [2160, 2880, 0]];
+const pl = (id: number, team: string, stints: Stint[], played = true): PlayerGame => ({
+  id, name: `P${id}`, team, starter: false, played, min: stints.reduce((s, [a, b]) => s + b - a, 0), pts: 0, reb: 0, ast: 0, pf: 0, pm: 0, stints,
+});
+const team = (tri: string, score = 100) => ({ id: 0, tri, name: tri, city: tri, score });
+let seq = 0;
+function game(date: string, home: string, away: string, players: PlayerGame[], opts: Partial<Game> = {}, season = '25'): Game {
+  return {
+    id: `002${season}${String(++seq).padStart(5, '0')}`, date, home: team(home), away: team(away), periods: 4, players,
+    inactive: [], inactiveSource: 'box', margin: [[0, 0]], orphanFouls: [], ...opts,
+  };
+}
+const F = (f: Partial<Filters>): Filters => ({ ...DEFAULT_FILTERS, blowout: false, ...f });
+const q = (b: number) => b; // bucket index helper for readability
+
+describe('seasonOf', () => {
+  it('reads the season from the game ID', () => {
+    expect(seasonOf('0022500001')).toBe('2025-26');
+    expect(seasonOf('0022600093')).toBe('2026-27');
+    expect(seasonOf('0029900001')).toBe('2099-00');
+  });
+});
+
+describe('blowoutIntervals', () => {
+  it('only Q4/OT, only under 6:00 left, only while |margin| ≥ 20', () => {
+    // Margin hits 25 in Q2 (ignored), 22 at Q4 8:00 (2400s), drops to 18 at Q4 2:00 (2760s).
+    const g = game('2025-11-01', 'AAA', 'BBB', [], { margin: [[0, 0], [1000, 25], [1500, 10], [2400, 22], [2760, 18]] });
+    expect(blowoutIntervals(g)).toEqual([[2520, 2760]]);
+  });
+  it('covers OT periods too and handles away blowouts (negative margin)', () => {
+    const g = game('2025-11-01', 'AAA', 'BBB', [], { periods: 5, margin: [[0, 0], [2900, -20]] });
+    // Q4 window 2520–2880: margin 0 → none. OT (2880–3180) under 6:00 = whole OT; margin −20 from 2900.
+    expect(blowoutIntervals(g)).toEqual([[2900, 3180]]);
+  });
+  it('no margin ≥ 20 → nothing', () => {
+    expect(blowoutIntervals(game('2025-11-01', 'AAA', 'BBB', [], { margin: [[0, 0], [2800, 19]] }))).toEqual([]);
+  });
+});
+
+describe('teamPattern', () => {
+  // Game 1: A plays the first half; B plays the second half. Game 2: A plays all 48; B did not play.
+  const g1 = game('2025-11-01', 'AAA', 'BBB', [pl(1, 'AAA', [[0, 720, 0], [720, 1440, 0]]), pl(2, 'AAA', [[1440, 2160, 0], [2160, 2880, 0]])]);
+  const g2 = game('2025-11-03', 'BBB', 'AAA', [pl(1, 'AAA', FULL), pl(2, 'AAA', [], false)]);
+  const sel = selectGames([g1, g2], '2025-26', 'AAA', F({}));
+  const tp = teamPattern(sel);
+  const A = tp.players.find((p) => p.id === 1)!;
+  const B = tp.players.find((p) => p.id === 2)!;
+
+  it('96 buckets of 30s over regulation; based on 2 games', () => {
+    expect(tp.buckets).toBe(96);
+    expect(tp.games).toBe(2);
+  });
+  it('on-court share only over games the player played', () => {
+    expect(A.gamesPlayed).toBe(2);
+    expect(A.onCourt[q(0)]).toBe(1); // first half: both games
+    expect(A.onCourt[q(60)]).toBe(0.5); // second half: game 2 only
+    expect(A.onAtMid[60]).toBe(1);
+    expect(A.eligibleAtMid[60]).toBe(2);
+    expect(B.gamesPlayed).toBe(1); // DNP in game 2 doesn't count against him
+    expect(B.onCourt[0]).toBe(0);
+    expect(B.onCourt[95]).toBe(1);
+  });
+  it('averages minutes over games played and sorts by them', () => {
+    expect(A.avgMin).toBe((1440 + 2880) / 2);
+    expect(B.avgMin).toBe(1440);
+    expect(tp.players.map((p) => p.id)).toEqual([1, 2]);
+  });
+  it('partial bucket on-court time counts proportionally', () => {
+    const g = game('2025-11-05', 'AAA', 'CCC', [pl(3, 'AAA', [[0, 15, 0]])]);
+    const p = teamPattern(selectGames([g], '2025-26', 'AAA', F({}))).players[0]!;
+    expect(p.onCourt[0]).toBe(0.5);
+    expect(p.onAtMid[0]).toBe(0); // midpoint 15s: stint is [0, 15)
+  });
+});
+
+describe('blowout filter', () => {
+  // Up 30 from Q4 10:00 (2280s). Blowout time = Q4 6:00–0:00 = [2520, 2880].
+  // Starter S plays to 2520, bench guy G plays 2520–2880.
+  const g = game('2025-11-01', 'AAA', 'BBB', [pl(1, 'AAA', [...FULL.slice(0, 3), [2160, 2520, 0]]), pl(2, 'AAA', [[2520, 2880, 0]])], { margin: [[0, 0], [2280, 30]] });
+  it('ON: blowout time is removed from numerator and denominator', () => {
+    const tp = teamPattern(selectGames([g], '2025-26', 'AAA', F({ blowout: true })));
+    const S = tp.players.find((p) => p.id === 1)!;
+    const G = tp.players.find((p) => p.id === 2)!;
+    expect(S.onCourt[90]).toBeNull(); // Q4 3:00: fully excluded
+    expect(S.onCourt[83]).toBe(1); // Q4 6:30: not excluded
+    expect(G.avgMin).toBe(0); // garbage-time minutes removed
+    expect(G.onCourt[95]).toBeNull();
+    expect(tp.blowoutAtMid[90]).toBe(1);
+    expect(G.eligibleAtMid[90]).toBe(0);
+  });
+  it('OFF: all time counts', () => {
+    const tp = teamPattern(selectGames([g], '2025-26', 'AAA', F({ blowout: false })));
+    const G = tp.players.find((p) => p.id === 2)!;
+    expect(G.avgMin).toBe(360);
+    expect(G.onCourt[95]).toBe(1);
+  });
+});
+
+describe('selectGames', () => {
+  const games = Array.from({ length: 7 }, (_, i) =>
+    game(`2025-11-${String(i + 10)}`, i % 2 ? 'AAA' : 'ZZZ', i % 2 ? 'ZZZ' : 'AAA', [pl(1, 'AAA', FULL)]),
+  );
+  const next = game('2026-10-21', 'AAA', 'ZZZ', [pl(1, 'AAA', FULL)], {}, '26');
+  const all = [...games, next];
+
+  it('last 5 / last 10 / season, with the actual count', () => {
+    expect(selectGames(all, '2025-26', 'AAA', F({ window: 5 })).games.map((g) => g.date)).toEqual(games.slice(-5).map((g) => g.date));
+    expect(selectGames(all, '2025-26', 'AAA', F({ window: 10 })).games).toHaveLength(7);
+    expect(selectGames(all, '2025-26', 'AAA', F({ window: 'season' })).games).toHaveLength(7);
+  });
+  it('never mixes seasons: last 10 of 2026-27 is 1 game', () => {
+    const s = selectGames(all, '2026-27', 'AAA', F({ window: 10 }));
+    expect(s.games).toHaveLength(1);
+    expect(s.games[0]!.id).toBe(next.id);
+  });
+  it('home / away, applied before the window', () => {
+    const home = selectGames(all, '2025-26', 'AAA', F({ venue: 'home' }));
+    expect(home.games.every((g) => g.home.tri === 'AAA')).toBe(true);
+    expect(home.games).toHaveLength(3);
+    expect(selectGames(all, '2025-26', 'AAA', F({ venue: 'away', window: 5 })).games).toHaveLength(4);
+  });
+  it('playerGames lists his games with opponent and venue', () => {
+    const rows = playerGames(selectGames(all, '2025-26', 'AAA', F({ window: 5 })), 1);
+    expect(rows).toHaveLength(5);
+    expect(rows[0]).toMatchObject({ opponent: 'ZZZ', played: true });
+  });
+});
+
+describe('with/without', () => {
+  // X (id 9) plays g1–g2, out (official list) in g3, out (no official list → rule) in g4, plays g5.
+  const X = (played: boolean) => pl(9, 'AAA', played ? FULL : []);
+  const T = pl(1, 'AAA', FULL);
+  const g1 = game('2025-11-01', 'AAA', 'B', [T, X(true)]);
+  const g2 = game('2025-11-02', 'AAA', 'B', [T, X(true)]);
+  const g3 = game('2025-11-03', 'AAA', 'B', [T], { inactive: [{ id: 9, name: 'P9', team: 'AAA', reason: 'INACTIVE_INJURY' }] });
+  const g4 = game('2025-11-04', 'AAA', 'B', [T], { inactive: null });
+  const g5 = game('2025-11-05', 'AAA', 'B', [T, X(true)]);
+  const g0 = game('2025-10-30', 'AAA', 'B', [T], { inactive: [] }); // before he joined: listed nowhere
+  const all = [g0, g1, g2, g3, g4, g5];
+
+  it('groups games and counts each group; games he was not with the team are in neither', () => {
+    const w = selectGames(all, '2025-26', 'AAA', F({ withWithout: { player: 9, mode: 'with' } }));
+    expect(w.games.map((g) => g.id)).toEqual([g1.id, g2.id, g5.id]);
+    expect(w.withWithout).toMatchObject({ withGames: 3, withoutGames: 2, notWithTeam: 1, withoutEstimated: true });
+    const wo = selectGames(all, '2025-26', 'AAA', F({ withWithout: { player: 9, mode: 'without' } }));
+    expect(wo.games.map((g) => g.id)).toEqual([g3.id, g4.id]);
+  });
+  it('without count is not estimated when every game has an official list', () => {
+    const wo = selectGames([g0, g1, g2, g3, g5], '2025-26', 'AAA', F({ withWithout: { player: 9, mode: 'without' } }));
+    expect(wo.withWithout!.withoutEstimated).toBe(false);
+  });
+  it('window applies after the with/without split', () => {
+    const wo = selectGames(all, '2025-26', 'AAA', F({ window: 5, withWithout: { player: 9, mode: 'with' } }));
+    expect(wo.games).toHaveLength(3);
+    expect(wo.candidates).toBe(3);
+  });
+});

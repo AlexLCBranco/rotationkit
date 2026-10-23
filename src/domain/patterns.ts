@@ -1,0 +1,202 @@
+// Pattern engine: on-court probability across games, with window / venue / blowout / with-without filters.
+// Pure functions over normalized games of ONE season (mixing seasons throws).
+
+import { PATTERN_CONFIG, type BlowoutConfig } from './config.ts';
+import { availabilityFor, buildAppearances, type AppearanceIndex } from './availability.ts';
+import { seasonOf } from './season.ts';
+import { gameLength, periodEnd, periodStart, REGULATION_LEN } from './time.ts';
+import type { Game, PlayerGame } from './types.ts';
+
+export type Window = 5 | 10 | 'season';
+export type Venue = 'all' | 'home' | 'away';
+
+export interface WithWithout {
+  player: number;
+  mode: 'with' | 'without';
+}
+
+export interface Filters {
+  window: Window;
+  venue: Venue;
+  /** Exclude blowout time (default ON in the UI). */
+  blowout: boolean;
+  withWithout?: WithWithout;
+}
+
+export const DEFAULT_FILTERS: Filters = { window: 'season', venue: 'all', blowout: true };
+
+type Interval = [number, number];
+
+/** Time excluded as blowout: Q4/OT, |margin| ≥ threshold, under N seconds left in the period. */
+export function blowoutIntervals(g: Game, cfg: BlowoutConfig = PATTERN_CONFIG.blowout): Interval[] {
+  const out: Interval[] = [];
+  const marginAt = (i: number) => g.margin[i]![1];
+  for (let p = cfg.fromPeriod; p <= g.periods; p++) {
+    const [w0, w1] = [Math.max(periodStart(p), periodEnd(p) - cfg.underSecondsLeft), periodEnd(p)];
+    // Margin segments [t_i, t_{i+1}) overlapping the window.
+    for (let i = 0; i < g.margin.length; i++) {
+      const a = Math.max(g.margin[i]![0], w0);
+      const b = Math.min(i + 1 < g.margin.length ? g.margin[i + 1]![0] : Infinity, w1);
+      if (b > a && Math.abs(marginAt(i)) >= cfg.margin) {
+        const last = out[out.length - 1];
+        if (last && last[1] === a) last[1] = b;
+        else out.push([a, b]);
+      }
+    }
+  }
+  return out;
+}
+
+const overlap = (a0: number, a1: number, b0: number, b1: number) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+const overlapAll = (a0: number, a1: number, xs: Interval[]) => xs.reduce((s, [b0, b1]) => s + overlap(a0, a1, b0, b1), 0);
+
+export interface Selection {
+  season: string;
+  team: string;
+  filters: Filters;
+  /** Selected games, oldest first. */
+  games: Game[];
+  /** Team games in the season before the window was applied (after venue / with-without). */
+  candidates: number;
+  withWithout?: {
+    player: number;
+    name: string;
+    withGames: number;
+    withoutGames: number;
+    /** Games where he was not with the team (before arriving / after leaving): in neither group. */
+    notWithTeam: number;
+    /** True if any "without" game is decided by the appearance rule instead of an official list. */
+    withoutEstimated: boolean;
+  };
+}
+
+/**
+ * Choose the games for a team: season games of that team (one season only), then venue, then
+ * with/without, then the last-N window. Every step's count is exposed.
+ */
+export function selectGames(allGames: Game[], season: string, team: string, filters: Filters, idx?: AppearanceIndex): Selection {
+  const seasonGames = allGames.filter((g) => seasonOf(g.id) === season);
+  let games = seasonGames
+    .filter((g) => g.home.tri === team || g.away.tri === team)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  if (filters.venue !== 'all') games = games.filter((g) => (filters.venue === 'home' ? g.home.tri : g.away.tri) === team);
+
+  let ww: Selection['withWithout'];
+  if (filters.withWithout) {
+    const { player, mode } = filters.withWithout;
+    const ix = idx ?? buildAppearances(seasonGames);
+    const withG: Game[] = [];
+    const withoutG: Game[] = [];
+    let notWith = 0;
+    let estimated = false;
+    for (const g of games) {
+      const a = availabilityFor(ix, g, team, player, true);
+      if (a.status === 'played') withG.push(g);
+      else if (a.status === 'dnp' || a.status === 'out') {
+        withoutG.push(g);
+        if (a.source === 'rule') estimated = true;
+      } else notWith++;
+    }
+    const name =
+      seasonGames.flatMap((g) => g.players).find((p) => p.id === player)?.name ??
+      seasonGames.flatMap((g) => g.inactive ?? []).find((p) => p.id === player)?.name ??
+      String(player);
+    ww = { player, name, withGames: withG.length, withoutGames: withoutG.length, notWithTeam: notWith, withoutEstimated: estimated };
+    games = mode === 'with' ? withG : withoutG;
+  }
+  const candidates = games.length;
+  if (filters.window !== 'season') games = games.slice(-filters.window);
+  return { season, team, filters, games, candidates, ...(ww ? { withWithout: ww } : {}) };
+}
+
+export interface PlayerPattern {
+  id: number;
+  name: string;
+  /** Games in the selection he played in. */
+  gamesPlayed: number;
+  /** Average minutes per game played (seconds), full game incl. OT, blowout time removed if the filter is on. */
+  avgMin: number;
+  /** Average box-score minutes per game played (seconds), unfiltered. */
+  avgBoxMin: number;
+  /** Per regulation bucket: share of eligible time on court, over games he played (0..1); null if no eligible time. */
+  onCourt: (number | null)[];
+  /** Per bucket: games (of those he played) where he was on court at the bucket midpoint. */
+  onAtMid: number[];
+  /** Per bucket: games he played where the bucket midpoint is not excluded (denominator for onAtMid). */
+  eligibleAtMid: number[];
+}
+
+export interface TeamPattern {
+  selection: Selection;
+  bucketSeconds: number;
+  buckets: number;
+  /** Games in the selection (= "based on N games"). */
+  games: number;
+  /** Per bucket: selected games whose midpoint is excluded as blowout. */
+  blowoutAtMid: number[];
+  players: PlayerPattern[];
+}
+
+export function teamPattern(sel: Selection, bucketSeconds: number = PATTERN_CONFIG.bucketSeconds, cfg: BlowoutConfig = PATTERN_CONFIG.blowout): TeamPattern {
+  const n = Math.ceil(REGULATION_LEN / bucketSeconds);
+  const bStart = (b: number) => b * bucketSeconds;
+  const bEnd = (b: number) => Math.min(REGULATION_LEN, (b + 1) * bucketSeconds);
+  const mid = (b: number) => (bStart(b) + bEnd(b)) / 2;
+
+  type Acc = { p: PlayerGame; games: number; minSum: number; boxSum: number; on: number[]; elig: number[]; onMid: number[]; eligMid: number[] };
+  const acc = new Map<number, Acc>();
+  const blowoutAtMid = new Array<number>(n).fill(0);
+
+  for (const g of sel.games) {
+    const excl = sel.filters.blowout ? blowoutIntervals(g, cfg) : [];
+    const exclMid = Array.from({ length: n }, (_, b) => excl.some(([a, c]) => a <= mid(b) && mid(b) < c));
+    exclMid.forEach((x, b) => x && blowoutAtMid[b]!++);
+    const eligible = Array.from({ length: n }, (_, b) => bEnd(b) - bStart(b) - overlapAll(bStart(b), bEnd(b), excl));
+    const full = gameLength(g.periods);
+
+    for (const p of g.players) {
+      if (p.team !== sel.team || !p.played || !p.stints.length) continue;
+      let a = acc.get(p.id);
+      if (!a) {
+        a = { p, games: 0, minSum: 0, boxSum: 0, on: new Array(n).fill(0), elig: new Array(n).fill(0), onMid: new Array(n).fill(0), eligMid: new Array(n).fill(0) };
+        acc.set(p.id, a);
+      }
+      a.games++;
+      a.boxSum += p.min;
+      for (const [s, e] of p.stints) a.minSum += e - s - overlapAll(s, Math.min(e, full), excl);
+      for (let b = 0; b < n; b++) {
+        a.elig[b]! += eligible[b]!;
+        let on = 0;
+        for (const [s, e] of p.stints) on += overlap(s, e, bStart(b), bEnd(b)) - overlapAll(Math.max(s, bStart(b)), Math.min(e, bEnd(b)), excl);
+        a.on[b]! += Math.max(0, on);
+        if (!exclMid[b]) {
+          a.eligMid[b]!++;
+          if (p.stints.some(([s, e]) => s <= mid(b) && mid(b) < e)) a.onMid[b]!++;
+        }
+      }
+    }
+  }
+
+  const players: PlayerPattern[] = [...acc.values()].map((a) => ({
+    id: a.p.id,
+    name: a.p.name,
+    gamesPlayed: a.games,
+    avgMin: a.minSum / a.games,
+    avgBoxMin: a.boxSum / a.games,
+    onCourt: a.on.map((x, b) => (a.elig[b]! > 0 ? x / a.elig[b]! : null)),
+    onAtMid: a.onMid,
+    eligibleAtMid: a.eligMid,
+  }));
+  players.sort((x, y) => y.avgMin - x.avgMin || x.name.localeCompare(y.name));
+  return { selection: sel, bucketSeconds, buckets: n, games: sel.games.length, blowoutAtMid, players };
+}
+
+/** Player drill-down: his games in the selection with his stints (oldest first). */
+export function playerGames(sel: Selection, playerId: number) {
+  return sel.games.flatMap((g) => {
+    const p = g.players.find((x) => x.id === playerId && x.team === sel.team);
+    if (!p) return [];
+    const home = g.home.tri === sel.team;
+    return [{ gameId: g.id, date: g.date, opponent: home ? g.away.tri : g.home.tri, home, played: p.played, stints: p.stints, min: p.min, flagged: !!g.quality }];
+  });
+}

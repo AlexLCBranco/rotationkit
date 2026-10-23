@@ -109,6 +109,29 @@ The 4 failing 2025-26 games (kept as-is, reported every run):
 Size: 2025-26 + 2026-27 = 1244 games, ~9.2 MB of JSON in git (7.4 KB/game; ~2.3 MB gzipped total).
 One team-season in the browser ≈ 0.6 MB raw / ~0.15 MB gzipped. Raw cache ≈ 0.43 MB/game (526 MB, gitignored).
 
+## Pattern engine (`src/domain/patterns.ts`, settings in `src/domain/config.ts`)
+- **Blowout rule (one place: `PATTERN_CONFIG.blowout`)**: time is excluded when the period is Q4 or OT,
+  less than **6:00 (360 s)** is left in the period, and the score margin is **≥ 20**. Default ON in the UI.
+  Excluded time is removed from both the player's on-court time and the eligible time (numerator and
+  denominator), and from average minutes.
+- **Buckets**: 30 s over regulation (96 buckets, `PATTERN_CONFIG.bucketSeconds`). Per player and bucket:
+  `onCourt` = share of eligible time on court over games he played; `onAtMid / eligibleAtMid` = "on court at
+  Q2 6:00 in 7 of 10 games" (sampled at the bucket midpoint).
+- **Game selection order**: season → team → home/away → with/without → last N. So "last 10 without X" means
+  the 10 latest games X missed. Each step's count is exposed (`selection.games.length`, `candidates`).
+- **Seasons never mix**: the season comes from the game ID (`002YY…`); a 2026-27 "last 10" is however many
+  2026-27 games exist (UI shows "based on N games").
+- **With/without**: "with" = he played; "without" = listed inactive or DNP in the box score while with the
+  team; games when he was not with the team are in neither group (`notWithTeam`). `withoutEstimated` is true
+  when any "without" game relied on the appearance rule rather than an official list.
+- **Flagged games**: games failing a check keep their data and count in patterns; `Game.quality` holds
+  per-player notes (check, detail, verdict `box-score` | `unresolved`, reason) and `index.json` marks them
+  `flagged`.
+
+Real-data tests (2025-26): Franz Wagner ORL 34 with / 48 without (official injury list, not estimated);
+Christian Braun DEN 44 / 38 (35 inactive + 3 box DNPs); James Harden LAC→CLE (44 + 26 with; post-trade LAC
+and pre-trade CLE games in neither group); 5-on-court invariant across buckets for 4 teams, blowout ON and OFF.
+
 ## How to update data
 ```
 npm install
@@ -133,7 +156,8 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
 - Step 2 (normalize): done.
 - Step 3 (validation): done.
 - Path B (stints from play-by-play) is the primary source; 2025-26 backfilled via CDN (1230/1230 fetched).
-- Next: Step 4 (pattern engine), developed and tested on 2025-26.
+- Step 4 (pattern engine): done; with/without included. 186 tests.
+- Next: Step 5 (UI).
 
 ## Open problems
 - stats.nba.com is slow/flaky (timeouts, 500s). It is optional now; `--cdn-only` skips it.

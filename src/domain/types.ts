@@ -58,6 +58,8 @@ export interface Game {
   margin: [number, number][];
   /** How stint reconstruction handled unusual cases, or what it could not resolve. */
   stintNotes?: string[];
+  /** Data-quality notes for checks this game fails (absent = passes everything). Stints/minutes still used. */
+  quality?: QualityNote[];
   /** Personal fouls that could not be matched to one of the player's stints (should be empty). */
   orphanFouls: { player: number; t: number }[];
 }
@@ -70,4 +72,15 @@ export interface GameIndexEntry {
   hs: number;
   as: number;
   periods: number;
+  /** Game has data-quality notes. */
+  flagged?: true;
+}
+
+export interface QualityNote {
+  check: string;
+  player?: string;
+  detail: string;
+  /** Which side looks wrong: the box score, or unresolved (sources disagree, no tie-breaker). */
+  verdict: 'box-score' | 'unresolved';
+  why: string;
 }
