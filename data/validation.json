@@ -1,0 +1,15 @@
+{
+ "at": "2026-10-23T00:49:21.353Z",
+ "games": 14,
+ "failed": [],
+ "issues": [],
+ "errors": [],
+ "roster": {
+  "gamesWithRoster": 14,
+  "compared": 100,
+  "agreeOut": 0,
+  "agreeNotWith": 0,
+  "officialOnly": 100,
+  "ruleOnly": 0
+ }
+}

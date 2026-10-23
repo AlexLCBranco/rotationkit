@@ -36,12 +36,43 @@ A player only counts as "did not play" for team T in a game if he was with T at 
 - games before his first appearance for T don't count.
 Counts derived from this rule are shown as *estimated* in the UI.
 
+## Normalized data (`data/`)
+- `data/index.json`: one entry per game (id, date, home/away tricode, score, periods).
+- `data/games/<id>.json`: compact game (see `src/domain/types.ts`): teams, players (box stats, starter,
+  played, reason if any), stints as `[start, end, +/-, foulTimes?]`, score margin timeline, inactive list.
+- `data/validation.json`: latest validate-all result.
+- All times = seconds elapsed since tip-off (OT included); formatting happens only in the UI.
+- Stints from gamerotation are split at period boundaries, so every stint lies inside one period.
+- Size: ~7 KB per game minified (~2.2 KB gzipped) → full season ≈ 9 MB in git, a team's 82 games ≈ 0.6 MB (≈0.2 MB gzipped).
+
+### +/- attribution (verified against gamerotation PT_DIFF and box score)
+Stint +/- is computed from the play-by-play running score. Same-second events around a substitution follow
+NBA's rule: free throws count for the players on court when the foul was committed (FTs logged after the
+sub but from a foul logged before it go to the outgoing player); FTs from a foul logged after the sub
+(e.g. a technical) go to the incoming player. Other events follow log order. Result: matches every
+gamerotation PT_DIFF in the fixtures except one where PT_DIFF itself disagrees with the box score
+(0022600002, Brunson, last 7.7s) — ours agrees with the box score.
+
+PF = play-by-play fouls with subType `personal` or `offensive` (flagrants included as they are `personal`;
+technicals excluded).
+
+## Validation
+`npm test` runs Vitest on committed fixtures (`tests/fixtures/*.raw.json.gz`, raw responses gzipped):
+8 games incl. OT (0022501147) and 2OT (0022500811) from 2025-26, blowouts (0022600088, 0022600092), and
+games with tricky same-second sub/FT sequences (0022600085, 0022600090). Checks per game: minutes ±1s,
+5 on court per team at all times, fouls = PF, stint +/- = box +/-, no overlaps, stints inside periods,
+DNP players have no stints, stint +/- = PT_DIFF. Negative tests prove each check catches broken data.
+`npm run validate-all` runs the same checks over every fetched game and the roster-list comparison.
+
 ## How to update data
 ```
 npm install
-npm run fetch-season     # incremental; failures listed and logged to cache/fetch-errors.json
+npm run update-data      # = fetch-season → normalize → validate-all
+git add data && git commit -m "Update data" && git push
 ```
-(Normalize/validate steps are added in Steps 2–3.)
+- `fetch-season` is incremental; failed games are listed and logged to `cache/fetch-errors.json` (re-run to retry).
+- `validate-all` must report 0 failed games before committing; if not, look at the reported check/player.
+  Data is never patched to pass a check.
 Single game: `npm run fetch-game -- <gameId> [--force]`.
 Raw responses live in `cache/` (gitignored, ~0.8 MB per game). Requests are sequential with a 600 ms gap.
 Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session); on a normal PC they connect directly.
@@ -49,6 +80,8 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
 ## Status
 - Step 0 (connectivity probe): done — all endpoints OK.
 - Step 1 (fetch): done — 14/14 finished games fetched (as of 2026-10-23).
+- Step 2 (normalize): done.
+- Step 3 (validation): done — 14/14 season games and 8/8 fixtures pass all checks.
 
 ## Open problems
 - No not-playing reasons from any tested source.
