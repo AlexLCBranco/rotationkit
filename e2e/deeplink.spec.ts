@@ -11,7 +11,8 @@ const future = schedule.find((e) => e.status === 'scheduled' && e.id.startsWith(
 
 function trackErrors(page: Page) {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  // Headshots/logos come from cdn.nba.com and degrade to initials when they fail; their load errors don't count.
+  page.on('console', (m) => m.type() === 'error' && !m.location().url.includes('cdn.nba.com') && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
   return errors;
 }

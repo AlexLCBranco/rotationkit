@@ -156,3 +156,19 @@ describe('row layout', () => {
     expect((120 / 60) * CHART.minPxPerMinute).toBeGreaterThanOrEqual(5 * CHART.labelCharPx + 2 * CHART.labelPadPx - CHART.labelCharPx);
   });
 });
+
+describe('foul trouble on a real game (0022500093, Isaiah Stewart: 6 fouls)', async () => {
+  const { loadSeason } = await import('./data.ts');
+  const { mergeContinuous } = await import('../src/domain/stints.ts');
+  const g = loadSeason('2025-26').find((x) => x.id === '0022500093')!;
+  const p = g.players.find((x) => x.name === 'Isaiah Stewart')!;
+  it('colors follow the per-quarter thresholds', () => {
+    // Fouls: Q1 372; Q2 762, 836, 1139; Q3 1891; Q4 2543.
+    expect(mergeContinuous(p.stints).map((st) => barSegments(st, p).map((s) => s.level))).toEqual([
+      ['ok'], // Q1–Q2 to 836: 2 fouls in Q2 is below Q2 caution (3); the 3rd comes at the stint's last instant
+      ['caution'], // Q2 with 3 fouls
+      ['caution'], // Q3 with 4 fouls
+      ['trouble'], // Q4 with 5 fouls
+    ]);
+  });
+});

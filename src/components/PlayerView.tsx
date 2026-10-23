@@ -12,6 +12,9 @@ import { Filters } from './Filters.tsx';
 import { Header } from './Header.tsx';
 import { describeStint, StintBars } from './Stints.tsx';
 import { rosterOf, SelectionSummary } from './TeamView.tsx';
+import { GameBadge } from './GameBadge.tsx';
+import { quarterStats } from '../domain/gameChart.ts';
+import type { Selection } from '../domain/patterns.ts';
 
 interface Props {
   seasons: string[];
@@ -92,6 +95,10 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                 >
                   <button className="name link" onClick={(e) => (e.stopPropagation(), nav({ view: 'game', game: r.gameId, team, season, filters: route.filters }))}>
                     {shortDate(r.date)} {r.home ? 'vs' : '@'} {r.opponent}
+                    {(() => {
+                      const g = c.sel.games.find((x) => x.id === r.gameId);
+                      return g ? <GameBadge g={g} compact /> : null;
+                    })()}
                     {r.flagged && (
                       <span className="flag" title="This game has a data note" data-testid="flag">
                         {' '}
@@ -117,6 +124,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
               ))}
             </div>
           )}
+          {c.rows.some((r) => r.played) && <GameLog sel={c.sel} player={player} team={team} onOpen={(id) => nav({ view: 'game', game: id, team, season, filters: route.filters })} />}
           {c.missed.length > 0 && (
             <details className="missed">
               <summary>
@@ -134,6 +142,96 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/** Game-by-game minutes and fouls (OT periods combined), with an average row on top. */
+function GameLog({ sel, player, team, onOpen }: { sel: Selection; player: number; team: string; onOpen: (id: string) => void }) {
+  const rows = [...sel.games]
+    .reverse()
+    .flatMap((g) => {
+      const p = g.players.find((x) => x.id === player && x.team === team && x.played && x.stints.length);
+      if (!p) return [];
+      const q = quarterStats(p, g.periods);
+      const fold = (f: (r: (typeof q)[number]) => number) => [0, 1, 2, 3].map((i) => f(q[i]!)).concat([q.slice(4).reduce((x, r) => x + f(r), 0)]);
+      return [{ g, p, min: p.stints.reduce((x, [s, e]) => x + e - s, 0), minQ: fold((r) => r.min), pfQ: fold((r) => r.pf) }];
+    });
+  const ot = rows.some((r) => r.g.periods > 4);
+  const qi = ot ? [0, 1, 2, 3, 4] : [0, 1, 2, 3];
+  const qn = ['Q1', 'Q2', 'Q3', 'Q4', 'OT'];
+  const n = rows.length;
+  const avg = (f: (r: (typeof rows)[number]) => number) => rows.reduce((x, r) => x + f(r), 0) / n;
+  return (
+    <div className="table-wrap game-log">
+      <h2 className="log-head">Game log</h2>
+      <table className="tbl" data-testid="game-log">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Opp</th>
+            <th>H/A</th>
+            <th>Game</th>
+            <th>Starter</th>
+            <th className="num">MIN</th>
+            {qi.map((i) => (
+              <th key={`m${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
+                {qn[i]} MIN
+              </th>
+            ))}
+            {qi.map((i) => (
+              <th key={`f${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
+                {qn[i]} PF
+              </th>
+            ))}
+            <th className="num">PF</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="avg" data-testid="game-log-avg">
+            <td colSpan={4}>Average · {n} game{n === 1 ? '' : 's'}</td>
+            <td className="num">{Math.round(avg((r) => (r.p.starter ? 1 : 0)) * n)}/{n}</td>
+            <td className="num">{formatMin(avg((r) => r.min))}</td>
+            {qi.map((i) => (
+              <td key={`m${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
+                {formatMin(avg((r) => r.minQ[i]!))}
+              </td>
+            ))}
+            {qi.map((i) => (
+              <td key={`f${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
+                {avg((r) => r.pfQ[i]!).toFixed(1)}
+              </td>
+            ))}
+            <td className="num">{avg((r) => r.p.pf).toFixed(1)}</td>
+          </tr>
+          {rows.map((r) => {
+            const home = r.g.home.tri === team;
+            return (
+              <tr key={r.g.id} className="clickable" onClick={() => onOpen(r.g.id)} data-testid="game-log-row">
+                <td>{shortDate(r.g.date)}</td>
+                <td>{home ? r.g.away.tri : r.g.home.tri}</td>
+                <td>{home ? 'H' : 'A'}</td>
+                <td>
+                  <GameBadge g={r.g} compact />
+                </td>
+                <td>{r.p.starter ? 'Yes' : 'No'}</td>
+                <td className="num strong">{formatMin(r.min)}</td>
+                {qi.map((i) => (
+                  <td key={`m${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
+                    {r.minQ[i]! > 0 ? formatMin(r.minQ[i]!) : '—'}
+                  </td>
+                ))}
+                {qi.map((i) => (
+                  <td key={`f${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
+                    {r.pfQ[i] || ''}
+                  </td>
+                ))}
+                <td className="num strong">{r.p.pf}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

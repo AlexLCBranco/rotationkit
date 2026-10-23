@@ -145,10 +145,34 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   previous season. Team and player are never reset.
 - **Player view**: one row per game (date + opponent), actual stints on the game timeline (OT included),
   ⚠ on flagged games, collapsed list of games he missed with reasons. Click a row → game.
-- **Game chart**: per team, one row per player: name (starters bold) | stint bars (continuous stints merged
-  across quarters; duration written on the bar only when it fits, otherwise in the readout) with foul ticks
-  at the exact time | MIN PTS REB AST PF +/- (signed text, no red/green). Blowout time shaded with stripes.
-  Did-not-play / inactive players listed at the bottom with reasons. Flagged games show a data note.
+- **Game chart** (redesigned after fantasyteamadvice.com/nba/rotations): header with logos, matchup, final score,
+  game-type badge (Blowout ≥15 / Comfortable 10–14 / Competitive <10, final margin) + "Garbage time m:ss" when the
+  blowout rule excluded time. One section per team; rows: headshot (cdn.nba.com, falls back to initials) | name |
+  MIN (m:ss, large) | timeline Q1–Q4 (+OT) | PF. Starters by minutes, divider, bench by minutes, DNP/inactive rows
+  with a DNP badge (reason on hover/tap).
+  - Every stint shows its duration: inside the bar when ≥ 2:00 (12 px, dark on color), otherwise beside the bar,
+    in the lane above, or (rarely) a lane below — never dropped, never overlapping (`layoutRow` in
+    `src/domain/gameChart.ts`). Bar width stays proportional to time; the timeline never goes below 18 px/min
+    (`CHART.minPxPerMinute`), so on phones it scrolls sideways inside its own box with name + MIN frozen left and PF
+    frozen right. The page itself never scrolls sideways.
+  - Fouls: numbered ticks (cumulative count) at the exact time; hover/tap → "Player — foul #3 — offensive foul
+    (turnover) — Q2 10:04" (type from play-by-play only). Per-quarter PF badge at the end of each quarter with fouls.
+  - Foul-trouble coloring (toggle, default on): thresholds per quarter in `FOUL_TROUBLE` (`src/domain/config.ts`):
+    Q1 2 caution / 3 trouble, Q2 3 / 4, Q3 4 / 5, Q4 & OT 5 trouble. Trouble is striped (not color alone).
+  - Clock: quarter names, light ticks and labels at 12:00/9:00/6:00/3:00 (OT 5:00/2:30).
+  - Lineup cursor: hover (desktop), tap or drag its handle (phone); click pins/unpins. Panel: clock + score, the 5
+    on court per team with fouls at that moment and "on since". Lineup list per team (collapsible): start/end/
+    duration/5 players/+/-; clicking a row moves the cursor there. Lineup +/- uses the score after all events at
+    the boundary clock (points logged at Q1 12:00 count for the starters).
+  - Minutes & fouls by quarter table per team (sortable): starter, MIN, per quarter MIN / PF / cumulative, PF total
+    (= box score).
+  - `#/game/latest?t=PHI` (or "Latest game →" on the team view) opens the team's most recent game.
+- **Team view extras**: "Minutes & fouls per game" table (avg MIN, avg MIN per quarter, avg PF per quarter, avg PF,
+  GP; follows all filters — with "hide blowout time" on, minutes *and fouls* in excluded time are left out).
+  Matchup mode: pick an opponent (`vs=`) to stack both teams' pattern views with the same filters (with/without
+  applies to the first team only).
+- **Player view extras**: game-type badge on each game row; game log table (date, opponent, H/A, badge, starter,
+  MIN, MIN and PF per quarter, PF) with an average row on top.
 - **State** lives in the URL hash (`#/team/ORL?s=2025-26&w=10&p=1630532&m=without`), so views are linkable.
 - Dark theme only (no light theme by design). Works at 390 px phone width (no sideways scroll).
 
@@ -171,11 +195,14 @@ Self-contained schedule-feed reader, also used by the NBA calendar project (copi
   without Node globals. rotationkit's `fetch-season` imports from here.
 
 ## Testing
-- `npm test` — Vitest: normalization, validation, pattern engine, real-data checks, nba-schedule module (199 tests).
+- `npm test` — Vitest: normalization, validation, pattern engine, game chart (incl. invariants over every game of
+  both seasons and a play-by-play foul-number check), nba-schedule module (266 tests).
 - `npm run build && npm run e2e` — Playwright against the production build served by `vite preview`, desktop
   1280px and phone 390px: no console errors, all 30 teams × both seasons render with the right "based on N",
   filters/labels, low-sample switch, player + game click-through, flagged warning, no sideways scroll,
-  `?game=` deep links (valid, future, unknown, garbage).
+  `?game=` deep links (valid, future, unknown, garbage), game chart DOM checks (labels inside/beside, proportional
+  bars, tick count = PF, no overlaps) on a sample of games; `E2E_ALL_GAMES=1 npx playwright test e2e/gamechart.spec.ts
+  -g "labels"` runs them on every game (≈2.5 min per viewport).
   Screenshots go to `screenshots/` (gitignored).
 
 ## Deploy (Vercel)

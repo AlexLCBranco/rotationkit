@@ -200,3 +200,55 @@ export function playerGames(sel: Selection, playerId: number) {
     return [{ gameId: g.id, date: g.date, opponent: home ? g.away.tri : g.home.tri, home, played: p.played, stints: p.stints, min: p.min, flagged: !!g.quality }];
   });
 }
+
+export interface QuarterAverages {
+  id: number;
+  name: string;
+  gamesPlayed: number;
+  /** Average seconds per game played: total and per period (index 0 = Q1; index 4 = all OT periods together). */
+  min: number;
+  minQ: number[];
+  /** Average personal fouls per game played: total and per period (same indexing). */
+  pf: number;
+  pfQ: number[];
+}
+
+/**
+ * Per-player averages over the selection's games he played. With the blowout filter on, minutes and fouls in
+ * excluded (garbage) time are left out, like everywhere else in the pattern view.
+ */
+export function quarterAverages(sel: Selection, cfg: BlowoutConfig = PATTERN_CONFIG.blowout): QuarterAverages[] {
+  const acc = new Map<number, { name: string; gp: number; minQ: number[]; pfQ: number[] }>();
+  for (const g of sel.games) {
+    const excl = sel.filters.blowout ? blowoutIntervals(g, cfg) : [];
+    for (const p of g.players) {
+      if (p.team !== sel.team || !p.played || !p.stints.length) continue;
+      const a = acc.get(p.id) ?? { name: p.name, gp: 0, minQ: [0, 0, 0, 0, 0], pfQ: [0, 0, 0, 0, 0] };
+      acc.set(p.id, a);
+      a.gp++;
+      for (let q = 1; q <= g.periods; q++) {
+        const [q0, q1] = [periodStart(q), periodEnd(q)];
+        const i = Math.min(q, 5) - 1;
+        for (const [s, e] of p.stints) {
+          const [a0, a1] = [Math.max(s, q0), Math.min(e, q1)];
+          if (a1 > a0) a.minQ[i]! += a1 - a0 - overlapAll(a0, a1, excl);
+        }
+      }
+      for (const [t, period] of p.fouls ?? []) {
+        if (excl.some(([x, y]) => x <= t && t < y)) continue;
+        a.pfQ[Math.min(period, 5) - 1]!++;
+      }
+    }
+  }
+  return [...acc.entries()]
+    .map(([id, a]) => ({
+      id,
+      name: a.name,
+      gamesPlayed: a.gp,
+      min: a.minQ.reduce((x, y) => x + y, 0) / a.gp,
+      minQ: a.minQ.map((x) => x / a.gp),
+      pf: a.pfQ.reduce((x, y) => x + y, 0) / a.gp,
+      pfQ: a.pfQ.map((x) => x / a.gp),
+    }))
+    .sort((x, y) => y.min - x.min);
+}

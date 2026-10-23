@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
-import { loadGame } from '../app/data.ts';
+import { useEffect, useMemo, useState } from 'react';
+import { loadGame, loadIndex } from '../app/data.ts';
 import { useAsync } from '../app/hooks.ts';
-import { formatMin, reasonText, shortDate, signed } from '../app/labels.ts';
+import { formatMin, shortDate, signed } from '../app/labels.ts';
 import type { Route } from '../app/route.ts';
-import { teamColor, teamName } from '../app/teams.ts';
-import { blowoutIntervals } from '../domain/patterns.ts';
 import { seasonOf } from '../domain/season.ts';
-import { gameLength, REG_PERIODS } from '../domain/time.ts';
-import type { Game, PlayerGame, QualityNote, Stint, TeamInfo } from '../domain/types.ts';
-import { AxisLabels } from './Axis.tsx';
+import { REG_PERIODS } from '../domain/time.ts';
+import type { Game, QualityNote } from '../domain/types.ts';
+import { GameBadge } from './GameBadge.tsx';
+import { GameChart, totalPlayed, type Cursor } from './GameChart.tsx';
+import { CursorPanel, LineupList, QuarterTable, segmentsByTeam, useGameNames } from './GamePanels.tsx';
 import { Header } from './Header.tsx';
-import { describeStint, StintBars } from './Stints.tsx';
+import { TeamLogo } from './Headshot.tsx';
+import { remember } from '../app/hooks.ts';
 
 interface Props {
   seasons: string[];
@@ -23,10 +24,7 @@ interface Props {
 function qualityLine(g: Game, q: QualityNote): string {
   const p = g.players.find((x) => q.player === `${x.name} (${x.team})`);
   const verdict = q.verdict === 'box-score' ? `The box score looks wrong (${q.why}).` : `Unresolved (${q.why}).`;
-  if (p && q.check === 'minutes') {
-    const pbp = p.stints.reduce((s, [a, b]) => s + b - a, 0);
-    return `${p.name} — minutes: play-by-play ${formatMin(pbp)} vs box score ${formatMin(p.min)}. ${verdict}`;
-  }
+  if (p && q.check === 'minutes') return `${p.name} — minutes: play-by-play ${formatMin(totalPlayed(p))} vs box score ${formatMin(p.min)}. ${verdict}`;
   if (p && q.check === 'plus-minus') {
     const pbp = p.stints.reduce((s, st) => s + st[2], 0);
     return `${p.name} — +/-: play-by-play ${signed(pbp)} vs box score ${signed(p.pm)}. ${verdict}`;
@@ -34,135 +32,110 @@ function qualityLine(g: Game, q: QualityNote): string {
   return `${q.player ?? 'Game'} — ${q.check}: ${q.detail}. ${verdict}`;
 }
 
-export function GameView({ route, nav }: Props) {
-  const gameSeason = seasonOf(route.game);
-  const data = useAsync(() => loadGame(gameSeason, route.game), [route.game]);
-  const [hover, setHover] = useState<{ player: PlayerGame; stint: Stint } | null>(null);
+/** `#/game/latest?t=PHI` → that team's most recent game in the selected season. */
+async function resolveGame(route: Props['route'], season: string): Promise<Game> {
+  if (route.game !== 'latest') return loadGame(seasonOf(route.game), route.game);
+  const idx = await loadIndex(season);
+  const last = [...idx].reverse().find((e) => !route.team || e.home === route.team || e.away === route.team);
+  if (!last) throw new Error(`No ${route.team ?? ''} games in ${season} yet`);
+  return loadGame(season, last.id);
+}
+
+export function GameView({ season, route, nav }: Props) {
+  const data = useAsync(() => resolveGame(route, season), [route.game, route.team, season]);
   const g = data.status === 'ok' ? data.value : null;
-  const blowout = useMemo(() => (g ? blowoutIntervals(g) : []), [g]);
+  const [cursor, setCursor] = useState<Cursor | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [trouble, setTrouble] = useState(() => remember('rk.trouble') !== '0');
+  useEffect(() => void remember('rk.trouble', trouble ? '1' : '0'), [trouble]);
+  useEffect(() => setCursor(null), [g?.id]);
+
   const back = route.team
     ? { label: 'Back', onClick: () => history.back() }
-    : { label: 'Teams', onClick: () => nav({ view: 'team', team: g?.home.tri ?? null, season: gameSeason, filters: route.filters }) };
+    : { label: 'Teams', onClick: () => nav({ view: 'team', team: g?.home.tri ?? null, season: g ? seasonOf(g.id) : season, filters: route.filters }) };
 
   return (
-    <div className="page">
+    <div className="page wide">
       <Header back={back}>
         {g && (
-          <h1 className="title">
-            {g.away.tri} {g.away.score} @ {g.home.tri} {g.home.score}{' '}
+          <h1 className="title game-title">
+            <TeamLogo teamId={g.away.id} tri={g.away.tri} />
+            {g.away.tri} {g.away.score} <span className="muted">@</span> {g.home.tri} {g.home.score}
+            <TeamLogo teamId={g.home.id} tri={g.home.tri} />
             <span className="muted">
               · {shortDate(g.date)} {g.date.slice(0, 4)}
-              {g.periods > REG_PERIODS ? ` · ${g.periods === 5 ? 'OT' : `${g.periods - REG_PERIODS}OT`}` : ''}
+              {g.periods > REG_PERIODS ? ` · Final/${g.periods === 5 ? 'OT' : `${g.periods - REG_PERIODS}OT`}` : ' · Final'}
             </span>
+            <GameBadge g={g} />
           </h1>
         )}
       </Header>
       {data.status === 'loading' && <p className="muted">Loading…</p>}
       {data.status === 'error' && <p className="error">Could not load game: {data.error}</p>}
-      {g && (
-        <>
-          {g.quality && (
-            <div className="warn box" data-testid="quality-warning">
-              <strong>⚠ Data note.</strong> Stints and minutes below come from play-by-play and are used in patterns. The box score disagrees for:
-              <ul>
-                {g.quality.map((q, i) => (
-                  <li key={i}>{qualityLine(g, q)}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="readout" aria-live="polite" data-testid="readout">
-            {hover ? (
-              <>
-                <strong>{hover.player.name}</strong> · {describeStint(hover.stint)}
-              </>
-            ) : (
-              <span className="muted">Hover or tap a stint for in/out time, duration, +/- and fouls.</span>
-            )}
-          </div>
-          {blowout.length > 0 && (
-            <p className="muted legend-line">
-              <i className="blowout-swatch" /> shaded = blowout time (excluded from patterns when “Hide blowout time” is on)
-            </p>
-          )}
-          {[g.away, g.home].map((t) => (
-            <TeamSection key={t.tri} g={g} team={t} blowout={blowout} hover={hover} setHover={setHover} onPlayer={(id) => nav({ view: 'player', team: t.tri, player: id, season: gameSeason, filters: route.filters })} />
-          ))}
-        </>
-      )}
+      {g && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} info={info} setInfo={setInfo} />}
     </div>
   );
 }
 
-function TeamSection({
+function GameBody({
   g,
-  team,
-  blowout,
-  hover,
-  setHover,
-  onPlayer,
+  trouble,
+  setTrouble,
+  cursor,
+  setCursor,
+  info,
+  setInfo,
 }: {
   g: Game;
-  team: TeamInfo;
-  blowout: [number, number][];
-  hover: { player: PlayerGame; stint: Stint } | null;
-  setHover: (h: { player: PlayerGame; stint: Stint } | null) => void;
-  onPlayer: (id: number) => void;
+  trouble: boolean;
+  setTrouble: (b: boolean) => void;
+  cursor: Cursor | null;
+  setCursor: (c: Cursor | null) => void;
+  info: string | null;
+  setInfo: (s: string | null) => void;
 }) {
-  const total = gameLength(g.periods);
-  const players = g.players.filter((p) => p.team === team.tri);
-  const played = players.filter((p) => p.played).sort((a, b) => Number(b.starter) - Number(a.starter) || b.min - a.min);
-  const dnp = players.filter((p) => !p.played);
-  const inactive = (g.inactive ?? []).filter((p) => p.team === team.tri);
+  const segments = useMemo(() => segmentsByTeam(g), [g]);
+  const names = useGameNames(g);
   return (
-    <section className="team-section" data-testid="game-team">
-      <h2>
-        <span className="swatch" style={{ background: teamColor(team.tri) }} />
-        {teamName(team.tri)} <span className="muted">{team.score}</span>
-      </h2>
-      <div className="grid game-grid">
-        <div className="gh name">Player</div>
-        <div className="gh strip">
-          <AxisLabels periods={g.periods} />
+    <>
+      {g.quality && (
+        <div className="warn box" data-testid="quality-warning">
+          <strong>⚠ Data note.</strong> Stints and minutes below come from play-by-play and are used in patterns. The box score disagrees for:
+          <ul>
+            {g.quality.map((q, i) => (
+              <li key={i}>{qualityLine(g, q)}</li>
+            ))}
+          </ul>
         </div>
-        {['MIN', 'PTS', 'REB', 'AST', 'PF', '+/-'].map((h) => (
-          <div key={h} className="gh num">
-            {h}
-          </div>
-        ))}
-        {played.map((p) => (
-          <div className="row" key={p.id} data-testid="game-player-row">
-            <button className={`name link${p.starter ? ' starter' : ''}`} onClick={() => onPlayer(p.id)} title={p.starter ? 'Starter' : undefined}>
-              {p.name}
-            </button>
-            <div className="strip">
-              <StintBars
-                stints={p.stints}
-                total={total}
-                periods={g.periods}
-                blowout={blowout}
-                labels
-                active={hover?.player.id === p.id ? hover.stint : null}
-                onHover={(s) => setHover(s ? { player: p, stint: s } : null)}
-              />
-            </div>
-            <div className="num">{formatMin(p.min)}</div>
-            <div className="num">{p.pts}</div>
-            <div className="num">{p.reb}</div>
-            <div className="num">{p.ast}</div>
-            <div className="num">{p.pf}</div>
-            <div className="num pm">{signed(p.pm)}</div>
-          </div>
-        ))}
-      </div>
-      {(dnp.length > 0 || inactive.length > 0) && (
-        <p className="dnp" data-testid="dnp-list">
-          <span className="muted">Did not play: </span>
-          {[...dnp.map((p) => ({ name: p.name, r: reasonText(p.reason, p.reasonDetail) ?? 'Did not play' })), ...inactive.map((p) => ({ name: p.name, r: reasonText(p.reason, p.reasonDetail) ?? 'Inactive' }))]
-            .map((x) => `${x.name} (${x.r})`)
-            .join(' · ')}
-        </p>
       )}
-    </section>
+      <div className="gc-controls">
+        <label className="toggle">
+          <input type="checkbox" checked={trouble} onChange={(e) => setTrouble(e.target.checked)} />
+          <span>Foul trouble</span>
+        </label>
+        {trouble ? (
+          <span className="legend-inline" data-testid="trouble-legend">
+            <i className="lvl-ok" /> No trouble <i className="lvl-caution" /> Caution <i className="lvl-trouble" /> Foul trouble
+            <span className="muted"> (thresholds adjust per quarter)</span>
+          </span>
+        ) : (
+          <span className="muted">Foul-trouble coloring off</span>
+        )}
+      </div>
+      <div className="gc-sticky-panel">
+        <div className="readout" aria-live="polite" data-testid="readout">
+          {info ?? <span className="muted">Hover or tap a stint or a numbered foul tick for details.</span>}
+        </div>
+        <CursorPanel g={g} cursor={cursor} segments={segments} names={names} />
+      </div>
+      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} setInfo={setInfo} />
+      {[g.away, g.home].map((t) => (
+        <section key={t.tri} className="team-extras">
+          <h2>{t.tri}: minutes & fouls by quarter</h2>
+          <QuarterTable g={g} team={t.tri} />
+          <LineupList g={g} team={t.tri} segs={segments[t.tri]!} names={names} onPick={(time) => setCursor({ t: time, pinned: true })} />
+        </section>
+      ))}
+    </>
   );
 }

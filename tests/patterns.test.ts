@@ -170,3 +170,22 @@ describe('mergeContinuous (display)', () => {
     expect(mergeContinuous([[0, 300, 1], [300, 300, -1], [300, 400, 0]])).toEqual([[0, 300, 1], [300, 300, -1], [300, 400, 0]]);
   });
 });
+
+describe('quarterAverages', () => {
+  it('per-quarter minutes and fouls averaged over games played; blowout time removed when filtered', async () => {
+    const { quarterAverages } = await import('../src/domain/patterns.ts');
+    const p1 = { ...pl(1, 'AAA', FULL), fouls: [[100, 1, 'x'], [2600, 4, 'y']] as [number, number, string][], pf: 2 };
+    const p2 = { ...pl(1, 'AAA', [[0, 720, 0]]) };
+    const g1 = game('2025-12-01', 'AAA', 'BBB', [p1], { margin: [[0, 0], [2280, 30]] });
+    const g2 = game('2025-12-02', 'AAA', 'BBB', [p2]);
+    const off = quarterAverages(selectGames([g1, g2], '2025-26', 'AAA', F({ blowout: false })))[0]!;
+    expect(off.gamesPlayed).toBe(2);
+    expect(off.minQ.slice(0, 4)).toEqual([720, 360, 360, 360]);
+    expect(off.pfQ.slice(0, 4)).toEqual([0.5, 0, 0, 0.5]);
+    expect(off.pf).toBe(1);
+    const on = quarterAverages(selectGames([g1, g2], '2025-26', 'AAA', F({ blowout: true })))[0]!;
+    expect(on.minQ[3]).toBe((720 - 360) / 2); // Q4 6:00–0:00 excluded in g1
+    expect(on.pfQ[3]).toBe(0); // the Q4 foul at 2600 is in garbage time
+    expect(on.min).toBe(on.minQ.reduce((x, y) => x + y, 0));
+  });
+});

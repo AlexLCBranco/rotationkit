@@ -9,7 +9,8 @@ const teamGames = (s: string, t: string) => index(s).filter((g) => g.home === t 
 
 function trackErrors(page: Page) {
   const errors: string[] = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  // Headshots/logos come from cdn.nba.com and degrade to initials when they fail; their load errors don't count.
+  page.on('console', (m) => m.type() === 'error' && !m.location().url.includes('cdn.nba.com') && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
   return errors;
 }
@@ -116,7 +117,7 @@ test('player drill-down and single-game chart open from clicks; flagged game sho
   await expect(page.getByTestId('quality-warning')).toContainText('Kevin Durant — minutes: play-by-play 36:48 vs box score 28:08');
   await expect(page.getByTestId('quality-warning')).toContainText('The box score looks wrong');
   await expect(page.getByTestId('game-team')).toHaveCount(2);
-  await page.locator('.bar').first().click();
+  await page.getByTestId('stint').first().hover();
   await expect(page.getByTestId('readout')).toContainText(/In Q1 12:00 → out Q\d/);
   await noHorizontalScroll(page);
   await shot(page, 'game-flagged', info.project.name);
@@ -126,20 +127,18 @@ test('player drill-down and single-game chart open from clicks; flagged game sho
   expect(errors).toEqual([]);
 });
 
-test('single-game chart: OT game, blowout shading, DNP list with reasons, signed +/-', async ({ page }, info) => {
+test('single-game chart: 2OT game axis, blowout shading, DNP rows with reasons', async ({ page }, info) => {
   const errors = trackErrors(page);
   await page.goto('/#/game/0022500811');
-  await expect(page.locator('h1')).toContainText('2OT');
-  await expect(page.locator('.axis-labels').first()).toContainText('2OT');
-  await expect(page.getByTestId('dnp-list').first()).toBeVisible();
+  await expect(page.locator('h1')).toContainText('Final/2OT');
+  await expect(page.locator('.gc-qname').filter({ hasText: '2OT' }).first()).toBeAttached();
+  await expect(page.getByTestId('dnp-row').first()).toBeAttached();
   await shot(page, 'game-2ot', info.project.name);
-  await page.goto('/#/game/0022500088');
   await page.goto('/#/game/0022600092');
-  await expect(page.locator('.track .blowout').first()).toBeAttached();
-  await expect(page.locator('.pm').first()).toHaveText(/^([+−]\d+|0)$/);
+  await expect(page.locator('.gc-blowout').first()).toBeAttached();
+  await expect(page.getByTestId('garbage-badge').first()).toBeVisible();
   await noHorizontalScroll(page);
   await shot(page, 'game-blowout', info.project.name);
-  // Unflagged game: no warning.
   await expect(page.getByTestId('quality-warning')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
