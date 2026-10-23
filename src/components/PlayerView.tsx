@@ -14,7 +14,7 @@ import { describeStint, StintBars } from './Stints.tsx';
 import { rosterOf, SelectionSummary } from './TeamView.tsx';
 import { GameBadge } from './GameBadge.tsx';
 import { quarterStats } from '../domain/gameChart.ts';
-import type { Selection } from '../domain/patterns.ts';
+import { describeSit, sitPattern, type Selection } from '../domain/patterns.ts';
 
 interface Props {
   seasons: string[];
@@ -74,6 +74,11 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
       {c && (
         <>
           <SelectionSummary sel={c.sel} names={c.names} seasons={seasons} onSwitchSeason={(s) => go({ season: s })} />
+          <p className="sit-line" data-testid="sit-line">
+            <strong>When he sits:</strong>{' '}
+            {describeSit(sitPattern(c.sel, player)) || <span className="muted">no pattern seen in 3+ games of this selection</span>}
+            <span className="muted"> · median game clock (games)</span>
+          </p>
           <div className="readout" aria-live="polite" data-testid="readout">
             {hover ? describeStint(hover.stint) : <span className="muted">Hover or tap a stint for details. Click a game to open it.</span>}
           </div>

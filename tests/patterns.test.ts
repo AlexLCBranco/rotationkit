@@ -190,3 +190,43 @@ describe('quarterAverages', () => {
     expect(on.min).toBe(on.minQ.reduce((x, y) => x + y, 0));
   });
 });
+
+describe('sitPattern ("when does he sit?")', () => {
+  // Starter: Q1 out at 4:40 left (elapsed 440) in 3 games, 5:00 left (420) in 1 → median 4:40 (n 4);
+  // Q2 back at 9:00 left (900) in 4 games; Q3 out at 3:30 left (1950) in only 2 games → hidden (< 3).
+  const st = (q1out: number, q3out: number | null): Stint[] => [
+    [0, q1out, 0],
+    [900, 1440, 0],
+    ...(q3out ? ([[1440, q3out, 0]] as Stint[]) : ([[1440, 2160, 0]] as Stint[])),
+    [2160, 2880, 0],
+  ];
+  const games = [st(440, 1950), st(440, 1950), st(440, null), st(420, null)].map((s, i) =>
+    game(`2026-01-0${i + 1}`, 'AAA', 'BBB', [pl(7, 'AAA', s)]),
+  );
+  it('medians with counts; events seen in < 3 games are not shown', async () => {
+    const { sitPattern, describeSit } = await import('../src/domain/patterns.ts');
+    const evs = sitPattern(selectGames(games, '2025-26', 'AAA', F({ blowout: false })), 7);
+    expect(evs.map((e) => [e.period, e.kind, e.clock, e.n])).toEqual([
+      [1, 'out', '4:40', 4],
+      [2, 'in', '9:00', 4],
+    ]);
+    expect(describeSit(evs)).toBe('Q1 out ~4:40 (4) · Q2 in ~9:00 (4)');
+  });
+  it('even count → mean of the middle two; rounding to 10 s', async () => {
+    const { median } = await import('../src/domain/patterns.ts');
+    expect(median([440, 440, 440, 420])).toBe(440);
+    expect(median([400, 410])).toBe(405);
+  });
+  it('the 3-game rule counts games in the selection: 2 games → nothing shown', async () => {
+    const { sitPattern } = await import('../src/domain/patterns.ts');
+    expect(sitPattern(selectGames(games.slice(-2), '2025-26', 'AAA', F({ blowout: false })), 7)).toEqual([]);
+    expect(sitPattern(selectGames(games.slice(-3), '2025-26', 'AAA', F({ blowout: false })), 7).map((e) => e.n)).toEqual([3, 3]);
+  });
+  it('subs during garbage time are ignored when the blowout filter is on', async () => {
+    const { sitPattern } = await import('../src/domain/patterns.ts');
+    // Pulled at Q4 4:00 left (2640) during a 30-point lead in 3 games.
+    const gs = [1, 2, 3].map((i) => game(`2026-02-0${i}`, 'AAA', 'BBB', [pl(8, 'AAA', [[0, 720, 0], [720, 1440, 0], [1440, 2160, 0], [2160, 2640, 0]])], { margin: [[0, 0], [2000, 30]] }));
+    expect(sitPattern(selectGames(gs, '2025-26', 'AAA', F({ blowout: false })), 8).map((e) => [e.period, e.kind, e.clock])).toEqual([[4, 'out', '4:00']]);
+    expect(sitPattern(selectGames(gs, '2025-26', 'AAA', F({ blowout: true })), 8)).toEqual([]);
+  });
+});

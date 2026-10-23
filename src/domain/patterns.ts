@@ -250,3 +250,60 @@ export function quarterAverages(sel: Selection, cfg: BlowoutConfig = PATTERN_CON
     }))
     .sort((x, y) => y.min - x.min);
 }
+
+export interface SitEvent {
+  period: number;
+  kind: 'out' | 'in';
+  /** Median elapsed time of the event over the games where it happened. */
+  t: number;
+  /** Median game clock, rounded to 10 s, e.g. "4:40". */
+  clock: string;
+  /** Games the event happened in (≥ minGames). */
+  n: number;
+}
+
+export const median = (xs: number[]) => {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+};
+
+/**
+ * "When does he sit?": per regulation quarter, his first sub-out before the quarter ends and his first entry
+ * after the quarter starts, as the median game clock over the selection's games where it happened.
+ * Only events seen in at least `minGames` games are returned. With the blowout filter on, substitutions in
+ * excluded (garbage) time are ignored.
+ */
+export function sitPattern(sel: Selection, playerId: number, minGames = 3, cfg: BlowoutConfig = PATTERN_CONFIG.blowout): SitEvent[] {
+  const times = new Map<string, number[]>();
+  const push = (period: number, kind: 'out' | 'in', t: number) => {
+    const k = `${period}:${kind}`;
+    if (!times.has(k)) times.set(k, []);
+    times.get(k)!.push(t);
+  };
+  for (const g of sel.games) {
+    const p = g.players.find((x) => x.id === playerId && x.team === sel.team);
+    if (!p?.played) continue;
+    const excl = sel.filters.blowout ? blowoutIntervals(g, cfg) : [];
+    const garbage = (t: number) => excl.some(([a, b]) => a <= t && t < b);
+    for (let q = 1; q <= 4; q++) {
+      const [q0, q1] = [periodStart(q), periodEnd(q)];
+      const inQ = p.stints.filter(([s, e]) => e > s && s >= q0 && e <= q1).sort((a, b) => a[0] - b[0]);
+      const out = inQ.find(([, e]) => e < q1);
+      if (out && !garbage(out[1])) push(q, 'out', out[1]);
+      const entry = inQ.find(([s]) => s > q0);
+      if (entry && !garbage(entry[0])) push(q, 'in', entry[0]);
+    }
+  }
+  const out: SitEvent[] = [];
+  for (const [k, ts] of times) {
+    if (ts.length < minGames) continue;
+    const [period, kind] = [Number(k.split(':')[0]), k.split(':')[1] as 'out' | 'in'];
+    const t = median(ts);
+    const remaining = Math.round((periodEnd(period) - t) / 10) * 10;
+    out.push({ period, kind, t, clock: `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`, n: ts.length });
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+
+export const describeSit = (evs: SitEvent[]) => evs.map((e) => `Q${e.period} ${e.kind} ~${e.clock} (${e.n})`).join(' · ');

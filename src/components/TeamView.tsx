@@ -6,7 +6,7 @@ import { shortNames } from '../app/names.ts';
 import type { Route } from '../app/route.ts';
 import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
 import { heat, LEGEND_STOPS } from '../app/colors.ts';
-import { quarterAverages, selectGames, teamPattern, type Filters as F, type QuarterAverages, type Selection } from '../domain/patterns.ts';
+import { describeSit, quarterAverages, selectGames, sitPattern, teamPattern, type Filters as F, type QuarterAverages, type Selection } from '../domain/patterns.ts';
 import { formatClock, periodAt, periodEnd } from '../domain/time.ts';
 import type { Game } from '../domain/types.ts';
 import { AxisLabels } from './Axis.tsx';
@@ -278,6 +278,7 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
               <th colSpan={3} />
               <th colSpan={qs.length} className="qgroup qgroup-start">MIN per quarter</th>
               <th colSpan={qs.length + 1} className="qgroup qgroup-start">PF per quarter</th>
+              <th />
             </tr>
             <tr>
               <th>Player</th>
@@ -294,6 +295,7 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
                 </th>
               ))}
               <th className="num">PF</th>
+              <th title="Median game clock of his first sub-out / first entry per quarter (games it happened in); shown when seen in 3+ games">When he sits</th>
             </tr>
           </thead>
           <tbody>
@@ -313,6 +315,9 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
                   </td>
                 ))}
                 <td className="num strong">{f1(p.pf)}</td>
+                <td className="sit-cell" data-testid="sit-cell">
+                  {describeSit(sitPattern(sel, p.id)) || <span className="muted">—</span>}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -231,3 +231,11 @@ test('rows use short names on phone (incl. DNP rows), full names on desktop', as
     expect(await dnp.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   } else await expect(dnp.locator('.full')).toBeVisible();
 });
+
+test('"when does he sit?" in the team table and the player view header', async ({ page }) => {
+  await page.goto('/#/team/ORL?s=2025-26&w=10');
+  const row = page.getByTestId('avg-row').filter({ hasText: 'Banchero' });
+  await expect(row.getByTestId('sit-cell')).toHaveText(/^Q1 out ~\d+:\d0 \(\d+\)/);
+  await page.goto('/#/player/ORL/1631094?s=2025-26&w=10');
+  await expect(page.getByTestId('sit-line')).toContainText(/When he sits: Q1 out ~\d+:\d0 \(\d+\)/);
+});

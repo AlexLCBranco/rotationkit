@@ -269,3 +269,5 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .log-head { font-size: 15px; margin: 0 0 6px; }
 .name .badges { margin-left: 6px; font-size: 10px; }
 .name .badge { padding: 0 5px; }
+.sit-cell { white-space: nowrap; font-size: 12px; }
+.sit-line { margin: 6px 0; font-size: 14px; }
