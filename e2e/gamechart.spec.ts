@@ -113,14 +113,15 @@ test('foul tick readout: player, number, type, quarter, clock (hover on desktop,
     await tick.scrollIntoViewIfNeeded();
     if (info.project.name === 'phone') await tick.tap();
     else await tick.hover();
-    await expect(page.getByTestId('readout')).toHaveText(foulReadout(p.name, m));
+    await expect(page.getByTestId('chart-tip')).toHaveText(foulReadout(p.name, m));
   }
   expect(foulReadout(p.name, marks[2]!)).toBe('Isaiah Stewart — foul #3 — offensive foul (turnover) — Q2 10:04');
 });
 
 test('foul-trouble toggle: colors on by default, single neutral color when off', async ({ page }) => {
   await page.goto('/#/game/0022500093');
-  await expect(page.getByTestId('trouble-legend')).toBeVisible();
+  await expect(page.getByTestId('trouble-legend')).toHaveCount(2);
+  await expect(page.getByTestId('trouble-legend').first()).toContainText('Foul Trouble:');
   await expect(page.locator('.gc-seg.lvl-trouble').first()).toBeAttached();
   await expect(page.locator('.gc-seg.lvl-caution').first()).toBeAttached();
   await page.getByRole('checkbox', { name: 'Foul trouble' }).click();
@@ -222,6 +223,17 @@ test('reference screenshots', async ({ page }, info) => {
 });
 
 test('rows use short names on phone (incl. DNP rows), full names on desktop', async ({ page }, info) => {
+  if (info.project.name === 'phone') {
+    // Includes long surnames (Gilgeous-Alexander, Antetokounmpo, Wembanyama, Caldwell-Pope).
+    for (const id of ['0022500093', '0022600001', '0022500811', '0022600003', '0022600004', '0022600005']) {
+      await page.goto(`/#/game/${id}`);
+      await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
+      const cut = await page.locator('[data-testid=gc-player-row] .gc-name, [data-testid=dnp-row] .gc-name').evaluateAll((els) =>
+        els.filter((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1).map((el) => el.textContent),
+      );
+      expect(cut, `${id}: names cut off`).toEqual([]);
+    }
+  }
   await page.goto('/#/game/0022500093');
   const dnp = page.getByTestId('dnp-row').first().locator('.gc-name');
   if (info.project.name === 'phone') {

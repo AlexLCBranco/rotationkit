@@ -45,7 +45,6 @@ export function GameView({ season, route, nav }: Props) {
   const data = useAsync(() => resolveGame(route, season), [route.game, route.team, season]);
   const g = data.status === 'ok' ? data.value : null;
   const [cursor, setCursor] = useState<Cursor | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [trouble, setTrouble] = useState(() => remember('rk.trouble') !== '0');
   useEffect(() => void remember('rk.trouble', trouble ? '1' : '0'), [trouble]);
   useEffect(() => setCursor(null), [g?.id]);
@@ -72,7 +71,7 @@ export function GameView({ season, route, nav }: Props) {
       </Header>
       {data.status === 'loading' && <p className="muted">Loading…</p>}
       {data.status === 'error' && <p className="error">Could not load game: {data.error}</p>}
-      {g && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} info={info} setInfo={setInfo} />}
+      {g && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
     </div>
   );
 }
@@ -83,16 +82,12 @@ function GameBody({
   setTrouble,
   cursor,
   setCursor,
-  info,
-  setInfo,
 }: {
   g: Game;
   trouble: boolean;
   setTrouble: (b: boolean) => void;
   cursor: Cursor | null;
   setCursor: (c: Cursor | null) => void;
-  info: string | null;
-  setInfo: (s: string | null) => void;
 }) {
   const segments = useMemo(() => segmentsByTeam(g), [g]);
   const names = useGameNames(g);
@@ -111,24 +106,16 @@ function GameBody({
       <div className="gc-controls">
         <label className="toggle">
           <input type="checkbox" checked={trouble} onChange={(e) => setTrouble(e.target.checked)} />
-          <span>Foul trouble</span>
+          <span>Foul trouble colors</span>
         </label>
-        {trouble ? (
-          <span className="legend-inline" data-testid="trouble-legend">
-            <i className="lvl-ok" /> No trouble <i className="lvl-caution" /> Caution <i className="lvl-trouble" /> Foul trouble
-            <span className="muted"> (thresholds adjust per quarter)</span>
-          </span>
-        ) : (
-          <span className="muted">Foul-trouble coloring off</span>
-        )}
+        <span className="muted">Hover the chart for details; click (tap on phone) to pin the lineup cursor.</span>
       </div>
-      <div className="gc-sticky-panel">
-        <div className="readout" aria-live="polite" data-testid="readout">
-          {info ?? <span className="muted">Hover or tap a stint or a numbered foul tick for details.</span>}
+      {cursor?.pinned && (
+        <div className="gc-sticky-panel">
+          <CursorPanel g={g} cursor={cursor} segments={segments} names={names} onClose={() => setCursor(null)} />
         </div>
-        <CursorPanel g={g} cursor={cursor} segments={segments} names={names} />
-      </div>
-      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} setInfo={setInfo} />
+      )}
+      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} />
       {[g.away, g.home].map((t) => (
         <section key={t.tri} className="team-extras">
           <h2>{t.tri}: minutes & fouls by quarter</h2>

@@ -11,7 +11,7 @@ import type { Game } from '../src/domain/types.ts';
 
 const games: Game[] = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
 /** Timeline container widths used by the UI: desktop 1280px and phone 390px (minimum scale applies). */
-const WIDTHS = { desktop: 944, phone: 160 };
+const WIDTHS = { desktop: 944, phone: 150 };
 
 describe(`all ${games.length} games`, () => {
   it('fouls: marks = PF = box score; per-quarter PF sums to PF; cumulative consistent', () => {

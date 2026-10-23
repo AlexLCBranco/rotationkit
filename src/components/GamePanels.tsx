@@ -17,8 +17,20 @@ export function useGameNames(g: Game) {
   }, [g]);
 }
 
-export function CursorPanel({ g, cursor, segments, names }: { g: Game; cursor: Cursor | null; segments: Record<string, LineupSegment[]>; names: Map<number, string> }) {
-  if (!cursor) return <p className="muted cursor-hint">Hover the chart (tap on phone) to see who was on court; click to pin.</p>;
+export function CursorPanel({
+  g,
+  cursor,
+  segments,
+  names,
+  onClose,
+}: {
+  g: Game;
+  cursor: Cursor | null;
+  segments: Record<string, LineupSegment[]>;
+  names: Map<number, string>;
+  onClose?: () => void;
+}) {
+  if (!cursor) return null;
   const c = cursorInfo(g, cursor.t, segments);
   const p = periodAt(c.t + 0.05);
   return (
@@ -27,7 +39,12 @@ export function CursorPanel({ g, cursor, segments, names }: { g: Game; cursor: C
         <strong data-testid="cursor-clock">
           {c.clock} · {g.away.tri} {c.score[1]}–{c.score[0]} {g.home.tri}
         </strong>
-        <span className="muted">{cursor.pinned ? ' · pinned (click the chart to release)' : ''}</span>
+        <span className="muted">{cursor.pinned ? ' · pinned' : ''}</span>
+        {onClose && (
+          <button className="link cursor-close" onClick={onClose}>
+            Close
+          </button>
+        )}
       </div>
       {c.teams.map((t) => (
         <div key={t.team} className="cursor-team" data-testid="cursor-team" data-team={t.team}>

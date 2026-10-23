@@ -41,6 +41,12 @@ export function formatGameTime(t: number): string {
   return `${label} ${formatClock(rem)}`;
 }
 
+/** Durations and minute totals as m:ss, truncated like NBA box scores (22:07.5 → "22:07"). */
+export function formatDuration(sec: number): string {
+  const s = Math.max(0, Math.floor(sec + 1e-6));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 export function formatClock(sec: number): string {
   const s = Math.max(0, Math.round(sec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

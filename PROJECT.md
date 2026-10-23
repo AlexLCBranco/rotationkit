@@ -145,11 +145,14 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   previous season. Team and player are never reset.
 - **Player view**: one row per game (date + opponent), actual stints on the game timeline (OT included),
   ⚠ on flagged games, collapsed list of games he missed with reasons. Click a row → game.
-- **Game chart** (redesigned after fantasyteamadvice.com/nba/rotations): header with logos, matchup, final score,
-  game-type badge (Blowout ≥15 / Comfortable 10–14 / Competitive <10, final margin) + "Garbage time m:ss" when the
-  blowout rule excluded time. One section per team; rows: headshot (cdn.nba.com, falls back to initials) | name |
-  MIN (m:ss, large) | timeline Q1–Q4 (+OT) | PF. Starters by minutes, divider, bench by minutes, DNP/inactive rows
-  with a DNP badge (reason on hover/tap).
+- **Game chart** — laid out like fantasyteamadvice.com/nba/rotations (neutral dark theme): page header with logos,
+  matchup, final score, game-type badge (Blowout ≥15 / Comfortable 10–14 / Competitive <10, final margin) +
+  "Garbage time m:ss" when the blowout rule excluded time. Per team: logo + name, "Foul Trouble" legend, header row
+  PLAYER | MIN | Q1–Q4 (+OT) | PF, then one compact row per player: headshot (cdn.nba.com, falls back to initials) |
+  name (blue) | MIN (bold) | stints on a dark track, **one bar per quarter** like the reference | PF. Starters by
+  minutes, dashed divider, bench by minutes, DNP/inactive rows with a DNP badge (reason on hover/tap).
+  Hover (desktop) / tap (phone) shows a floating tooltip next to the pointer. Minutes and durations are truncated
+  to the second like NBA box scores (22:07.8 → 22:07).
   - Every stint shows its duration: inside the bar when ≥ 2:00 (12 px, dark on color), otherwise beside the bar,
     in the lane above, or (rarely) a lane below — never dropped, never overlapping (`layoutRow` in
     `src/domain/gameChart.ts`). Bar width stays proportional to time; the timeline never goes below 18 px/min
@@ -160,8 +163,9 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   - Foul-trouble coloring (toggle, default on): thresholds per quarter in `FOUL_TROUBLE` (`src/domain/config.ts`):
     Q1 2 caution / 3 trouble, Q2 3 / 4, Q3 4 / 5, Q4 & OT 4 / 5. Trouble is striped (not color alone).
   - Clock: quarter names, light ticks and labels at 12:00/9:00/6:00/3:00 (OT 5:00/2:30).
-  - Lineup cursor: hover (desktop), tap or drag its handle (phone); click pins/unpins. Panel: clock + score, the 5
-    on court per team with fouls at that moment and "on since". Lineup list per team (collapsible): start/end/
+  - Lineup cursor: hover shows the line + clock + score in the tooltip; click (tap on phone) pins it and opens a
+    panel above the chart: the 5 on court per team with fouls at that moment and "on since". Drag its handle on
+    phone. Lineup list per team (collapsible): start/end/
     duration/5 players/+/-; clicking a row moves the cursor there. Lineup +/- uses the score after all events at
     the boundary clock (points logged at Q1 12:00 count for the starters).
   - Minutes & fouls by quarter table per team (sortable): starter, MIN, per quarter MIN / PF / cumulative, PF total

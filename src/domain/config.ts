@@ -37,7 +37,7 @@ export const CHART = {
   labelCharPx: 7.4,
   labelPadPx: 2,
   tickCharPx: 6.6,
-  laneTopPx: 15,
-  barPx: 24,
-  laneBottomPx: 14,
+  laneTopPx: 14,
+  barPx: 20,
+  laneBottomPx: 13,
 } as const;

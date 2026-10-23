@@ -3,8 +3,7 @@
 
 import { CHART, FOUL_TROUBLE, GAME_TYPE, PATTERN_CONFIG } from './config.ts';
 import { blowoutIntervals } from './patterns.ts';
-import { mergeContinuous } from './stints.ts';
-import { formatClock, gameLength, periodAt, periodEnd, REG_PERIODS } from './time.ts';
+import { formatClock, formatDuration, gameLength, periodAt, periodEnd, REG_PERIODS } from './time.ts';
 import type { Game, PlayerGame, Stint } from './types.ts';
 
 // ---------- fouls ----------
@@ -238,7 +237,7 @@ export interface RowLayout {
 /** Timeline width for a container: never below the minimum scale. */
 export const timelineWidth = (periods: number, containerPx: number) => Math.max(containerPx, (gameLength(periods) / 60) * CHART.minPxPerMinute);
 
-export const durationText = (sec: number) => formatClock(sec);
+export const durationText = (sec: number) => formatDuration(sec);
 export const labelWidth = (text: string) => text.length * CHART.labelCharPx + 2 * CHART.labelPadPx;
 const tickWidth = (n: number) => String(n).length * CHART.tickCharPx + 2;
 const BADGE_W = 14;
@@ -260,7 +259,8 @@ export function layoutRow(p: PlayerGame, periods: number, width: number, opts: {
   const total = gameLength(periods);
   const k = width / total;
   const occ: Record<Lane, Occ> = { top: [], bar: [], bottom: [] };
-  const display = mergeContinuous(p.stints);
+  // One bar per stint as stored: stints never cross a quarter, so bars split at quarter lines like the reference chart.
+  const display = p.stints;
   const marks = foulMarks(p);
 
   // Bars (fixed geometry, proportional to time).

@@ -2,6 +2,7 @@
 
 import type { Selection } from '../domain/patterns.ts';
 import { REST_WORDS } from '../domain/rest.ts';
+import { formatDuration } from '../domain/time.ts';
 
 export function describeSelection(sel: Selection, names: Map<number, string>): string {
   const venue = sel.filters.venue === 'all' ? '' : `${sel.filters.venue} `;
@@ -38,10 +39,8 @@ export function reasonText(reason?: string, detail?: string): string | undefined
 
 export const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
 
-export function formatMin(sec: number): string {
-  const s = Math.round(sec);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
+/** Minutes/durations as m:ss, truncated like NBA box scores. */
+export const formatMin = (sec: number) => formatDuration(sec);
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const shortDate = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;

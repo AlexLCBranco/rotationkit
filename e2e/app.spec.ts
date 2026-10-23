@@ -118,7 +118,7 @@ test('player drill-down and single-game chart open from clicks; flagged game sho
   await expect(page.getByTestId('quality-warning')).toContainText('The box score looks wrong');
   await expect(page.getByTestId('game-team')).toHaveCount(2);
   await page.getByTestId('stint').first().hover();
-  await expect(page.getByTestId('readout')).toContainText(/In Q1 12:00 → out Q\d/);
+  await expect(page.getByTestId('chart-tip')).toContainText(/in Q1 12:00 → out Q\d/);
   await noHorizontalScroll(page);
   await shot(page, 'game-flagged', info.project.name);
   // Back to the player view.
