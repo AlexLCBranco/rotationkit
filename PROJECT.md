@@ -307,13 +307,16 @@ Raw responses live in `cache/` (gitignored, ~0.5 MB per game). Requests are sequ
 Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session); on a normal PC they connect directly.
 
 ## Status
-- Step 0 (connectivity probe): done — all endpoints OK.
-- Step 1 (fetch): done — 14/14 finished games fetched (as of 2026-10-23).
-- Step 2 (normalize): done.
-- Step 3 (validation): done.
-- Path B (stints from play-by-play) is the primary source; 2025-26 backfilled via CDN (1230/1230 fetched).
-- Step 4 (pattern engine): done; with/without included. 186 tests.
-- Step 5 (UI): built; e2e passing locally. Awaiting review of the Vercel preview.
+- Steps 0–6 of the original plan: done (probe, fetch, normalize, validation, pattern engine, UI, Vercel deploy +
+  "How to update data"). Path B (stints from CDN play-by-play) is the primary source; 2025-26 fully backfilled.
+- Added since: single-game chart in the fantasyteamadvice layout (foul-trouble colors, lineup cursor — both were
+  "out of scope for v1" and were requested later), `?game=` deep links, shared `nba-schedule` module, daily GitHub
+  Actions data update (also commits schedule-only changes), "when does he sit?", minutes trend, rest filter,
+  team page "Typical stints" view with "Rarely used" group.
+- Main screen is now a team's game (game list sidebar + chart, schedule tags B2B / 3-in-4 / rest); averages are a tab.
+- Desktop only from now on; existing phone tests are kept passing.
+- All work is on branch `claude/blissful-ride-ry8cnl`, not merged. The daily data update only commits to `main`, so
+  it starts working for the live site once the branch is merged.
 
 ## Open problems
 - stats.nba.com is slow/flaky (timeouts, 500s). It is optional now; `--cdn-only` skips it.
