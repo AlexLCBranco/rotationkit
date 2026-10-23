@@ -6,14 +6,13 @@ import { basedOn, describeSelection, formatMin } from '../app/labels.ts';
 import { shortNames } from '../app/names.ts';
 import type { Route } from '../app/route.ts';
 import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
-import { heat, LEGEND_STOPS } from '../app/colors.ts';
 import { describeSit, quarterAverages, selectGames, sitPattern, teamPattern, type Filters as F, type QuarterAverages, type Selection } from '../domain/patterns.ts';
 import { formatClock, periodAt, periodEnd } from '../domain/time.ts';
 import type { Game } from '../domain/types.ts';
-import { AxisLabels } from './Axis.tsx';
 import { Filters } from './Filters.tsx';
 import { Header } from './Header.tsx';
 import { HeatDefs, HeatStrip } from './HeatStrip.tsx';
+import { Headshot, TeamLogo } from './Headshot.tsx';
 
 interface Props {
   seasons: string[];
@@ -120,7 +119,7 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
         onSeason={(s) => go({ season: s })}
         onFilters={(f) => go({ filters: f })}
       />
-      <TeamBlock seasons={seasons} season={season} team={team} filters={route.filters} nav={nav} go={go} heading={vs ? team : null} />
+      <TeamBlock seasons={seasons} season={season} team={team} filters={route.filters} nav={nav} go={go} />
       {vs && (
         <TeamBlock
           seasons={seasons}
@@ -130,7 +129,7 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
           wwNote={ww ? `With/without ${roster.status === 'ok' ? (roster.value.names.get(ww.player) ?? '') : ''} applies to ${team} only.` : null}
           nav={nav}
           go={go}
-          heading={vs}
+         
         />
       )}
     </div>
@@ -149,7 +148,6 @@ function TeamBlock({
   filters,
   nav,
   go,
-  heading,
   wwNote,
 }: {
   seasons: string[];
@@ -158,7 +156,6 @@ function TeamBlock({
   filters: F;
   nav: (r: Route) => void;
   go: (patch: { season?: string }) => void;
-  heading: string | null;
   wwNote?: string | null;
 }) {
   const ww = filters.withWithout;
@@ -167,7 +164,7 @@ function TeamBlock({
     const idx = ww ? await appearanceIndex(season, games) : undefined;
     return { games, idx, rest: restForTeam(schedule, team) };
   }, [season, team, !!ww]);
-  const [hover, setHover] = useState<{ player: number; bucket: number } | null>(null);
+  const [hover, setHover] = useState<{ player: number; bucket: number; x: number; y: number } | null>(null);
 
   const computed = useMemo(() => {
     if (data.status !== 'ok') return null;
@@ -178,83 +175,86 @@ function TeamBlock({
   }, [data, season, team, filters]);
 
   const hp = hover && computed?.tp.players.find((p) => p.id === hover.player);
+  // Team id (for the logo) from the team's own games.
+  const g0 = data.status === 'ok' ? data.value.games[0] : undefined;
+  const teamId = g0 ? (g0.home.tri === team ? g0.home.id : g0.away.id) : 0;
 
   return (
     <section className="team-block" data-testid="team-block" data-team={team}>
-      {heading && (
-        <h2 className="block-head">
-          <span className="swatch" style={{ background: teamColor(team) }} />
-          {teamName(team)}
-        </h2>
-      )}
+      <h2 className="block-head">
+        <TeamLogo teamId={teamId} tri={team} />
+        {teamName(team)}
+      </h2>
       {data.status === 'loading' && <p className="muted">Loading {teamName(team)} {season}…</p>}
       {data.status === 'error' && <p className="error">Could not load games: {data.error}</p>}
       {computed && (
         <>
           <SelectionSummary sel={computed.sel} names={computed.names} seasons={seasons} onSwitchSeason={(s) => go({ season: s })} />
           {wwNote && <p className="muted">{wwNote}</p>}
-          <div className="readout" aria-live="polite" data-testid="readout">
-            {hp && hover ? (
-              <>
-                <strong>{computed.names.get(hp.id) ?? hp.name}</strong> · {bucketLabel(hover.bucket, computed.tp.bucketSeconds)} ·{' '}
-                {hp.eligibleAtMid[hover.bucket]! > 0 ? (
-                  <>
-                    on court in {hp.onAtMid[hover.bucket]} of {hp.eligibleAtMid[hover.bucket]} games
-                    {hp.onCourt[hover.bucket] != null && <span className="muted"> ({Math.round(hp.onCourt[hover.bucket]! * 100)}% of the time)</span>}
-                  </>
-                ) : (
-                  <span className="muted">only blowout time here (excluded)</span>
-                )}
-                {computed.tp.blowoutAtMid[hover.bucket]! > 0 && <span className="muted"> · {computed.tp.blowoutAtMid[hover.bucket]} blowout game(s) excluded</span>}
-              </>
-            ) : (
-              <span className="muted">Hover or tap a strip for details.</span>
-            )}
-          </div>
           {computed.tp.players.length === 0 ? (
             <p className="muted">No games match these filters.</p>
           ) : (
-            <div className="grid team-grid" data-testid="team-grid">
-              <div className="gh name">Player</div>
-              <div className="gh strip">
-                <AxisLabels periods={4} />
+            <div className="tp-grid" data-testid="team-grid" onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}>
+              <div className="tp-row tp-head">
+                <span className="tp-player">Player</span>
+                <span className="tp-min">MIN</span>
+                <span className="tp-quarters">
+                  {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
+                    <span key={q}>{q}</span>
+                  ))}
+                </span>
+                <span className="tp-gp" title="Games played / games in selection">
+                  GP
+                </span>
               </div>
-              <div className="gh num" title="Average minutes per game played">MIN</div>
-              <div className="gh num" title="Games played / games in selection">GP</div>
               {computed.tp.players.map((p) => (
-                <div className="row" key={p.id} data-testid="player-row">
-                  <button className="name link" onClick={() => nav({ view: 'player', team, player: p.id, season, filters })}>
-                    {computed.names.get(p.id) ?? p.name}
-                  </button>
-                  <div className="strip">
-                    <HeatStrip
-                      shares={p.onCourt}
-                      bucketSeconds={computed.tp.bucketSeconds}
-                      active={hover?.player === p.id ? hover.bucket : null}
-                      onHover={(b) => setHover(b == null ? null : { player: p.id, bucket: b })}
-                    />
-                  </div>
-                  <div className="num">{formatMin(p.avgMin)}</div>
-                  <div className="num">
+                <div className="tp-row" key={p.id} data-testid="player-row">
+                  <span className="tp-player">
+                    <Headshot id={p.id} name={p.name} />
+                    <button
+                      className={`tp-name${Math.max(...(computed.names.get(p.id) ?? p.name).split(/[\s-]+/).map((w) => w.length)) > 10 ? ' long' : ''}`}
+                      onClick={() => nav({ view: 'player', team, player: p.id, season, filters })}
+                    >
+                      {computed.names.get(p.id) ?? p.name}
+                    </button>
+                  </span>
+                  <span className="tp-min">{formatMin(p.avgMin)}</span>
+                  <HeatStrip
+                    shares={p.onCourt}
+                    bucketSeconds={computed.tp.bucketSeconds}
+                    active={hover?.player === p.id ? hover.bucket : null}
+                    onHover={(b, e) => {
+                      const r = (e.currentTarget as Element).closest('.tp-grid')!.getBoundingClientRect();
+                      setHover({ player: p.id, bucket: b, x: e.clientX - r.left, y: e.clientY - r.top });
+                    }}
+                  />
+                  <span className="tp-gp">
                     {p.gamesPlayed}
                     <span className="muted">/{computed.tp.games}</span>
-                  </div>
+                  </span>
                 </div>
               ))}
+              {hp && hover && (
+                <div className="gc-tip" data-testid="pattern-tip" style={{ left: hover.x, top: hover.y, transform: `translate(${hover.x > 500 ? 'calc(-100% - 12px)' : '12px'}, -120%)` }}>
+                  <strong>{computed.names.get(hp.id) ?? hp.name}</strong> · {bucketLabel(hover.bucket, computed.tp.bucketSeconds)} ·{' '}
+                  {hp.eligibleAtMid[hover.bucket]! > 0
+                    ? `on court in ${hp.onAtMid[hover.bucket]} of ${hp.eligibleAtMid[hover.bucket]} games${hp.onCourt[hover.bucket] != null ? ` (${Math.round(hp.onCourt[hover.bucket]! * 100)}% of the time)` : ''}`
+                    : 'only garbage time here (excluded)'}
+                  {computed.tp.blowoutAtMid[hover.bucket]! > 0 ? ` · ${computed.tp.blowoutAtMid[hover.bucket]} garbage-time game(s) excluded` : ''}
+                </div>
+              )}
             </div>
           )}
-          <div className="legend" aria-label="Color scale">
+          <div className="legend tp-legend" aria-label="Color scale">
             <span>On court:</span>
-            {LEGEND_STOPS.map((s) => (
-              <span key={s} className="chip">
-                <i style={{ background: heat(s) }} />
-                {Math.round(s * 100)}%
-              </span>
-            ))}
+            <span className="chip">
+              <i className="ramp" /> 0% → 100% of games
+            </span>
             <span className="chip">
               <i className="excluded-swatch" />
-              only blowout time (excluded)
+              only garbage time (excluded)
             </span>
+            <span className="muted">Hover or tap a strip for details.</span>
           </div>
           {computed.qa.length > 0 && <AveragesTable qa={computed.qa} sel={computed.sel} names={computed.names} />}
         </>

@@ -121,6 +121,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                         stints={r.stints}
                         total={total}
                         periods={c.periods}
+                        labels
                         active={hover?.game === r.gameId ? hover.stint : null}
                         onHover={(s) => setHover(s ? { game: r.gameId, stint: s } : null)}
                       />

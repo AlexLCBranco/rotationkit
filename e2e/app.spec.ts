@@ -74,7 +74,7 @@ test('filters change the "based on N games" count and the plain-words label', as
   await expect(label(page)).toHaveText('All 2025-26 games without F. Wagner · based on 48 games');
   // Strip readout on hover/tap.
   await page.locator('svg.heat').first().click({ position: { x: 1, y: 5 } });
-  await expect(page.getByTestId('readout')).toContainText(/Q1 12:00–11:30 · on court in \d+ of \d+ games/);
+  await expect(page.getByTestId('pattern-tip')).toContainText(/Q1 12:00–11:30 · on court in \d+ of \d+ games/);
   await noHorizontalScroll(page);
   await shot(page, 'team-without-wagner', info.project.name);
   const blowout = page.getByRole('checkbox', { name: 'Hide blowout time' });

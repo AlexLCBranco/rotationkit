@@ -290,3 +290,40 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .trend-pt.garbage { fill: var(--bg); stroke: var(--accent); stroke-width: 2; }
 .trend-dnp { stroke: #ff8a8a; stroke-width: 2; }
 .trend-readout { font-size: 12px; margin: 2px 0 0; }
+
+/* ---------- team pattern view (same look as the single-game chart) ---------- */
+.block-head { font-size: 21px; margin: 6px 0 4px; display: flex; gap: 10px; align-items: center; }
+.tp-grid { position: relative; margin-top: 6px; }
+.tp-row { display: grid; grid-template-columns: 230px 56px minmax(0, 1fr) 56px; align-items: center; column-gap: 10px; height: 36px; border-bottom: 1px solid #262626; }
+.tp-head { height: 30px; border-bottom-color: #2e2e2e; font: 600 12px/1 system-ui, sans-serif; color: #7b7b7b; text-transform: uppercase; letter-spacing: 0.04em; }
+.tp-head .tp-min, .tp-head .tp-gp { font: inherit; color: inherit; }
+.tp-player { display: flex; align-items: center; gap: 8px; min-width: 0; padding-left: 4px; }
+.tp-name { background: none; border: 0; padding: 0; cursor: pointer; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 600; color: #4ea1ff; text-align: left; }
+.tp-name:hover { text-decoration: underline; }
+.tp-min { font: 700 15px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff; text-align: right; }
+.tp-gp { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); padding-right: 4px; }
+.tp-quarters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; text-align: center; }
+.tp-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; height: 20px; }
+.tp-strip svg.heat { width: 100%; height: 20px; border-radius: 4px; display: block; touch-action: pan-y; cursor: crosshair; }
+.tp-strip svg .tick { stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-strip svg .cursor { fill: none; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.tp-legend .ramp { width: 90px; background: linear-gradient(90deg, #101010, #22c55e); }
+.tp-legend i.excluded-swatch { background: repeating-linear-gradient(90deg, #3a3a3a 0 2px, #101010 2px 4px); }
+@media (max-width: 640px) {
+  .tp-row { grid-template-columns: 108px 40px minmax(0, 1fr) 34px; column-gap: 6px; }
+  .tp-name { font-size: 13px; white-space: normal; line-height: 1.15; overflow-wrap: anywhere; text-overflow: clip; }
+  .tp-name.long { font-size: 10.5px; }
+  .tp-min { font-size: 13px; }
+  .tp-player { gap: 5px; padding-left: 0; }
+  .tp-player .headshot { width: 22px; height: 22px; }
+  .tp-strip, .tp-strip svg.heat { height: 18px; }
+  .block-head { font-size: 18px; }
+}
+
+/* Player view stint rows: same look as the single-game chart (green bars on the dark track). */
+.track { background: #101010; border-radius: 4px; height: 22px; }
+.track .tick { background: rgba(255, 255, 255, 0.05); }
+.track .divider { width: 2px; margin-left: -1px; background: var(--bg); opacity: 1; z-index: 1; }
+.bar { background: #22c55e; color: #0b1a10; border-radius: 4px; top: 2px; bottom: 2px; font: 700 12px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.bar.zero { background: #e9e9e9; }
+.player-grid .name.link, .player-grid .name { color: #4ea1ff; font-weight: 600; }

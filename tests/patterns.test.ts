@@ -230,3 +230,16 @@ describe('sitPattern ("when does he sit?")', () => {
     expect(sitPattern(selectGames(gs, '2025-26', 'AAA', F({ blowout: true })), 8)).toEqual([]);
   });
 });
+
+describe('shortNames', () => {
+  it('family name; initial when surnames collide; full name when initials collide too', async () => {
+    const { shortNames } = await import('../src/app/names.ts');
+    const n = shortNames([
+      { id: 1, name: 'Jalen Williams', last: 'Williams', nameI: 'J. Williams' },
+      { id: 2, name: 'Jaylin Williams', last: 'Williams', nameI: 'J. Williams' },
+      { id: 3, name: 'Kenrich Williams', last: 'Williams', nameI: 'K. Williams' },
+      { id: 4, name: 'Alex Caruso', last: 'Caruso', nameI: 'A. Caruso' },
+    ]);
+    expect([...n.values()]).toEqual(['Jalen Williams', 'Jaylin Williams', 'K. Williams', 'Caruso']);
+  });
+});

@@ -31,5 +31,9 @@ export function shortNames(players: Named[]): Map<number, string> {
   for (const p of unique.values()) count.set(familyName(p), (count.get(familyName(p)) ?? 0) + 1);
   const out = new Map<number, string>();
   for (const p of unique.values()) out.set(p.id, (count.get(familyName(p)) ?? 0) > 1 ? initialName(p) : familyName(p));
+  // Still ambiguous (e.g. Jalen and Jaylin Williams are both "J. Williams"): use the full name.
+  const seen = new Map<string, number>();
+  for (const n of out.values()) seen.set(n, (seen.get(n) ?? 0) + 1);
+  for (const p of unique.values()) if ((seen.get(out.get(p.id)!) ?? 0) > 1) out.set(p.id, p.name);
   return out;
 }

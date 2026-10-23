@@ -1,39 +1,45 @@
+// On-court share strip for one player: four quarter blocks on the dark track (gaps at quarter lines, like the
+// single-game chart), each 30 s bucket colored by share; buckets with only garbage time are striped.
+
 import { heat } from '../app/colors.ts';
-import { REGULATION_LEN } from '../domain/time.ts';
-import { Grid } from './Axis.tsx';
+import { periodEnd, periodStart } from '../domain/time.ts';
 
 interface Props {
   shares: (number | null)[];
   bucketSeconds: number;
-  /** Called with the bucket under the pointer (null when leaving). */
-  onHover: (bucket: number | null) => void;
+  /** Called with the bucket under the pointer/finger and the pointer position. */
+  onHover: (bucket: number, e: React.PointerEvent) => void;
   active?: number | null;
 }
 
 const H = 10;
+const QUARTERS = [1, 2, 3, 4];
 
 export function HeatStrip({ shares, bucketSeconds, onHover, active }: Props) {
-  const pick = (e: React.PointerEvent<SVGSVGElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const b = Math.floor(((e.clientX - r.left) / r.width) * shares.length);
-    onHover(Math.max(0, Math.min(shares.length - 1, b)));
-  };
   return (
-    <svg
-      className="heat"
-      viewBox={`0 0 ${REGULATION_LEN} ${H}`}
-      preserveAspectRatio="none"
-      onPointerMove={pick}
-      onPointerDown={pick}
-      role="img"
-      shapeRendering="crispEdges"
-    >
-      {shares.map((s, b) => (
-        <rect key={b} x={b * bucketSeconds} y={0} width={bucketSeconds + 0.5} height={H} fill={s === null ? 'url(#rk-excluded)' : heat(s)} />
-      ))}
-      <Grid periods={4} h={H} />
-      {active != null && <rect x={active * bucketSeconds} y={0} width={bucketSeconds} height={H} className="cursor" />}
-    </svg>
+    <div className="tp-strip" data-testid="heat-strip">
+      {QUARTERS.map((q) => {
+        const first = periodStart(q) / bucketSeconds;
+        const n = (periodEnd(q) - periodStart(q)) / bucketSeconds;
+        const pick = (e: React.PointerEvent<SVGSVGElement>) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const b = first + Math.max(0, Math.min(n - 1, Math.floor(((e.clientX - r.left) / r.width) * n)));
+          onHover(b, e);
+        };
+        return (
+          <svg key={q} className="heat" viewBox={`0 0 ${n} ${H}`} preserveAspectRatio="none" onPointerMove={pick} onPointerDown={pick} role="img" shapeRendering="crispEdges">
+            {Array.from({ length: n }, (_, i) => {
+              const s = shares[first + i] ?? null;
+              return <rect key={i} x={i} y={0} width={1.02} height={H} fill={s === null ? 'url(#rk-excluded)' : heat(s)} />;
+            })}
+            {[6, 12, 18].map((x) => (
+              <line key={x} x1={x} x2={x} y1={0} y2={H} className="tick" />
+            ))}
+            {active != null && active >= first && active < first + n && <rect x={active - first} y={0} width={1} height={H} className="cursor" />}
+          </svg>
+        );
+      })}
+    </div>
   );
 }
 
@@ -42,10 +48,10 @@ export function HeatDefs() {
   return (
     <svg width={0} height={0} style={{ position: 'absolute' }} aria-hidden>
       <defs>
-        {/* Excluded (blowout-only) time: stripes, so it can't be confused with 0%. */}
-        <pattern id="rk-excluded" patternUnits="userSpaceOnUse" width={24} height={H}>
-          <rect width={24} height={H} fill="#262b36" />
-          <rect width={12} height={H} fill="#4a5163" />
+        {/* Only garbage time in this bucket (excluded): stripes, so it can't be confused with 0%. */}
+        <pattern id="rk-excluded" patternUnits="userSpaceOnUse" width={0.5} height={H}>
+          <rect width={0.5} height={H} fill="#101010" />
+          <rect width={0.25} height={H} fill="#3a3a3a" />
         </pattern>
       </defs>
     </svg>
