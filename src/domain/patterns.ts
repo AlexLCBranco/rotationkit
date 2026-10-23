@@ -1,7 +1,7 @@
 // Pattern engine: on-court probability across games, with window / venue / blowout / with-without filters.
 // Pure functions over normalized games of ONE season (mixing seasons throws).
 
-import { PATTERN_CONFIG, type BlowoutConfig } from './config.ts';
+import { PATTERN_CONFIG, TEAM_PATTERN, type BlowoutConfig, type TeamPatternConfig } from './config.ts';
 import { availabilityFor, buildAppearances, type AppearanceIndex } from './availability.ts';
 import { seasonOf } from './season.ts';
 import { matchesRest, restForTeam, type RestFilter, type RestInfo } from './rest.ts';
@@ -417,4 +417,21 @@ export function typicalStints(sel: Selection, playerId: number, minSeconds = 10,
   return out
     .filter((s) => gs.length === 1 || s.end - s.start >= minSeconds)
     .map(({ start, end, onTime, eligTime }) => ({ start, end, share: onTime / eligTime }));
+}
+
+export interface PatternRow {
+  player: PlayerPattern;
+  /** Typical stretches to draw (those under `minBarSeconds` left out). */
+  bars: TypicalStint[];
+  /** Played in fewer than `rarelyUsedShare` of the selection's games. */
+  rarelyUsed: boolean;
+}
+
+/** Team-page rows: bars to draw per player, and whether he goes in the "Rarely used" group (vs the window's game count). */
+export function teamPatternRows(tp: TeamPattern, cfg: TeamPatternConfig = TEAM_PATTERN, blowoutCfg: BlowoutConfig = PATTERN_CONFIG.blowout): PatternRow[] {
+  return tp.players.map((player) => ({
+    player,
+    bars: typicalStints(tp.selection, player.id, 10, blowoutCfg).filter((s) => s.end - s.start >= cfg.minBarSeconds),
+    rarelyUsed: player.gamesPlayed < tp.games * cfg.rarelyUsedShare,
+  }));
 }

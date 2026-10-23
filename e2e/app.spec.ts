@@ -155,11 +155,12 @@ test('team page with one game shows exactly that game\'s stints, numbers inside'
   await expect(label(page)).toContainText('based on 1 game');
   await expect(page.getByTestId('pattern-chart')).toBeVisible();
   const played = game.players.filter((p) => p.team === 'DET' && p.played && p.stints.some(([s, e]) => e > s));
+  await expect(page.getByTestId('rare-toggle')).toHaveCount(0); // 1 of 1 game is never rare
   expect(played.length).toBeGreaterThan(5);
   for (const p of played) {
     const row = page.locator(`[data-testid=player-row][data-player="${p.id}"]`);
     const bars = await row.getByTestId('typical-stint').evaluateAll((els) => els.map((e) => [Number(e.dataset.start), Number(e.dataset.end)]));
-    const want = p.stints.filter(([s, e]) => e > s && s < 2880).map(([s, e]) => [s, Math.min(e, 2880)]);
+    const want = p.stints.filter(([s, e]) => e > s && s < 2880).map(([s, e]) => [s, Math.min(e, 2880)] as [number, number]).filter(([s, e]) => e - s >= 60);
     expect(bars, `player ${p.id}`).toEqual(want);
   }
   expect(await page.locator('[data-testid=pattern-chart] [data-testid=stint-label][data-inside=true]').count()).toBeGreaterThan(10);
@@ -168,5 +169,36 @@ test('team page with one game shows exactly that game\'s stints, numbers inside'
   await expect(page.getByTestId('pattern-tip')).toContainText(/Q1 1[12]:\d\d · on court in [01] of 1 game\b/);
   await noHorizontalScroll(page);
   await shot(page, 'team-one-game', info.project.name);
+  expect(errors).toEqual([]);
+});
+
+test('team page: rarely-used group follows the window\'s game count; no pattern bar under 1:00', async ({ page }, info) => {
+  const errors = trackErrors(page);
+  const rows = page.locator('[data-testid=pattern-chart] [data-testid=player-row]');
+  const check = async (games: number) => {
+    await expect(label(page)).toContainText(`based on ${games} games`);
+    const toggle = page.getByTestId('rare-toggle');
+    if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click(); // stays as the user left it
+    await expect(page.locator('[data-testid=player-row][data-rare=true]')).toHaveCount(0); // collapsed
+    const regular = await rows.evaluateAll((els) => els.map((e) => Number(e.querySelector('[data-testid=gp]')!.firstChild!.textContent)));
+    expect(regular.every((gp) => gp * 3 >= games), `regular rows ${regular} of ${games}`).toBe(true);
+    await toggle.click();
+    const rare = await page.locator('[data-testid=player-row][data-rare=true]').evaluateAll((els) =>
+      els.map((e) => Number(e.querySelector('[data-testid=gp]')!.firstChild!.textContent)),
+    );
+    expect(rare.length).toBeGreaterThan(0);
+    expect(rare.every((gp) => gp * 3 < games), `rare rows ${rare} of ${games}`).toBe(true);
+    await expect(toggle).toContainText(`Rarely used (${rare.length})`);
+    const bars = await page.getByTestId('typical-stint').evaluateAll((els) => els.map((e) => Number(e.dataset.end) - Number(e.dataset.start)));
+    expect(bars.length).toBeGreaterThan(20);
+    expect(Math.min(...bars)).toBeGreaterThanOrEqual(60);
+  };
+  await page.goto('/#/team/ORL?s=2025-26');
+  await expect(page.getByTestId('rare-toggle')).toHaveAttribute('aria-expanded', 'false'); // collapsed by default
+  await check(82);
+  await noHorizontalScroll(page);
+  await shot(page, 'team-rarely-used', info.project.name);
+  await page.goto('/#/team/ORL?s=2025-26&w=10');
+  await check(10);
   expect(errors).toEqual([]);
 });

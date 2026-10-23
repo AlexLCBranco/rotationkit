@@ -15,6 +15,16 @@ export const PATTERN_CONFIG = {
 
 export type BlowoutConfig = typeof PATTERN_CONFIG.blowout;
 
+/** Team page ("Typical stints" view). */
+export const TEAM_PATTERN = {
+  /** Players who played in fewer than this share of the selection's games go into the collapsed "Rarely used" group. */
+  rarelyUsedShare: 1 / 3,
+  /** Pattern bars shorter than this (seconds) are not drawn; hover/tap still gives the exact share at any moment. */
+  minBarSeconds: 60,
+};
+
+export type TeamPatternConfig = typeof TEAM_PATTERN;
+
 /** Foul-trouble coloring on the single-game chart. Per period: fouls at which a player is in caution / trouble. */
 export const FOUL_TROUBLE: Record<'1' | '2' | '3' | '4', { caution: number | null; trouble: number }> = {
   '1': { caution: 2, trouble: 3 },

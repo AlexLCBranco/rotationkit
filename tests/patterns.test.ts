@@ -274,3 +274,29 @@ describe('typicalStints', () => {
     expect(typicalStints(selectGames([g], '2025-26', 'AAA', F({ blowout: true })), 1)).toEqual([{ start: 2160, end: 2520, share: 1 }]);
   });
 });
+
+describe('teamPatternRows', () => {
+  // 9 games: player 1 plays all, player 2 only the 2 most recent.
+  const gs = Array.from({ length: 9 }, (_, i) =>
+    game(`2026-03-0${i + 1}`, 'AAA', 'BBB', [pl(1, 'AAA', FULL), ...(i >= 7 ? [pl(2, 'AAA', [[0, 300, 0]])] : [])]),
+  );
+  it('"rarely used" = played in fewer than 1/3 of the WINDOW\'s games', async () => {
+    const { teamPatternRows } = await import('../src/domain/patterns.ts');
+    const rare = (w: Filters['window']) =>
+      Object.fromEntries(teamPatternRows(teamPattern(selectGames(gs, '2025-26', 'AAA', F({ window: w })))).map((r) => [r.player.id, r.rarelyUsed]));
+    expect(rare('season')).toEqual({ 1: false, 2: true }); // 2 of 9 < 3
+    expect(rare(5)).toEqual({ 1: false, 2: false }); // 2 of 5 ≥ 5/3
+  });
+  it('threshold is configurable and exactly 1/3 is not rare', async () => {
+    const { teamPatternRows } = await import('../src/domain/patterns.ts');
+    const tp = teamPattern(selectGames(gs.slice(3), '2025-26', 'AAA', F({}))); // 6 games, player 2 in 2 = exactly 1/3
+    expect(teamPatternRows(tp).find((r) => r.player.id === 2)!.rarelyUsed).toBe(false);
+    expect(teamPatternRows(tp, { rarelyUsedShare: 0.5, minBarSeconds: 60 }).find((r) => r.player.id === 2)!.rarelyUsed).toBe(true);
+  });
+  it('no bar under 1:00 is drawn; 1:00 exactly is kept', async () => {
+    const { teamPatternRows } = await import('../src/domain/patterns.ts');
+    const g = game('2026-03-01', 'AAA', 'BBB', [pl(1, 'AAA', [[0, 59, 0], [100, 160, 0], [800, 1000, 0]])]);
+    const rows = teamPatternRows(teamPattern(selectGames([g], '2025-26', 'AAA', F({}))));
+    expect(rows[0]!.bars.map((b) => [b.start, b.end])).toEqual([[100, 160], [800, 1000]]);
+  });
+});

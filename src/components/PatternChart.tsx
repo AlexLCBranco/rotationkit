@@ -7,7 +7,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatMin } from '../app/labels.ts';
 import { CHART } from '../domain/config.ts';
 import { axisTicks, clockLabel, layoutRow, periodName, timelineWidth } from '../domain/gameChart.ts';
-import { blowoutIntervals, typicalStints, type Selection, type TeamPattern } from '../domain/patterns.ts';
+import { blowoutIntervals, teamPatternRows, type Selection, type TeamPattern } from '../domain/patterns.ts';
+import { TEAM_PATTERN } from '../domain/config.ts';
 import { periodEnd, periodStart, REGULATION_LEN } from '../domain/time.ts';
 import type { PlayerGame } from '../domain/types.ts';
 import { COLS } from './GameChart.tsx';
@@ -86,31 +87,19 @@ export function PatternChart({ sel, tp, names, onPlayer }: Props) {
 
   const rows = useMemo(
     () =>
-      tp.players.map((p) => {
-        const typical = typicalStints(sel, p.id);
+      teamPatternRows(tp).map(({ player: p, bars: typical, rarelyUsed }) => {
         // Reuse the game chart's row layout with the typical stretches as stints.
         const fake: PlayerGame = {
-          id: p.id,
-          name: p.name,
-          team: sel.team,
-          starter: false,
-          played: true,
-          min: 0,
-          pts: 0,
-          reb: 0,
-          ast: 0,
-          pf: 0,
-          pm: 0,
+          id: p.id, name: p.name, team: sel.team, starter: false, played: true, min: 0, pts: 0, reb: 0, ast: 0, pf: 0, pm: 0,
           stints: typical.map((s) => [s.start, s.end, 0]),
         };
-        return {
-          p,
-          typical,
-          layout: layoutRow(fake, 4, W, { trouble: false }),
-        };
+        return { p, typical, rarelyUsed, layout: layoutRow(fake, 4, W, { trouble: false }) };
       }),
     [tp, sel, W],
   );
+  const [showRare, setShowRare] = useState(false);
+  const regular = rows.filter((r) => !r.rarelyUsed);
+  const rare = rows.filter((r) => r.rarelyUsed);
 
   const local = (e: React.PointerEvent | React.MouseEvent) => {
     const r = contentRef.current!.getBoundingClientRect();
@@ -130,60 +119,11 @@ export function PatternChart({ sel, tp, names, onPlayer }: Props) {
     setTip({ x, y, text });
   };
 
-  return (
-    <div className="gc-box" ref={boxRef} data-testid="pattern-chart">
-      <div
-        className="gc-content"
-        ref={contentRef}
-        style={{ width: cols.left + W + cols.pf }}
-        onPointerLeave={(e) => e.pointerType === 'mouse' && setTip(null)}
-      >
-        <div className="gc-legend-row">
-          <div className="gc-sticky gc-legend" data-testid="typical-legend">
-            <span className="gc-legend-title">Typical rotation:</span>
-            <span>
-              <i className="lvl-ok" /> on court in {Math.round(STRONG_SHARE * 100)}%+ of games
-            </span>
-            <span>
-              <i className="lvl-typ-mid" /> 50–{Math.round(STRONG_SHARE * 100)}%
-            </span>
-            <span className="muted">(stretches he plays in at least half of the games; hover for exact counts)</span>
-            {sel.games.some((g) => g.periods > 4) && <span className="muted">Overtime is not shown here.</span>}
-          </div>
-        </div>
-        <div className="gc-row gc-axis">
-          <div className="gc-left gc-sticky gc-colhead">
-            <span className="gc-name">Player</span>
-            <span className="gc-min">MIN</span>
-          </div>
-          <div className="gc-track" style={{ width: W }}>
-            {[1, 2, 3, 4].map((q) => (
-              <span
-                key={q}
-                className="gc-qname"
-                style={{
-                  left: periodStart(q) * k,
-                  width: (periodEnd(q) - periodStart(q)) * k,
-                }}
-              >
-                {periodName(q)}
-              </span>
-            ))}
-            {ticks.map((x) => (
-              <span key={x.t} className="gc-clock" style={{ left: x.t * k }}>
-                {x.label}
-              </span>
-            ))}
-          </div>
-          <div className="gc-pf gc-gp gc-sticky-r gc-colhead" title="Games played / games in selection">
-            GP
-          </div>
-        </div>
-        {rows.map(({ p, typical, layout }) => {
+  const renderRow = ({ p, typical, rarelyUsed, layout }: (typeof rows)[number]) => {
           const name = names.get(p.id) ?? p.name;
           const longWord = Math.max(...name.split(/[\s-]+/).map((w) => w.length)) > 10;
           return (
-            <div className="gc-row" key={p.id} data-testid="player-row" data-player={p.id}>
+            <div className={`gc-row${rarelyUsed ? ' rare' : ''}`} key={p.id} data-testid="player-row" data-player={p.id} data-rare={rarelyUsed}>
               <div className="gc-left gc-sticky">
                 <Headshot id={p.id} name={p.name} />
                 <button className="gc-name tp-link" title={p.name} onClick={() => onPlayer(p.id)}>
@@ -263,13 +203,71 @@ export function PatternChart({ sel, tp, names, onPlayer }: Props) {
                   </span>
                 ))}
               </div>
-              <div className="gc-pf gc-gp gc-sticky-r">
+              <div className="gc-pf gc-gp gc-sticky-r" data-testid="gp">
                 {p.gamesPlayed}
                 <span className="muted">/{tp.games}</span>
               </div>
             </div>
-          );
-        })}
+    );
+  };
+
+  return (
+    <div className="gc-box" ref={boxRef} data-testid="pattern-chart">
+      <div
+        className="gc-content"
+        ref={contentRef}
+        style={{ width: cols.left + W + cols.pf }}
+        onPointerLeave={(e) => e.pointerType === 'mouse' && setTip(null)}
+      >
+        <div className="gc-legend-row tp-legend-row">
+          <div className="gc-sticky gc-legend" data-testid="typical-legend">
+            <span className="gc-legend-title">Typical rotation:</span>
+            <span>
+              <i className="lvl-ok" /> on court in {Math.round(STRONG_SHARE * 100)}%+ of games
+            </span>
+            <span>
+              <i className="lvl-typ-mid" /> 50–{Math.round(STRONG_SHARE * 100)}%
+            </span>
+            <span className="muted">(stretches he plays in at least half of his games; bars under {formatMin(TEAM_PATTERN.minBarSeconds)} not drawn; hover for exact counts)</span>
+            {sel.games.some((g) => g.periods > 4) && <span className="muted">Overtime is not shown here.</span>}
+          </div>
+        </div>
+        <div className="gc-row gc-axis">
+          <div className="gc-left gc-sticky gc-colhead">
+            <span className="gc-name">Player</span>
+            <span className="gc-min">MIN</span>
+          </div>
+          <div className="gc-track" style={{ width: W }}>
+            {[1, 2, 3, 4].map((q) => (
+              <span
+                key={q}
+                className="gc-qname"
+                style={{
+                  left: periodStart(q) * k,
+                  width: (periodEnd(q) - periodStart(q)) * k,
+                }}
+              >
+                {periodName(q)}
+              </span>
+            ))}
+            {ticks.map((x) => (
+              <span key={x.t} className="gc-clock" style={{ left: x.t * k }}>
+                {x.label}
+              </span>
+            ))}
+          </div>
+          <div className="gc-pf gc-gp gc-sticky-r gc-colhead" title="Games played / games in selection">
+            GP
+          </div>
+        </div>
+        {regular.map(renderRow)}
+        {rare.length > 0 && (
+          <button className="gc-rare-toggle" aria-expanded={showRare} onClick={() => setShowRare(!showRare)} data-testid="rare-toggle">
+            {showRare ? '▾' : '▸'} Rarely used ({rare.length}) · played in fewer than {Math.ceil(tp.games * TEAM_PATTERN.rarelyUsedShare)} of the {tp.games}{' '}
+            game{tp.games === 1 ? '' : 's'}
+          </button>
+        )}
+        {showRare && rare.map(renderRow)}
         {tip && (
           <div
             className="gc-tip"
