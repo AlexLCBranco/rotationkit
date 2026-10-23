@@ -83,6 +83,9 @@ export interface GameIndexEntry {
   away: string;
   hs: number;
   as: number;
+  /** NBA team ids (for logos). */
+  hid: number;
+  aid: number;
   periods: number;
   /** Game has data-quality notes. */
   flagged?: true;

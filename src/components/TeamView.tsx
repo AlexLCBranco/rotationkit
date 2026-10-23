@@ -14,6 +14,7 @@ import { Header } from './Header.tsx';
 import { HeatDefs, HeatStrip } from './HeatStrip.tsx';
 import { Headshot, TeamLogo } from './Headshot.tsx';
 import { PatternChart, RareToggle } from './PatternChart.tsx';
+import { Tabs } from './Tabs.tsx';
 
 interface Props {
   seasons: string[];
@@ -105,12 +106,10 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
     <div className="page">
       <HeatDefs />
       <Header>
+        <Tabs active="averages" onGames={() => nav({ view: 'game', game: 'latest', team, season, filters: route.filters })} onAverages={() => undefined} />
         {teamSelect(team, (t) => go({ team: t }), 'Team')}
         <span className="muted">vs</span>
         {teamSelect(vs ?? '', (t) => go({ vs: t || null }), 'Matchup opponent', <option value="">(no matchup)</option>)}
-        <button className="back" onClick={() => nav({ view: 'game', game: 'latest', team, season, filters: route.filters })} data-testid="latest-game">
-          Latest game →
-        </button>
       </Header>
       <Filters
         seasons={seasons}

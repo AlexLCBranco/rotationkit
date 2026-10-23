@@ -5,7 +5,7 @@ import { runUpdate, STEPS, type Deps } from '../scripts/ci-update.ts';
 import { commitMessage, gamesToFetch, newGamesSummary, unexpectedFailures } from '../scripts/lib/data.ts';
 import type { GameIndexEntry } from '../src/domain/types.ts';
 
-const e = (id: string, date: string): GameIndexEntry => ({ id, date, home: 'AAA', away: 'BBB', hs: 100, as: 90, periods: 4 });
+const e = (id: string, date: string): GameIndexEntry => ({ id, date, home: 'AAA', away: 'BBB', hs: 100, as: 90, hid: 1, aid: 2, periods: 4 });
 
 describe('incremental detection', () => {
   const schedule = ['0022600001', '0022600002', '0022600003', '0022600004'].map((gameId) => ({ gameId }));

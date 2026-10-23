@@ -133,7 +133,19 @@ Christian Braun DEN 44 / 38 (35 inactive + 3 box DNPs); James Harden LAC→CLE (
 and pre-trade CLE games in neither group); 5-on-court invariant across buckets for 4 teams, blowout ON and OFF.
 
 ## UI (`src/App.tsx`, `src/components/`, `src/app/`)
-- **Team pattern view** (main): team picker, season (defaults to the current season), Last 5 / Last 10 /
+- **Main screen = a team's game** (`GameView.tsx`, route `#/game/<id>?t=ORL&s=2025-26`; `#/` opens the remembered
+  team's latest game and the URL is rewritten to the real id so it can be bookmarked). Header: Games | Averages
+  tabs, team picker, season picker. Below: ◀ game picker ▶ ("Game 82 of 82"). The picker (`GamePicker.tsx`) lists
+  every finished game of the team in the season, newest first, scrollable, filter by opponent (tricode or name);
+  each entry: weekday + date, vs/@ + logo + tricode, W/L + score, schedule chips, days of rest, ⚠ if flagged; legend
+  in its header. Game header: matchup, date, final, game-type badge, then the schedule chips of this team AND the
+  opponent. ◀ = previous (older) game, ▶ = next (newer). `?game=<id>` deep links still work.
+- **Schedule tags** (`src/domain/scheduleTags.ts`, on US Eastern dates from `schedule.json`; preseason and the
+  All-Star game don't count, scheduled future games do): "B2B 1" plays again the next day; "B2B 2" played the day
+  before; "3-in-4 · 1st/2nd/3rd" = position in a set of 3 consecutive team games within 4 days (first and last at
+  most 3 days apart); a game in several sets shows its highest position and lists all sets on hover; days of rest
+  "0d" / "1d" / "2d+" ("opener" for the first game). `index.json` entries carry the team ids (`hid`/`aid`) for logos.
+- **Averages** (secondary tab, unchanged) — **Team pattern view**: team picker, season (defaults to the current season), Last 5 / Last 10 /
   Season, All / Home / Away, "Hide blowout time" (default on), With… / Without… + player. One row per player
   sorted by average minutes, drawn in the game chart's design (`PatternChart.tsx`): headshot + name | avg MIN |
   quarter timeline | games played / games in selection. Default view **Typical stints**: green bars for the
@@ -235,6 +247,9 @@ Self-contained schedule-feed reader, also used by the NBA calendar project (copi
   bars, tick count = PF, no overlaps) on a sample of games; `E2E_ALL_GAMES=1 npx playwright test e2e/gamechart.spec.ts
   -g "labels"` runs them on every game (≈2.5 min per viewport).
   Screenshots go to `screenshots/` (gitignored).
+- `e2e/main.spec.ts` (desktop): main screen default, picker order/content/chips, prev/next, opponent filter, URL
+  + reload + back, team/season pickers, header tags for both teams (checked against an independent computation),
+  overlapping 3-in-4 hover, Averages tab. `tests/scheduleTags.test.ts`: hand-made schedules + real 2025-26 spot checks.
 - New features get desktop tests only: put `@desktop` in the test title and the phone project skips it
   (`grepInvert` in `playwright.config.ts`). Existing phone tests keep running.
 

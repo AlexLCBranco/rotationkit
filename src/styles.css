@@ -346,3 +346,53 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .tp-row.rare .tp-gp { color: #f5c542; font-weight: 700; font-size: 15px; }
 .tp-row.rare .tp-gp .muted { color: #f5c542; opacity: 0.8; }
 .tp-grid .gc-rare-toggle { position: static; }
+
+/* Main screen: tabs, game picker, schedule chips */
+.tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.tabs button { background: none; border: 0; color: var(--muted); padding: 7px 14px; font-size: 14px; cursor: pointer; }
+.tabs button + button { border-left: 1px solid var(--line); }
+.tabs button[aria-current='page'] { background: #2b3a55; color: var(--text); font-weight: 600; }
+.tabs button:not([aria-current='page']):hover { color: var(--text); }
+.game-nav { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; flex-wrap: wrap; }
+.gp-arrow { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 6px; width: 36px; height: 38px; cursor: pointer; font-size: 13px; }
+.gp-arrow:disabled { opacity: 0.35; cursor: default; }
+.gp { position: relative; }
+.gp-button, .gp-item { display: grid; grid-template-columns: 92px 92px 92px minmax(0, 1fr) 16px; align-items: center; gap: 10px; text-align: left; color: var(--text); font-size: 14px; }
+.gp-button { min-width: 560px; height: 38px; padding: 0 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; grid-template-columns: 92px 92px 92px minmax(0, 1fr) 16px 14px; }
+.gp-button:hover, .gp-button[aria-expanded='true'] { border-color: #4a4a4a; }
+.gp-caret { color: var(--muted); }
+.gp-panel { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; width: 620px; background: #1d1d1d; border: 1px solid #3a3a3a; border-radius: 8px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+.gp-head { padding: 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.gp-head input { background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 7px 9px; font-size: 14px; }
+.gp-list { list-style: none; margin: 0; padding: 4px; max-height: 60vh; overflow-y: auto; }
+.gp-item { width: 100%; background: none; border: 0; border-radius: 5px; padding: 6px 8px; cursor: pointer; }
+.gp-item:hover { background: #262626; }
+.gp-item[aria-selected='true'] { background: #24324a; }
+.gp-empty { padding: 10px; }
+.gp-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gp-opp { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; }
+.gp-opp .logo { width: 20px; height: 20px; }
+.gp-opp .logo-fallback { display: none; }
+.gp-result { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.gp-result.win { color: #4ade80; }
+.gp-result.loss { color: #f87171; }
+.gp-flag { color: #f5c542; }
+.sched-chips { display: inline-flex; align-items: center; gap: 5px; flex-wrap: nowrap; white-space: nowrap; }
+.chip-tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; line-height: 16px; letter-spacing: 0.2px; }
+.chip-tag.b2b1 { background: #3b3214; color: #fcd34d; border: 1px solid #6b5a1e; }
+.chip-tag.b2b2 { background: #3f1d1d; color: #fca5a5; border: 1px solid #7f2d2d; }
+.chip-tag.tif { background: #2a2140; color: #c4b5fd; border: 1px solid #4c3d75; }
+.chip-tag.tif.pos-3 { background: #3a2160; color: #e9d5ff; border-color: #7c4dcc; }
+.rest-days { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sched-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); }
+.game-head { margin: 8px 0 4px; }
+.game-head .game-title { margin: 6px 0; }
+.head-tags { display: flex; gap: 22px; align-items: center; font-size: 13px; }
+.head-team-tags { display: inline-flex; gap: 8px; align-items: center; }
+/* Not designed for phones (desktop only); just keep the page from scrolling sideways. */
+@media (max-width: 640px) {
+  .gp { min-width: 0; flex: 1; }
+  .gp-button { min-width: 0; width: 100%; overflow: hidden; }
+  .gp-panel { width: calc(100vw - 32px); }
+  .head-tags { flex-wrap: wrap; gap: 6px 16px; }
+}

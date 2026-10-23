@@ -24,6 +24,9 @@ async function noHorizontalScroll(page: Page) {
 test('loads on the current season with no console errors', async ({ page }, info) => {
   const errors = trackErrors(page);
   await page.goto('/');
+  // Main screen is the game view; averages are one tab away.
+  await expect(page.getByTestId('game-picker')).toBeVisible();
+  await page.getByTestId('tab-averages').click();
   await expect(page.getByTestId('player-row').first()).toBeVisible();
   await expect(page.getByLabel('Season')).toHaveValue('2026-27');
   await expect(label(page)).toContainText('based on');

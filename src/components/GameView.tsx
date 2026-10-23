@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { loadGame, loadIndex } from '../app/data.ts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { loadGame, loadIndex, loadSchedule } from '../app/data.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, shortDate, signed } from '../app/labels.ts';
-import type { Route } from '../app/route.ts';
+import type { Nav, Route } from '../app/route.ts';
+import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
+import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
+import { GamePicker, type PickerGame } from './GamePicker.tsx';
+import { ScheduleChips } from './ScheduleChips.tsx';
+import { Tabs } from './Tabs.tsx';
 import { seasonOf } from '../domain/season.ts';
 import { REG_PERIODS } from '../domain/time.ts';
 import type { Game, QualityNote } from '../domain/types.ts';
@@ -17,7 +22,8 @@ interface Props {
   seasons: string[];
   season: string;
   route: Extract<Route, { view: 'game' }>;
-  nav: (r: Route) => void;
+  nav: Nav;
+  rememberedTeam?: string | null;
 }
 
 /** Plain-words line for a data-quality note, using the game's own numbers. */
@@ -32,46 +38,155 @@ function qualityLine(g: Game, q: QualityNote): string {
   return `${q.player ?? 'Game'} — ${q.check}: ${q.detail}. ${verdict}`;
 }
 
-/** `#/game/latest?t=PHI` → that team's most recent game in the selected season. */
-async function resolveGame(route: Props['route'], season: string): Promise<Game> {
-  if (route.game !== 'latest') return loadGame(seasonOf(route.game), route.game);
-  const idx = await loadIndex(season);
-  const last = [...idx].reverse().find((e) => !route.team || e.home === route.team || e.away === route.team);
-  if (!last) throw new Error(`No ${route.team ?? ''} games in ${season} yet`);
-  return loadGame(season, last.id);
-}
+const plays = (e: { home: string; away: string }, t: string) => e.home === t || e.away === t;
 
-export function GameView({ season, route, nav }: Props) {
-  const data = useAsync(() => resolveGame(route, season), [route.game, route.team, season]);
-  const g = data.status === 'ok' ? data.value : null;
+export function GameView({ seasons, season, route, nav, rememberedTeam }: Props) {
+  const gameSeason = route.game === 'latest' ? season : seasonOf(route.game);
+  const meta = useAsync(() => Promise.all([loadIndex(gameSeason), loadSchedule(gameSeason).catch(() => null)]), [gameSeason]);
+  // `latest` = the team's most recent finished game in the season.
+  const id =
+    route.game !== 'latest'
+      ? route.game
+      : meta.status === 'ok'
+        ? ([...meta.value[0]].reverse().find((e) => !route.team || plays(e, route.team))?.id ?? null)
+        : undefined;
+  const loaded = useAsync(() => (id ? loadGame(seasonOf(id), id) : Promise.reject(new Error('none'))), [id]);
+  // While the next game loads, keep showing the previous one (no blank flash when stepping through games).
+  const last = useRef<Game | null>(null);
+  if (loaded.status === 'ok') last.current = loaded.value;
+  const g = loaded.status === 'ok' ? loaded.value : loaded.status === 'loading' && id !== null ? last.current : null;
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const [trouble, setTrouble] = useState(() => remember('rk.trouble') !== '0');
   useEffect(() => void remember('rk.trouble', trouble ? '1' : '0'), [trouble]);
   useEffect(() => setCursor(null), [g?.id]);
 
-  const back = route.team
-    ? { label: 'Back', onClick: () => history.back() }
-    : { label: 'Teams', onClick: () => nav({ view: 'team', team: g?.home.tri ?? null, season: g ? seasonOf(g.id) : season, filters: route.filters }) };
+  // Whose games the picker lists: the URL's team if it played, else the remembered team if it played, else home.
+  const fresh = loaded.status === 'ok' ? loaded.value : null;
+  const team = fresh
+    ? [route.team, rememberedTeam, fresh.home.tri].find((t): t is string => !!t && (fresh.home.tri === t || fresh.away.tri === t))!
+    : (route.team ?? rememberedTeam ?? null);
+  // URL always names the team and the actual game (so "latest" becomes bookmarkable).
+  useEffect(() => {
+    if (fresh && (route.game !== fresh.id || route.team !== team || route.season !== gameSeason)) {
+      nav({ ...route, game: fresh.id, team, season: gameSeason }, { replace: true });
+    }
+  }, [fresh, team, gameSeason, route, nav]);
+
+  const picker = useMemo(() => {
+    if (meta.status !== 'ok' || !team) return null;
+    const [index, schedule] = meta.value;
+    const sched = schedule ?? index;
+    const ours = scheduleTags(sched, team);
+    const games: PickerGame[] = index
+      .filter((e) => plays(e, team))
+      .map((e) => {
+        const home = e.home === team;
+        return {
+          id: e.id,
+          date: e.date,
+          opp: home ? e.away : e.home,
+          oppId: home ? e.aid : e.hid,
+          home,
+          us: home ? e.hs : e.as,
+          them: home ? e.as : e.hs,
+          flagged: !!e.flagged,
+          tags: ours.get(e.id),
+        };
+      })
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+    return { games, sched, ours };
+  }, [meta, team]);
+  const pos = picker && g ? picker.games.findIndex((x) => x.id === g.id) : -1;
+  const older = picker && pos >= 0 ? picker.games[pos + 1] : undefined;
+  const newer = picker && pos > 0 ? picker.games[pos - 1] : undefined;
+  const open = (id: string) => nav({ ...route, game: id, team, season: gameSeason });
+  const pickTeam = (t: string) => nav({ ...route, game: 'latest', team: t, season: gameSeason });
 
   return (
     <div className="page wide">
-      <Header back={back}>
-        {g && (
-          <h1 className="title game-title">
-            <TeamLogo teamId={g.away.id} tri={g.away.tri} />
-            {g.away.tri} {g.away.score} <span className="muted">@</span> {g.home.tri} {g.home.score}
-            <TeamLogo teamId={g.home.id} tri={g.home.tri} />
-            <span className="muted">
-              · {shortDate(g.date)} {g.date.slice(0, 4)}
-              {g.periods > REG_PERIODS ? ` · Final/${g.periods === 5 ? 'OT' : `${g.periods - REG_PERIODS}OT`}` : ' · Final'}
-            </span>
-            <GameBadge g={g} />
-          </h1>
-        )}
+      <Header>
+        <Tabs
+          active="games"
+          onGames={() => undefined}
+          onAverages={() => nav({ view: 'team', team: team ?? null, season: gameSeason, filters: route.filters })}
+        />
+        <label className="field team-pick">
+          <span className="swatch" style={{ background: teamColor(team ?? '') }} />
+          <select value={team ?? ''} aria-label="Team" onChange={(e) => pickTeam(e.target.value)}>
+            {!team && <option value="">Team…</option>}
+            {TEAM_CODES.map((t) => (
+              <option key={t} value={t}>
+                {teamName(t)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Season</span>
+          <select value={gameSeason} aria-label="Season" onChange={(e) => nav({ ...route, game: 'latest', team, season: e.target.value })}>
+            {[...seasons].reverse().map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
       </Header>
-      {data.status === 'loading' && <p className="muted">Loading…</p>}
-      {data.status === 'error' && <p className="error">Could not load game: {data.error}</p>}
+      {picker && (
+        <div className="game-nav">
+          <button className="gp-arrow" disabled={!older} onClick={() => older && open(older.id)} title="Previous (older) game" data-testid="prev-game">
+            ◀
+          </button>
+          <GamePicker games={picker.games} selected={g?.id ?? null} onSelect={open} />
+          <button className="gp-arrow" disabled={!newer} onClick={() => newer && open(newer.id)} title="Next (newer) game" data-testid="next-game">
+            ▶
+          </button>
+          <span className="muted">
+            Game {picker.games.length - pos} of {picker.games.length} · {gameSeason}
+          </span>
+        </div>
+      )}
+      {!g && (meta.status === 'loading' || loaded.status === 'loading') && id !== null && <p className="muted">Loading…</p>}
+      {id === null && (
+        <p className="muted" data-testid="no-games">
+          No {route.team ? teamName(route.team) : ''} games in {gameSeason} yet.
+        </p>
+      )}
+      {meta.status === 'error' && <p className="error">Could not load games: {meta.error}</p>}
+      {loaded.status === 'error' && id && <p className="error">Could not load game: {loaded.error}</p>}
+      {g && picker && team && (g.home.tri === team || g.away.tri === team) && (
+        <GameHeader g={g} team={team} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
+      )}
       {g && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
+    </div>
+  );
+}
+
+function GameHeader({ g, team, ours, theirs }: { g: Game; team: string; ours: ScheduleTags | undefined; theirs: ScheduleTags | undefined }) {
+  const opp = g.home.tri === team ? g.away.tri : g.home.tri;
+  return (
+    <div className="game-head">
+      <h1 className="title game-title">
+        <TeamLogo teamId={g.away.id} tri={g.away.tri} />
+        {g.away.tri} {g.away.score} <span className="muted">@</span> {g.home.tri} {g.home.score}
+        <TeamLogo teamId={g.home.id} tri={g.home.tri} />
+        <span className="muted">
+          · {shortDate(g.date)} {g.date.slice(0, 4)}
+          {g.periods > REG_PERIODS ? ` · Final/${g.periods === 5 ? 'OT' : `${g.periods - REG_PERIODS}OT`}` : ' · Final'}
+        </span>
+        <GameBadge g={g} />
+      </h1>
+      <div className="head-tags">
+        {[
+          [team, ours],
+          [opp, theirs],
+        ].map(([t, tags]) => (
+          <span key={t as string} className="head-team-tags" data-testid="header-tags" data-team={t as string}>
+            <strong>{t as string}</strong>
+            <ScheduleChips tags={tags as ScheduleTags | undefined} />
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

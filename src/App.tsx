@@ -1,6 +1,6 @@
 import { loadSeasons } from './app/data.ts';
 import { useAsync, remember } from './app/hooks.ts';
-import { useRoute, type Route } from './app/route.ts';
+import { useRoute, type Nav } from './app/route.ts';
 import { TEAM_CODES } from './app/teams.ts';
 import { TeamView } from './components/TeamView.tsx';
 import { PlayerView } from './components/PlayerView.tsx';
@@ -21,12 +21,13 @@ export function App() {
   const season = route.season && list.includes(route.season) ? route.season : current;
   const rememberedTeam = remember('rk.team');
   const team = route.team ?? (rememberedTeam && TEAM_CODES.includes(rememberedTeam) ? rememberedTeam : TEAM_CODES[0]!);
-  const nav = (r: Route) => {
+  const nav: Nav = (r, opts) => {
     if (r.team) remember('rk.team', r.team);
-    go(r);
+    go(r, opts);
   };
   const common = { seasons: list, season, nav };
   if (route.view === 'player') return <PlayerView {...common} route={route} />;
-  if (route.view === 'game') return <GameView {...common} route={route} />;
+  // Main screen. "latest" without a team → the remembered (or first) team; a game id without one → resolved in the view.
+  if (route.view === 'game') return <GameView {...common} route={route.game === 'latest' ? { ...route, team } : route} rememberedTeam={rememberedTeam} />;
   return <TeamView {...common} route={{ ...route, team }} team={team} />;
 }

@@ -36,6 +36,8 @@ export const indexEntry = (g: Game): GameIndexEntry => ({
   away: g.away.tri,
   hs: g.home.score,
   as: g.away.score,
+  hid: g.home.id,
+  aid: g.away.id,
   periods: g.periods,
   ...(g.quality ? { flagged: true as const } : {}),
 });

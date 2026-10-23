@@ -1,7 +1,8 @@
 // App state lives in the URL hash so views are linkable and the back button works.
 //   #/team/ORL?s=2025-26&w=10&v=home&b=0&p=1630532&m=without
 //   #/player/ORL/1630532?…same filters
-//   #/game/0022500093?…same filters (kept for the way back)
+//   #/game/0022500093?t=ORL&s=2025-26…  main screen: a team's game (t = whose games the picker lists)
+//   #/ (empty) → the main screen with the remembered team's latest game
 
 import { useEffect, useState } from 'react';
 import type { Filters, Venue, Window } from '../domain/patterns.ts';
@@ -33,7 +34,8 @@ export function parse(hash: string): Route {
   const parts = path.split('/').filter(Boolean);
   if (parts[0] === 'player' && parts[1] && Number(parts[2])) return { view: 'player', team: parts[1], player: Number(parts[2]), season, filters };
   if (parts[0] === 'game' && parts[1]) return { view: 'game', game: parts[1], team: t, season, filters };
-  return { view: 'team', team: parts[1] ?? null, season, filters, vs: q.get('vs') };
+  if (parts[0] === 'team') return { view: 'team', team: parts[1] ?? null, season, filters, vs: q.get('vs') };
+  return { view: 'game', game: 'latest', team: t, season, filters };
 }
 
 export function format(r: Route): string {
@@ -55,7 +57,9 @@ export function format(r: Route): string {
   return `#/team/${r.team ?? ''}${qs}`;
 }
 
-export function useRoute(): [Route, (r: Route) => void] {
+export type Nav = (r: Route, opts?: { replace?: boolean }) => void;
+
+export function useRoute(): [Route, Nav] {
   const [route, setRoute] = useState(() => parse(location.hash));
   useEffect(() => {
     const on = () => setRoute(parse(location.hash));
@@ -65,9 +69,11 @@ export function useRoute(): [Route, (r: Route) => void] {
   // Update state synchronously too, so a quick second change builds on the first one.
   return [
     route,
-    (r) => {
+    (r, opts) => {
       setRoute(r);
-      location.hash = format(r);
+      // replace: fix up the URL (e.g. "latest" → the game id) without adding a history entry.
+      if (opts?.replace) location.replace(format(r));
+      else location.hash = format(r);
     },
   ];
 }
