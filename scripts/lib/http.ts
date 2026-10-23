@@ -17,7 +17,8 @@ export const HEADERS: Record<string, string> = {
 
 const TIMEOUT_MS = 15_000;
 const RETRY_DELAYS_MS = [2_000, 4_000, 8_000];
-export const REQUEST_GAP_MS = 600;
+/** Pause after each request: static CDN files are cheap; stats.nba.com is rate-sensitive. */
+export const gapFor = (url: string) => (url.includes('stats.nba.com') ? 600 : 250);
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

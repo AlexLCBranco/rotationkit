@@ -2,17 +2,21 @@
 
 import { describe, expect, it } from 'vitest';
 import { normalizeGame } from '../src/domain/normalize.ts';
+import { stintsFromPbp, type PlayerRef } from '../src/domain/stintsPbp.ts';
+import type { Ev } from '../src/domain/pbp.ts';
 import { loadFixtureGame } from './fixtures.ts';
 import type { RawAction, RawBoxPlayer, RawGame } from '../src/domain/raw.ts';
 
 const HOME = 1;
 const AWAY = 2;
+const MIN: Record<number, number> = { 11: 300, 16: 420, 12: 720, 13: 720, 14: 720, 15: 720, 21: 500, 26: 220, 22: 720, 23: 720, 24: 720, 25: 720 };
+const iso = (sec: number) => `PT${String(Math.floor(sec / 60)).padStart(2, '0')}M${String(sec % 60).padStart(2, '0')}.00S`;
 const bp = (id: number, starter: boolean, played = true): RawBoxPlayer => ({
   personId: id,
   name: `P${id}`,
   starter: starter ? '1' : '0',
   played: played ? '1' : '0',
-  statistics: { minutes: '', points: 0, reboundsTotal: 0, assists: 0, foulsPersonal: 0, plusMinusPoints: 0 },
+  statistics: { minutes: played ? iso(MIN[id] ?? 0) : '', points: 0, reboundsTotal: 0, assists: 0, foulsPersonal: 0, plusMinusPoints: 0 },
 });
 let order = 0;
 const clock = (t: number) => `PT${String(Math.floor((720 - t) / 60)).padStart(2, '0')}M${String((720 - t) % 60).padStart(2, '0')}.00S`;
@@ -60,6 +64,7 @@ function game(): RawGame {
       },
     },
     playbyplay: { game: { gameId: '0029900001', actions } },
+    // gamerotation is ignored by normalize (Path B); kept to mirror the real input shape.
     gamerotation: {
       resultSets: [
         { name: 'HomeTeam', headers: HEAD, rowSet: [rot(HOME, 11, 0, 300), rot(HOME, 16, 300, 720), ...[12, 13, 14, 15].map((p) => rot(HOME, p, 0, 720))] },
@@ -124,13 +129,6 @@ describe('normalizeGame (hand-made game)', () => {
   it('margin timeline', () => {
     expect(g.margin).toEqual([[0, 0], [100, 2], [300, 4], [500, 3]]);
   });
-  it('splits stints that cross a period boundary', () => {
-    const raw = game();
-    raw.boxscore.game.period = 2;
-    raw.gamerotation.resultSets[0]!.rowSet[1] = rot(HOME, 16, 300, 900);
-    const g2 = normalizeGame(raw);
-    expect(g2.players.find((p) => p.id === 16)!.stints.map((s) => s.slice(0, 2))).toEqual([[300, 720], [720, 900]]);
-  });
 });
 
 describe('normalizeGame (real 2025-26 box score with inactive players)', () => {
@@ -139,5 +137,65 @@ describe('normalizeGame (real 2025-26 box score with inactive players)', () => {
     expect(g.inactiveSource).toBe('box');
     expect(g.inactive).toContainEqual({ id: expect.any(Number), name: 'Peyton Watson', team: 'DEN', reason: 'INACTIVE_INJURY', reasonDetail: 'Right Hamstring; Strain' });
     expect(g.players.some((p) => p.name === 'Peyton Watson')).toBe(false);
+  });
+});
+
+describe('stintsFromPbp (Path B)', () => {
+  // One team, two periods. P1: 1-5 start, 6 replaces 5 at 300. P2: 1 scores, a bench technical on 5,
+  // 2 is subbed out for 7 at 800; 6 plays all of P2 without any event.
+  let o = 0;
+  const ev = (period: number, t: number, actionType: string, personId: number, subType?: string): Ev => {
+    o++;
+    return { i: o, period, t, home: 0, away: 0, a: { actionNumber: o, orderNumber: o, clock: '', period, actionType, personId, scoreHome: '0', scoreAway: '0', ...(subType ? { subType } : {}) } };
+  };
+  const evs = [
+    ev(1, 300, 'substitution', 5, 'out'),
+    ev(1, 300, 'substitution', 6, 'in'),
+    ev(1, 400, 'rebound', 3),
+    ev(1, 500, 'turnover', 4),
+    ev(2, 750, '2pt', 1),
+    ev(2, 760, 'foul', 5, 'technical'),
+    ev(2, 770, 'rebound', 3),
+    ev(2, 780, 'steal', 4),
+    ev(2, 800, 'substitution', 2, 'out'),
+    ev(2, 800, 'substitution', 7, 'in'),
+  ];
+  const ref = (starter: boolean, min: number): PlayerRef => ({ side: 'home', starter, min });
+  const players = () =>
+    new Map<number, PlayerRef>([
+      [1, ref(true, 1440)], [2, ref(true, 800)], [3, ref(true, 1440)], [4, ref(true, 1440)],
+      [5, ref(true, 300)], [6, ref(false, 1140)], [7, ref(false, 640)],
+    ]);
+  const byPlayer = (r: ReturnType<typeof stintsFromPbp>) => {
+    const m: Record<number, [number, number][]> = {};
+    for (const s of r.stints) (m[s.player] ??= []).push([s.start, s.end]);
+    return m;
+  };
+
+  it('infers period starters from first involvement and resolves a no-event full period from box minutes', () => {
+    const r = stintsFromPbp(evs, players(), 2);
+    expect(byPlayer(r)).toEqual({
+      1: [[0, 720], [720, 1440]],
+      2: [[0, 720], [720, 800]],
+      3: [[0, 720], [720, 1440]],
+      4: [[0, 720], [720, 1440]],
+      5: [[0, 300]],
+      6: [[300, 720], [720, 1440]],
+      7: [[800, 1440]],
+    });
+    expect(r.notes).toEqual(['P2 home: 6 played the full period with no event (from box-score minutes)']);
+  });
+
+  it('a bench player with a technical foul is not treated as on court', () => {
+    const r = stintsFromPbp(evs, players(), 2);
+    expect(byPlayer(r)[5]).toEqual([[0, 300]]);
+  });
+
+  it('leaves an ambiguous period short and reports it instead of guessing', () => {
+    const ps = players();
+    ps.set(8, ref(false, 720)); // box says 12 minutes, but never appears in play-by-play
+    const r = stintsFromPbp(evs, ps, 2);
+    expect(byPlayer(r)[6]).toEqual([[300, 720]]);
+    expect(r.notes.some((n) => n.includes('P2 home: 4 starters found, 2 candidates for 1 missing (unresolved)'))).toBe(true);
   });
 });

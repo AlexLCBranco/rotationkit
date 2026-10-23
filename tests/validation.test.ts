@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { fixtureIds, loadFixtureGame, loadRawFixture } from './fixtures.ts';
 import { validateGame, type CheckName } from '../src/domain/validate.ts';
 import { periodStart } from '../src/domain/time.ts';
+import { compareStints } from '../src/domain/compareStints.ts';
 
 const CHECKS: [CheckName[], string][] = [
   [['minutes'], 'summed stint time = box-score minutes (±1s)'],
@@ -31,15 +32,22 @@ describe.each(fixtureIds)('game %s', (id) => {
   // Cross-check against gamerotation's own per-stint +/-. PT_DIFF is occasionally wrong itself
   // (0022600002: Brunson's last 7.7s, PT_DIFF -2 while the box score agrees with 0), so a mismatch
   // is only accepted for a player whose PT_DIFF total disagrees with the box score.
+  it('Path B stints match gamerotation exactly', () => {
+    const raw = loadRawFixture(id);
+    expect(raw.gamerotation).toBeDefined();
+    expect(compareStints(g, raw.gamerotation!)).toEqual([]);
+    expect(g.stintNotes).toBeUndefined();
+  });
   it('stint +/- matches gamerotation PT_DIFF (where PT_DIFF agrees with box score)', () => {
     const raw = loadRawFixture(id);
+    if (!raw.gamerotation) return;
     const bad: string[] = [];
     const ptSum = new Map<number, number>();
-    for (const set of raw.gamerotation.resultSets) {
+    for (const set of raw.gamerotation!.resultSets) {
       const [iP, iD] = [set.headers.indexOf('PERSON_ID'), set.headers.indexOf('PT_DIFF')];
       for (const r of set.rowSet) ptSum.set(Number(r[iP]), (ptSum.get(Number(r[iP])) ?? 0) + Number(r[iD]));
     }
-    for (const set of raw.gamerotation.resultSets) {
+    for (const set of raw.gamerotation!.resultSets) {
       const h = (k: string) => set.headers.indexOf(k);
       for (const r of set.rowSet) {
         const p = g.players.find((x) => x.id === Number(r[h('PERSON_ID')]))!;

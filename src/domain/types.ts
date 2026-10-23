@@ -56,6 +56,8 @@ export interface Game {
   inactiveSource?: 'box' | 'roster';
   /** Score margin (home minus away) after each change: [t, margin] pairs, t ascending. Starts at [0, 0]. */
   margin: [number, number][];
+  /** How stint reconstruction handled unusual cases, or what it could not resolve. */
+  stintNotes?: string[];
   /** Personal fouls that could not be matched to one of the player's stints (should be empty). */
   orphanFouls: { player: number; t: number }[];
 }

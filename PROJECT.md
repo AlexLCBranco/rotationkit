@@ -7,20 +7,31 @@ Pre-game research / post-game review, not a live tracker.
 ## Stack
 Vite + React 19 + TypeScript (strict), Vitest. Node/TypeScript scripts (tsx) for fetching/processing.
 
-## Data source in use: Path A
-| Data | Endpoint | Why |
+## Data source in use: Path B (CDN play-by-play), gamerotation as cross-check
+| Data | Endpoint | Required |
 |---|---|---|
-| Schedule | `cdn.nba.com/static/json/staticData/scheduleLeagueV2.json` | lists every game + status (3 = final) |
-| Stints | `stats.nba.com/stats/gamerotation?GameID=…&LeagueID=00` | NBA's own on-court intervals; no reconstruction needed |
-| Players, stats, starters, played flag | `cdn.nba.com/…/liveData/boxscore/boxscore_<id>.json` | fast, reliable |
-| Fouls (exact time), score timeline | `cdn.nba.com/…/liveData/playbyplay/playbyplay_<id>.json` | fast, reliable |
-| Per-game roster incl. inactive players (optional) | `stats.nba.com/stats/boxscoresummaryv3?GameID=…&LeagueID=00` | see below |
+| Schedule (current season) | `cdn.nba.com/static/json/staticData/scheduleLeagueV2.json` | yes |
+| Game list (past season) | `stats.nba.com/stats/leaguegamelog?…&Season=2025-26…` (one request) | yes, for backfill |
+| Players, stats, starters, played flag, inactive + reasons | `cdn.nba.com/…/liveData/boxscore/boxscore_<id>.json` | yes |
+| Stints, fouls (exact time), score timeline | `cdn.nba.com/…/liveData/playbyplay/playbyplay_<id>.json` | yes |
+| Stint cross-check | `stats.nba.com/stats/gamerotation?GameID=…&LeagueID=00` | no |
+| Per-game roster incl. inactive players | `stats.nba.com/stats/boxscoresummaryv3?GameID=…&LeagueID=00` | no |
 
-**Fallback, Path B:** if stats.nba.com becomes blocked, rebuild stints from CDN play-by-play
-(period starters + `substitution` in/out events, which carry `personId`). Not implemented unless needed.
+Why: stats.nba.com became unreliable (timeouts/500s, ~1 min per game with retries) while the CDN is fast
+and stable. Optional stats.nba.com sources never block a game; `--cdn-only` skips them entirely.
 
-stats.nba.com notes: reachable from the cloud session (2026-10-23), but returns sporadic HTTP 500s;
-the fetcher retries (2s/4s/8s backoff) and those have always succeeded so far.
+### Path B stint reconstruction (`src/domain/stintsPbp.ts`)
+- Period 1 starters from the box score. Later periods: a player is a starter if his first involvement in the
+  period (any action incl. assists/fouls drawn via `personIdsFilter`, or a "sub out") comes before any "sub in".
+  Technical fouls, ejections and delay-of-game are ignored as evidence (bench players can get them).
+- A player on court for a whole period with no event at all: if a period has < 5 starters, the missing ones
+  are taken from players with no event in that period whose box-score minutes still need a full period —
+  only if that is unambiguous; otherwise the period is left short and reported (5-on-court check fails).
+- Substitutions are replayed in log order; everyone on court is closed at period end.
+- Every resolution or problem is written to `Game.stintNotes` and printed by validate-all.
+- Result: identical to gamerotation (to 0.1s) on all 19 games where both exist (14 × 2026-27, 5 × 2025-26).
+
+Path A (stints from gamerotation) is no longer used; the gamerotation parser remains for the cross-check.
 
 ### Inactive players / not-playing reasons
 Order of preference per game (`Game.inactive`, `Game.inactiveSource`):
@@ -47,15 +58,16 @@ their first appearance (rule: not yet with team; 33) and players who left withou
 (rule: still with team; 50, Hunter Tyson and Tamar Bates).
 
 ## Normalized data (`data/`)
-- `data/index.json`: one entry per game (id, date, home/away tricode, score, periods).
-- `data/games/<id>.json`: compact game (see `src/domain/types.ts`): teams, players (box stats, starter,
+- `data/seasons.json`: seasons available and game counts.
+- `data/<season>/index.json`: one entry per game (id, date, home/away tricode, score, periods).
+- `data/<season>/validation.json`: latest validate-all result for the season.
+- `data/<season>/games/<id>.json`: compact game (see `src/domain/types.ts`): teams, players (box stats, starter,
   played, reason if any), stints as `[start, end, +/-, foulTimes?]`, score margin timeline, inactive list.
-- `data/validation.json`: latest validate-all result.
 - All times = seconds elapsed since tip-off (OT included); formatting happens only in the UI.
-- Stints from gamerotation are split at period boundaries, so every stint lies inside one period.
+- Every stint lies inside one period.
 - Size: ~7 KB per game minified (~2.2 KB gzipped) → full season ≈ 9 MB in git, a team's 82 games ≈ 0.6 MB (≈0.2 MB gzipped).
 
-### +/- attribution (verified against gamerotation PT_DIFF and box score)
+### +/- attribution (verified against box score and gamerotation PT_DIFF)
 Stint +/- is computed from the play-by-play running score. Same-second events around a substitution follow
 NBA's rule: free throws count for the players on court when the foul was committed (FTs logged after the
 sub but from a foul logged before it go to the outgoing player); FTs from a foul logged after the sub
@@ -80,11 +92,16 @@ npm install
 npm run update-data      # = fetch-season → normalize → validate-all
 git add data && git commit -m "Update data" && git push
 ```
-- `fetch-season` is incremental; failed games are listed and logged to `cache/fetch-errors.json` (re-run to retry).
+- `update-data` covers the current season. `fetch-season` is incremental; failed games are listed and logged
+  to `cache/fetch-errors.json` (re-run to retry). Add `-- --cdn-only` if stats.nba.com is misbehaving.
 - `validate-all` must report 0 failed games before committing; if not, look at the reported check/player.
   Data is never patched to pass a check.
-Single game: `npm run fetch-game -- <gameId> [--force]`.
-Raw responses live in `cache/` (gitignored, ~0.8 MB per game). Requests are sequential with a 600 ms gap.
+- Past season (one-off): `npm run fetch-season -- --season 2025-26 --cdn-only`, then `npm run normalize` and
+  `npm run validate-all` (both default to every cached season; `-- --season X` for one).
+- Missing stats.nba.com cross-check data can be retried later: `npm run fetch-season -- --retry-optional`.
+Single game: `npm run fetch-game -- <gameId> [--force] [--cdn-only]`.
+Raw responses live in `cache/` (gitignored, ~0.5 MB per game). Requests are sequential with a 250 ms gap
+(CDN) / 600 ms gap (stats.nba.com).
 Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session); on a normal PC they connect directly.
 
 ## Status

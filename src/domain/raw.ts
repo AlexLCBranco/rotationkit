@@ -47,6 +47,8 @@ export interface RawAction {
   actionType: string;
   subType?: string;
   personId?: number;
+  /** All players involved (actor, assist, fouled, …). */
+  personIdsFilter?: number[];
   scoreHome: string;
   scoreAway: string;
 }
@@ -69,6 +71,7 @@ export interface RawSummary {
 export interface RawGame {
   boxscore: RawBoxscore;
   playbyplay: RawPlayByPlay;
-  gamerotation: RawRotation;
+  /** Optional cross-check source (stats.nba.com). */
+  gamerotation?: RawRotation;
   summary?: RawSummary;
 }

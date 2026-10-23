@@ -1,9 +1,11 @@
 // Raw NBA responses → compact Game. Pure: no I/O.
-// Stints come from gamerotation (Path A); fouls and score come from CDN play-by-play.
+// Stints are rebuilt from CDN play-by-play (Path B); gamerotation is only a cross-check (see compareStints).
 
-import type { RawAction, RawGame, RawRotation } from './raw.ts';
+import type { RawGame, RawRotation } from './raw.ts';
+import { toEvents, type Ev, type RawStint } from './pbp.ts';
+import { stintsFromPbp, type PlayerRef } from './stintsPbp.ts';
 import type { Game, InactivePlayer, PlayerGame, Stint, TeamInfo } from './types.ts';
-import { elapsedAt, parseIsoDuration, periodAt, periodEnd, r1 } from './time.ts';
+import { parseIsoDuration, periodAt, periodEnd, r1 } from './time.ts';
 
 /** Foul subTypes that count toward a player's personal fouls (PF). Technicals do not. */
 export const PF_FOUL_SUBTYPES = new Set(['personal', 'offensive']);
@@ -11,23 +13,7 @@ export const PF_FOUL_SUBTYPES = new Set(['personal', 'offensive']);
 /** Tolerance (s) when matching rotation times to play-by-play event times. */
 const MATCH_TOL = 1;
 
-interface Ev {
-  i: number;
-  period: number;
-  t: number;
-  home: number;
-  away: number;
-  a: RawAction;
-}
-
-interface RawStint {
-  player: number;
-  side: 'home' | 'away';
-  start: number;
-  end: number;
-}
-
-function rotationStints(rot: RawRotation, homeId: number, awayId: number): RawStint[] {
+export function rotationStints(rot: RawRotation, homeId: number, awayId: number): RawStint[] {
   const out: RawStint[] = [];
   for (const set of rot.resultSets) {
     const h = (k: string) => {
@@ -48,7 +34,7 @@ function rotationStints(rot: RawRotation, homeId: number, awayId: number): RawSt
 }
 
 /** Split [start, end] at period boundaries. */
-function splitByPeriod(start: number, end: number): { period: number; start: number; end: number }[] {
+export function splitByPeriod(start: number, end: number): { period: number; start: number; end: number }[] {
   const pieces = [];
   let s = start;
   while (s < end) {
@@ -75,9 +61,7 @@ export function normalizeGame(raw: RawGame): Game {
   const triOf = { home: home.tri, away: away.tri };
 
   // Play-by-play in true order, with elapsed time and running score.
-  const evs: Ev[] = [...raw.playbyplay.game.actions]
-    .sort((x, y) => x.orderNumber - y.orderNumber)
-    .map((a, i) => ({ i, a, period: a.period, t: r1(elapsedAt(a.period, parseIsoDuration(a.clock))), home: Number(a.scoreHome), away: Number(a.scoreAway) }));
+  const evs: Ev[] = toEvents(raw.playbyplay.game.actions);
 
   const before = (period: number, t: number, inclusive: boolean) => {
     let found: Ev | undefined;
@@ -134,10 +118,10 @@ export function normalizeGame(raw: RawGame): Game {
 
   const stintsBy = new Map<number, Stint[]>();
   const periodOf = new Map<Stint, number>();
-  for (const rs of rotationStints(raw.gamerotation, home.id, away.id)) {
-    const b = box.get(rs.player);
-    if (!b) throw new Error(`gamerotation player ${rs.player} not in box score`);
-    if (b.side !== rs.side) throw new Error(`gamerotation player ${rs.player} on wrong team`);
+  const refs = new Map<number, PlayerRef>();
+  for (const [id, { side, p }] of box) refs.set(id, { side, starter: p.starter === '1', min: p.played === '1' ? parseIsoDuration(p.statistics.minutes) : 0 });
+  const rebuilt = stintsFromPbp(evs, refs, bg.period);
+  for (const rs of rebuilt.stints) {
     for (const piece of splitByPeriod(rs.start, rs.end)) {
       const s0 = scoreAt(rs.player, piece.period, piece.start, 'in');
       const s1 = scoreAt(rs.player, piece.period, piece.end, 'out');
@@ -214,6 +198,7 @@ export function normalizeGame(raw: RawGame): Game {
     periods: bg.period,
     players,
     inactive,
+    ...(rebuilt.notes.length ? { stintNotes: rebuilt.notes } : {}),
     ...(inactiveSource ? { inactiveSource } : {}),
     margin,
     orphanFouls,
