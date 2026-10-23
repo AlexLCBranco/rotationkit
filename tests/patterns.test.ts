@@ -162,3 +162,11 @@ describe('with/without', () => {
     expect(wo.candidates).toBe(3);
   });
 });
+
+describe('mergeContinuous (display)', () => {
+  it('joins stints split at period boundaries, summing +/- and fouls', async () => {
+    const { mergeContinuous } = await import('../src/domain/stints.ts');
+    expect(mergeContinuous([[400, 720, 2, [500]], [720, 900, -1, [800]], [1000, 1100, 3]])).toEqual([[400, 900, 1, [500, 800]], [1000, 1100, 3]]);
+    expect(mergeContinuous([[0, 300, 1], [300, 300, -1], [300, 400, 0]])).toEqual([[0, 300, 1], [300, 300, -1], [300, 400, 0]]);
+  });
+});

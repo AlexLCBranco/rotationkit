@@ -79,3 +79,14 @@ export function availabilityFor(
   }
   return { status: withTeamByRule(idx.get(playerId), g, team) ? 'out' : 'not-with-team', source: 'rule' };
 }
+
+/** Rebuild the index from data/<season>/appearances.json + index.json (browser side). */
+export function appearancesFromFile(file: Record<string, [string, string][]>, dates: Map<string, string>): AppearanceIndex {
+  const idx: AppearanceIndex = new Map();
+  for (const [pid, list] of Object.entries(file)) {
+    const apps = list.map(([gameId, team]) => ({ gameId, date: dates.get(gameId) ?? '', team }));
+    apps.sort((a, b) => a.date.localeCompare(b.date) || a.gameId.localeCompare(b.gameId));
+    idx.set(Number(pid), apps);
+  }
+  return idx;
+}

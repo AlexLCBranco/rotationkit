@@ -17,6 +17,8 @@ for (const season of seasonsFromArgs()) {
   mkdirSync(join(dir, 'games'), { recursive: true });
   const ids = fetchedSeasonGames(season);
   const index: GameIndexEntry[] = [];
+  // Appearances for the with/without rule in the browser: playerId → [gameId, team][] (box-score listings).
+  const apps: Record<number, [string, string][]> = {};
   const failed: { id: string; error: string }[] = [];
   let bytes = 0;
   let flagged = 0;
@@ -30,6 +32,7 @@ for (const season of seasonsFromArgs()) {
       writeFileSync(join(dir, 'games', `${id}.json`), json);
       bytes += json.length;
       if (g.quality) flagged++;
+      for (const p of g.players) (apps[p.id] ??= []).push([g.id, p.team]);
       index.push({ id, date: g.date, home: g.home.tri, away: g.away.tri, hs: g.home.score, as: g.away.score, periods: g.periods, ...(g.quality ? { flagged: true } : {}) });
     } catch (e) {
       failed.push({ id, error: (e as Error).message });
@@ -42,6 +45,7 @@ for (const season of seasonsFromArgs()) {
   index.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   const indexJson = JSON.stringify(index);
   writeFileSync(join(dir, 'index.json'), indexJson);
+  writeFileSync(join(dir, 'appearances.json'), JSON.stringify(apps));
   console.log(`${season}: normalized ${index.length}/${ids.length} games, ${(bytes / 1024).toFixed(0)} KB games + ${(indexJson.length / 1024).toFixed(0)} KB index, ${(bytes / 1024 / Math.max(1, index.length)).toFixed(1)} KB/game`);
   console.log(`  ${flagged} game(s) carry data-quality notes`);
   for (const f of failed) console.log(`  FAILED ${f.id}: ${f.error}`);

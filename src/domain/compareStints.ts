@@ -25,8 +25,9 @@ export function compareStints(g: Game, rot: RawRotation): StintDiff[] {
   const ids = new Set([...fromRot.keys(), ...g.players.filter((p) => p.stints.length).map((p) => p.id)]);
   for (const id of ids) {
     const p = g.players.find((x) => x.id === id);
-    const a = (p?.stints ?? []).map(([s, e]) => [s, e] as [number, number]);
-    const b = (fromRot.get(id) ?? []).sort((x, y) => x[0] - y[0]);
+    // Zero-length intervals are compared out: they carry no time (their +/- is checked via PT_DIFF/box).
+    const a = (p?.stints ?? []).filter(([s, e]) => e > s).map(([s, e]) => [s, e] as [number, number]);
+    const b = (fromRot.get(id) ?? []).filter(([s, e]) => e > s).sort((x, y) => x[0] - y[0]);
     const same = a.length === b.length && a.every((x, i) => Math.abs(x[0] - b[i]![0]) <= TOL && Math.abs(x[1] - b[i]![1]) <= TOL);
     if (!same) diffs.push({ player: p ? `${p.name} (${p.team})` : String(id), pbp: a, rotation: b });
   }

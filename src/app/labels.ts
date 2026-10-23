@@ -1,0 +1,45 @@
+// Plain-words descriptions of a selection and of not-playing reasons.
+
+import type { Selection } from '../domain/patterns.ts';
+
+export function describeSelection(sel: Selection, names: Map<number, string>): string {
+  const venue = sel.filters.venue === 'all' ? '' : `${sel.filters.venue} `;
+  const base = sel.filters.window === 'season' ? `All ${sel.season} ${venue}games` : `Last ${sel.filters.window} ${venue}games`;
+  const ww = sel.filters.withWithout;
+  if (!ww) return base;
+  return `${base} ${ww.mode} ${names.get(ww.player) ?? sel.withWithout?.name ?? 'player'}`;
+}
+
+export const basedOn = (n: number) => `based on ${n} game${n === 1 ? '' : 's'}`;
+
+const REASONS: Record<string, string> = {
+  INACTIVE_INJURY: 'Injury',
+  DND_INJURY: 'Injury',
+  DNP_INJURY: 'Injury',
+  INACTIVE_GLEAGUE_TWOWAY: 'G League (two-way)',
+  INACTIVE_GLEAGUE_ON_ASSIGNMENT: 'G League assignment',
+  INACTIVE_PERSONAL: 'Personal',
+  INACTIVE_NOT_WITH_TEAM: 'Not with team',
+  NWT_NOT_WITH_TEAM: 'Not with team',
+  INACTIVE_REST: 'Rest',
+  INACTIVE_COACH: "Coach's decision",
+  DNP_COACH: "Coach's decision",
+  INACTIVE_CONCUSSION_PROTOCOL: 'Concussion protocol',
+  INACTIVE_LEAGUE_SUSPENSION: 'Suspension',
+};
+
+export function reasonText(reason?: string, detail?: string): string | undefined {
+  if (!reason && !detail) return undefined;
+  const r = reason ? (REASONS[reason] ?? reason.replace(/^(INACTIVE|DND|DNP|NWT)_/, '').replace(/_/g, ' ').toLowerCase()) : undefined;
+  return [r, detail].filter(Boolean).join(' — ');
+}
+
+export const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
+
+export function formatMin(sec: number): string {
+  const s = Math.round(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const shortDate = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;

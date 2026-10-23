@@ -44,6 +44,13 @@ export function splitByPeriod(start: number, end: number): { period: number; sta
   return pieces;
 }
 
+function namesOf(p: { familyName?: string; nameI?: string }) {
+  const r: { last?: string; nameI?: string } = {};
+  if (p.familyName?.trim()) r.last = p.familyName.trim();
+  if (p.nameI?.trim()) r.nameI = p.nameI.trim();
+  return r;
+}
+
 function reasonOf(p: { notPlayingReason?: string; notPlayingDescription?: string }) {
   const r: { reason?: string; reasonDetail?: string } = {};
   if (p.notPlayingReason?.trim()) r.reason = p.notPlayingReason.trim();
@@ -109,7 +116,7 @@ export function normalizeGame(raw: RawGame): Game {
   const boxInactive: InactivePlayer[] = [];
   for (const side of ['home', 'away'] as const) {
     for (const p of bg[`${side}Team`].players) {
-      if (isInactive(p)) boxInactive.push({ id: p.personId, name: p.name, team: triOf[side], ...reasonOf(p) });
+      if (isInactive(p)) boxInactive.push({ id: p.personId, name: p.name, ...namesOf(p), team: triOf[side], ...reasonOf(p) });
       else box.set(p.personId, { side, p });
     }
   }
@@ -152,10 +159,18 @@ export function normalizeGame(raw: RawGame): Game {
     else if (box.has(a.personId)) orphanFouls.push({ player: a.personId, t: e.t });
   }
 
+  // Zero-length stints only matter when they carry +/- or a foul, or are the player's only appearance
+  // (checked in for 0 seconds: the box score still counts him as having played).
+  for (const [id, list] of stintsBy) {
+    const kept = list.filter((st) => st[1] > st[0] || st[2] !== 0 || st[3]?.length);
+    stintsBy.set(id, kept.length ? kept : list.slice(0, 1));
+  }
+
   const players: PlayerGame[] = [...box.values()].map(({ side, p }) => {
     return {
       id: p.personId,
       name: p.name,
+      ...namesOf(p),
       team: triOf[side],
       starter: p.starter === '1',
       played: p.played === '1',
@@ -182,7 +197,7 @@ export function normalizeGame(raw: RawGame): Game {
     inactiveSource = 'roster';
     for (const side of ['home', 'away'] as const) {
       for (const p of sum[`${side}Team`].players) {
-        if (!box.has(p.personId)) inactive.push({ id: p.personId, name: p.name, team: triOf[side] });
+        if (!box.has(p.personId)) inactive.push({ id: p.personId, name: p.name, ...namesOf(p), team: triOf[side] });
       }
     }
   }

@@ -15,6 +15,9 @@ export interface TeamInfo {
 export interface PlayerGame {
   id: number;
   name: string;
+  /** Family name and NBA short name ("F. Wagner"), when the source has them. */
+  last?: string;
+  nameI?: string;
   team: string; // tricode
   starter: boolean;
   played: boolean;
@@ -35,6 +38,8 @@ export interface PlayerGame {
 export interface InactivePlayer {
   id: number;
   name: string;
+  last?: string;
+  nameI?: string;
   team: string;
   /** e.g. "INACTIVE_INJURY", "INACTIVE_GLEAGUE_TWOWAY" (box-score source only). */
   reason?: string;

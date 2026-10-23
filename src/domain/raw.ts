@@ -3,6 +3,8 @@
 export interface RawBoxPlayer {
   personId: number;
   name: string;
+  nameI?: string;
+  familyName?: string;
   starter: string; // "1" | "0"
   played: string; // "1" | "0"
   status?: string;
@@ -65,8 +67,8 @@ export interface RawRotation {
 
 export interface RawSummary {
   boxScoreSummary: {
-    homeTeam: { teamTricode: string; players: { personId: number; name: string }[]; inactives?: unknown[] };
-    awayTeam: { teamTricode: string; players: { personId: number; name: string }[]; inactives?: unknown[] };
+    homeTeam: { teamTricode: string; players: { personId: number; name: string; nameI?: string; familyName?: string }[]; inactives?: unknown[] };
+    awayTeam: { teamTricode: string; players: { personId: number; name: string; nameI?: string; familyName?: string }[]; inactives?: unknown[] };
   };
 }
 

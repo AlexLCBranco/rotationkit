@@ -135,7 +135,7 @@ describe('normalizeGame (real 2025-26 box score with inactive players)', () => {
   it('takes inactive players and reasons from the box score', () => {
     const g = loadFixtureGame('0022501147');
     expect(g.inactiveSource).toBe('box');
-    expect(g.inactive).toContainEqual({ id: expect.any(Number), name: 'Peyton Watson', team: 'DEN', reason: 'INACTIVE_INJURY', reasonDetail: 'Right Hamstring; Strain' });
+    expect(g.inactive).toContainEqual({ id: expect.any(Number), name: 'Peyton Watson', last: 'Watson', nameI: 'P. Watson', team: 'DEN', reason: 'INACTIVE_INJURY', reasonDetail: 'Right Hamstring; Strain' });
     expect(g.players.some((p) => p.name === 'Peyton Watson')).toBe(false);
   });
 });
