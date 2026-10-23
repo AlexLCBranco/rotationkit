@@ -10,7 +10,7 @@ const pl = (id: number, team: string, played = true): PlayerGame => ({
 const team = (tri: string) => ({ id: 0, tri, name: tri, city: tri, score: 0 });
 let n = 0;
 const game = (date: string, home: string, away: string, players: PlayerGame[], inactive: Game['inactive'] = null): Game => ({
-  id: `00226${String(++n).padStart(5, '0')}`, date, home: team(home), away: team(away), periods: 4, players, inactive, margin: [[0, 0]], orphanFouls: [],
+  id: `00226${String(++n).padStart(5, '0')}`, date, home: team(home), away: team(away), periods: 4, players, inactive, margin: [[0, 0]], score: [[0, 0, 0]], orphanFouls: [],
 });
 
 // Player 7: plays for AAA in g1-g2, traded, debuts for BBB in g5. Player 8 (AAA): injured after g2.

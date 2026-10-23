@@ -1,6 +1,9 @@
 // Compact normalized game format, committed as data/games/<gameId>.json.
 // All times are seconds elapsed since tip-off (OT periods included).
 
+/** [t, period, description] — period is explicit because a foul at 12:00 of Q2 has the same t as Q1 0:00. */
+export type PlayerFoul = [t: number, period: number, type: string];
+
 /** [start, end, plusMinus, foulTimes?] — always inside a single period. */
 export type Stint = [start: number, end: number, pm: number, fouls?: number[]];
 
@@ -32,6 +35,8 @@ export interface PlayerGame {
   reason?: string;
   reasonDetail?: string;
   stints: Stint[];
+  /** Personal fouls in order: [t, period, description from play-by-play]. Absent when PF = 0. */
+  fouls?: PlayerFoul[];
 }
 
 /** Player with the team but inactive for the game (official list). */
@@ -61,6 +66,8 @@ export interface Game {
   inactiveSource?: 'box' | 'roster';
   /** Score margin (home minus away) after each change: [t, margin] pairs, t ascending. Starts at [0, 0]. */
   margin: [number, number][];
+  /** Running score after each change: [t, home, away] pairs, t ascending. Starts at [0, 0, 0]. */
+  score: [number, number, number][];
   /** How stint reconstruction handled unusual cases, or what it could not resolve. */
   stintNotes?: string[];
   /** Data-quality notes for checks this game fails (absent = passes everything). Stints/minutes still used. */

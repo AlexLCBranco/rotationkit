@@ -126,8 +126,14 @@ describe('normalizeGame (hand-made game)', () => {
     delete raw.summary;
     expect(normalizeGame(raw).inactive).toBeNull();
   });
-  it('margin timeline', () => {
+  it('margin and score timelines', () => {
     expect(g.margin).toEqual([[0, 0], [100, 2], [300, 4], [500, 3]]);
+    expect(g.score).toEqual([[0, 0, 0], [100, 2, 0], [300, 4, 0], [500, 4, 1]]);
+  });
+  it('player foul list: exact time, period and play-by-play type', () => {
+    expect(g.players.find((p) => p.id === 22)!.fouls).toEqual([[300, 1, 'personal foul']]);
+    expect(g.players.find((p) => p.id === 16)!.fouls).toEqual([[650, 1, 'offensive foul']]);
+    expect(g.players.find((p) => p.id === 13)!.fouls).toBeUndefined(); // technical: not a PF
   });
 });
 

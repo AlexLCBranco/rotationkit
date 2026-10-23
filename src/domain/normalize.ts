@@ -4,7 +4,7 @@
 import type { RawGame, RawRotation } from './raw.ts';
 import { toEvents, type Ev, type RawStint } from './pbp.ts';
 import { stintsFromPbp, type PlayerRef } from './stintsPbp.ts';
-import type { Game, InactivePlayer, PlayerGame, Stint, TeamInfo } from './types.ts';
+import type { Game, InactivePlayer, PlayerFoul, PlayerGame, Stint, TeamInfo } from './types.ts';
 import { parseIsoDuration, periodAt, periodEnd, r1 } from './time.ts';
 
 /** Foul subTypes that count toward a player's personal fouls (PF). Technicals do not. */
@@ -42,6 +42,26 @@ export function splitByPeriod(start: number, end: number): { period: number; sta
     s = e;
   }
   return pieces;
+}
+
+/**
+ * Foul description from play-by-play fields only (subType, descriptor, and an offensive-foul turnover logged
+ * at the same clock by the same player). Unknown descriptors are shown as they come.
+ */
+export function foulLabel(e: Ev, evs: Ev[]): string {
+  const sub = e.a.subType ?? '';
+  const d = (e.a.descriptor ?? '').trim();
+  const pretty = (x: string) => x.replace(/-/g, ' ');
+  const flagrant = /^flagrant-type-(\d)$/.exec(d);
+  let label: string;
+  if (flagrant) label = `flagrant foul (type ${flagrant[1]})`;
+  else if (sub === 'offensive') label = d ? `offensive foul — ${pretty(d)}` : 'offensive foul';
+  else if (sub === 'personal') label = d ? `${pretty(d)} foul` : 'personal foul';
+  else label = [sub, d].filter(Boolean).map(pretty).join(' ') + ' foul';
+  const turnover = evs.some(
+    (x) => x.period === e.period && x.t === e.t && x.a.actionType === 'turnover' && x.a.personId === e.a.personId && /offensive foul/i.test(x.a.subType ?? ''),
+  );
+  return turnover ? `${label} (turnover)` : label;
 }
 
 function namesOf(p: { familyName?: string; nameI?: string }) {
@@ -145,8 +165,9 @@ export function normalizeGame(raw: RawGame): Game {
   }
   for (const list of stintsBy.values()) list.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
 
-  // Personal fouls → the stint they happened in (by event order).
+  // Personal fouls → the stint they happened in (by event order), and the player's foul list with type.
   const orphanFouls: Game['orphanFouls'] = [];
+  const foulsBy = new Map<number, PlayerFoul[]>();
   for (const e of evs) {
     const a = e.a;
     if (a.actionType !== 'foul' || !a.personId || !PF_FOUL_SUBTYPES.has(a.subType ?? '')) continue;
@@ -157,6 +178,10 @@ export function normalizeGame(raw: RawGame): Game {
     });
     if (st) (st[3] ??= []).push(e.t);
     else if (box.has(a.personId)) orphanFouls.push({ player: a.personId, t: e.t });
+    if (box.has(a.personId)) {
+      if (!foulsBy.has(a.personId)) foulsBy.set(a.personId, []);
+      foulsBy.get(a.personId)!.push([e.t, e.period, foulLabel(e, evs)]);
+    }
   }
 
   // Zero-length stints only matter when they carry +/- or a foul, or are the player's only appearance
@@ -182,6 +207,7 @@ export function normalizeGame(raw: RawGame): Game {
       pm: p.statistics.plusMinusPoints,
       ...reasonOf(p),
       stints: stintsBy.get(p.personId) ?? [],
+      ...(foulsBy.has(p.personId) ? { fouls: foulsBy.get(p.personId)! } : {}),
     };
   });
 
@@ -211,6 +237,15 @@ export function normalizeGame(raw: RawGame): Game {
     else margin.push([e.t, m]);
   }
 
+  // Running score after each change: [t, home, away]; same-second changes keep the last score.
+  const score: [number, number, number][] = [[0, 0, 0]];
+  for (const e of evs) {
+    const last = score[score.length - 1]!;
+    if (e.home === last[1] && e.away === last[2]) continue;
+    if (e.t === last[0]) [last[1], last[2]] = [e.home, e.away];
+    else score.push([e.t, e.home, e.away]);
+  }
+
   return {
     id: bg.gameId,
     date: bg.gameEt.slice(0, 10),
@@ -222,6 +257,7 @@ export function normalizeGame(raw: RawGame): Game {
     ...(rebuilt.notes.length ? { stintNotes: rebuilt.notes } : {}),
     ...(inactiveSource ? { inactiveSource } : {}),
     margin,
+    score,
     orphanFouls,
   };
 }

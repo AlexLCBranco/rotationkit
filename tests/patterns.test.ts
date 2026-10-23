@@ -14,7 +14,7 @@ let seq = 0;
 function game(date: string, home: string, away: string, players: PlayerGame[], opts: Partial<Game> = {}, season = '25'): Game {
   return {
     id: `002${season}${String(++seq).padStart(5, '0')}`, date, home: team(home), away: team(away), periods: 4, players,
-    inactive: [], inactiveSource: 'box', margin: [[0, 0]], orphanFouls: [], ...opts,
+    inactive: [], inactiveSource: 'box', margin: [[0, 0]], score: [[0, 0, 0]], orphanFouls: [], ...opts,
   };
 }
 const F = (f: Partial<Filters>): Filters => ({ ...DEFAULT_FILTERS, blowout: false, ...f });
