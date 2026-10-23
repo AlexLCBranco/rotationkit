@@ -19,6 +19,8 @@ describe('fixture coverage', () => {
   const games = fixtureIds.map(loadFixtureGame);
   it('has at least 5 fixture games', () => expect(games.length).toBeGreaterThanOrEqual(5));
   it('includes an overtime game', () => expect(games.some((g) => g.periods > 4)).toBe(true));
+  it('includes a game where a full period without events was resolved from box minutes', () =>
+    expect(games.some((g) => g.stintNotes?.some((n) => n.includes('played the full period with no event')))).toBe(true));
   it('includes a blowout (margin ≥ 20 in Q4)', () =>
     expect(games.some((g) => g.margin.some(([t, m]) => t >= periodStart(4) && Math.abs(m) >= 20))).toBe(true));
 });
@@ -32,11 +34,12 @@ describe.each(fixtureIds)('game %s', (id) => {
   // Cross-check against gamerotation's own per-stint +/-. PT_DIFF is occasionally wrong itself
   // (0022600002: Brunson's last 7.7s, PT_DIFF -2 while the box score agrees with 0), so a mismatch
   // is only accepted for a player whose PT_DIFF total disagrees with the box score.
-  it('Path B stints match gamerotation exactly', () => {
+  it('Path B stints match gamerotation exactly (when the fixture has it)', () => {
     const raw = loadRawFixture(id);
-    expect(raw.gamerotation).toBeDefined();
-    expect(compareStints(g, raw.gamerotation!)).toEqual([]);
-    expect(g.stintNotes).toBeUndefined();
+    if (raw.gamerotation) expect(compareStints(g, raw.gamerotation)).toEqual([]);
+  });
+  it('stint reconstruction needed no unresolved fixes', () => {
+    expect((g.stintNotes ?? []).filter((n) => !n.includes('played the full period with no event'))).toEqual([]);
   });
   it('stint +/- matches gamerotation PT_DIFF (where PT_DIFF agrees with box score)', () => {
     const raw = loadRawFixture(id);

@@ -24,4 +24,7 @@ export interface RawStint {
   side: 'home' | 'away';
   start: number;
   end: number;
+  /** Substitution events that opened/closed the stint; absent at period start/end. */
+  inEv?: Ev;
+  outEv?: Ev;
 }

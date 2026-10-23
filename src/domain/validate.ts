@@ -3,7 +3,7 @@
 import type { Game } from './types.ts';
 import { gameLength, periodAt, periodEnd, periodStart } from './time.ts';
 
-export type CheckName = 'minutes' | 'five-on-court' | 'fouls' | 'plus-minus' | 'stint-bounds' | 'overlap' | 'dnp-stints' | 'played-no-stints';
+export type CheckName = 'box-team-minutes' | 'box-team-plus-minus' | 'minutes' | 'five-on-court' | 'fouls' | 'plus-minus' | 'stint-bounds' | 'overlap' | 'dnp-stints' | 'played-no-stints';
 
 export interface Issue {
   game: string;
@@ -40,7 +40,7 @@ export function validateGame(g: Game): Issue[] {
 
     for (const [a, b] of p.stints) {
       const per = periodAt(a + 0.05);
-      if (!(a < b) || a < periodStart(per) || b > periodEnd(per) || b > end)
+      if (!(a <= b) || a < periodStart(per) || b > periodEnd(per) || b > end)
         add('stint-bounds', `stint [${a}, ${b}] outside period ${per} [${periodStart(per)}, ${periodEnd(per)}] or game end ${end}`, p);
     }
     for (let i = 1; i < p.stints.length; i++) {
@@ -50,6 +50,15 @@ export function validateGame(g: Game): Issue[] {
   for (const f of g.orphanFouls) {
     const p = g.players.find((x) => x.id === f.player);
     add('fouls', `foul at ${f.t}s not inside any stint`, p ?? { name: String(f.player), team: '?' });
+  }
+
+  // Box-score self-consistency: when these fail, a player-level mismatch above is likely a box-score error.
+  for (const [tri, margin] of [[g.home.tri, g.home.score - g.away.score], [g.away.tri, g.away.score - g.home.score]] as const) {
+    const ps = g.players.filter((p) => p.team === tri);
+    const min = ps.reduce((x, p) => x + p.min, 0);
+    if (Math.abs(min - 5 * end) > 5 * MINUTES_TOL) add('box-team-minutes', `${tri}: box minutes total ${min.toFixed(1)}s, expected ${5 * end}s`);
+    const pm = ps.reduce((x, p) => x + p.pm, 0);
+    if (pm !== 5 * margin) add('box-team-plus-minus', `${tri}: box +/- total ${pm}, expected 5 × ${margin} = ${5 * margin}`);
   }
 
   // Exactly 5 on court per team over every positive-length interval of the game.

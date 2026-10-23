@@ -10,9 +10,6 @@ import { parseIsoDuration, periodAt, periodEnd, r1 } from './time.ts';
 /** Foul subTypes that count toward a player's personal fouls (PF). Technicals do not. */
 export const PF_FOUL_SUBTYPES = new Set(['personal', 'offensive']);
 
-/** Tolerance (s) when matching rotation times to play-by-play event times. */
-const MATCH_TOL = 1;
-
 export function rotationStints(rot: RawRotation, homeId: number, awayId: number): RawStint[] {
   const out: RawStint[] = [];
   for (const set of rot.resultSets) {
@@ -35,6 +32,7 @@ export function rotationStints(rot: RawRotation, homeId: number, awayId: number)
 
 /** Split [start, end] at period boundaries. */
 export function splitByPeriod(start: number, end: number): { period: number; start: number; end: number }[] {
+  if (start === end) return [{ period: periodAt(start), start, end }];
   const pieces = [];
   let s = start;
   while (s < end) {
@@ -73,31 +71,31 @@ export function normalizeGame(raw: RawGame): Game {
 
   /**
    * Running score at a stint boundary (substitutions only happen in dead balls).
-   * With a matching substitution event, NBA credits free throws to the players on court when the foul
-   * happened: same-second free throws logged after the substitution count before it if their foul was
-   * logged before it. Free throws from a foul logged after it (e.g. a technical) stay after it. Without a matching event (period start/end) all same-second events fall
-   * outside an entering stint and inside an exiting one, so both sides of a boundary use the same cut.
+   * At a substitution event, NBA credits free throws to the players on court when the foul happened:
+   * same-second free throws logged after the substitution count before it if their foul (the latest
+   * same-second foul of its kind: technical for technical free throws, otherwise non-technical) was logged
+   * before it. Without a substitution event (period start/end) all same-second events fall outside an
+   * entering stint and inside an exiting one, so both sides of a boundary use the same cut.
    */
-  const scoreAt = (player: number, period: number, t: number, kind: 'in' | 'out') => {
-    let sub: Ev | undefined;
-    for (const e of evs) {
-      if (e.a.actionType !== 'substitution' || e.a.subType !== kind || e.a.personId !== player || e.period !== period) continue;
-      if (Math.abs(e.t - t) <= MATCH_TOL && (!sub || Math.abs(e.t - t) < Math.abs(sub.t - t))) sub = e;
-    }
+  const scoreAt = (sub: Ev | undefined, period: number, t: number, kind: 'in' | 'out') => {
     if (!sub) {
       const e = before(period, t, kind === 'out');
       return { home: e?.home ?? 0, away: e?.away ?? 0 };
     }
     let { home, away } = sub;
     let lastFoul: Ev | undefined;
+    let lastTech: Ev | undefined;
     for (let i = 0; i < evs.length; i++) {
       const x = evs[i]!;
       if (x.period !== sub.period || x.t !== sub.t) continue;
-      if (x.a.actionType === 'foul') lastFoul = x;
+      if (x.a.actionType === 'foul') {
+        if (x.a.subType === 'technical') lastTech = x;
+        else lastFoul = x;
+      }
       if (x.i <= sub.i) continue;
       const prev = evs[i - 1]!;
-      const ftBefore = x.a.actionType === 'freethrow' && lastFoul !== undefined && lastFoul.i < sub.i;
-      if (ftBefore) {
+      const foul = x.a.descriptor === 'technical' ? lastTech : lastFoul;
+      if (x.a.actionType === 'freethrow' && foul !== undefined && foul.i < sub.i) {
         home += x.home - prev.home;
         away += x.away - prev.away;
       }
@@ -117,31 +115,39 @@ export function normalizeGame(raw: RawGame): Game {
   }
 
   const stintsBy = new Map<number, Stint[]>();
-  const periodOf = new Map<Stint, number>();
   const refs = new Map<number, PlayerRef>();
   for (const [id, { side, p }] of box) refs.set(id, { side, starter: p.starter === '1', min: p.played === '1' ? parseIsoDuration(p.statistics.minutes) : 0 });
   const rebuilt = stintsFromPbp(evs, refs, bg.period);
-  for (const rs of rebuilt.stints) {
-    for (const piece of splitByPeriod(rs.start, rs.end)) {
-      const s0 = scoreAt(rs.player, piece.period, piece.start, 'in');
-      const s1 = scoreAt(rs.player, piece.period, piece.end, 'out');
-      const sign = rs.side === 'home' ? 1 : -1;
-      const pm = sign * (s1.home - s1.away - (s0.home - s0.away));
-      const stint: Stint = [piece.start, piece.end, pm];
-      periodOf.set(stint, piece.period);
-      if (!stintsBy.has(rs.player)) stintsBy.set(rs.player, []);
-      stintsBy.get(rs.player)!.push(stint);
-    }
+  // Event-order bounds of each stint, so fouls at the same clock as a substitution land in the right stint.
+  const orderBounds = new Map<Stint, [number, number]>();
+  const firstIdx = new Map<number, number>();
+  const lastIdx = new Map<number, number>();
+  for (const e of evs) {
+    if (!firstIdx.has(e.period)) firstIdx.set(e.period, e.i);
+    lastIdx.set(e.period, e.i);
   }
-  for (const list of stintsBy.values()) list.sort((x, y) => x[0] - y[0]);
+  for (const rs of rebuilt.stints) {
+    const period = periodAt(rs.start + (rs.end > rs.start ? 0.05 : 0));
+    const s0 = scoreAt(rs.inEv, period, rs.start, 'in');
+    const s1 = scoreAt(rs.outEv, period, rs.end, 'out');
+    const sign = rs.side === 'home' ? 1 : -1;
+    const stint: Stint = [rs.start, rs.end, sign * (s1.home - s1.away - (s0.home - s0.away))];
+    orderBounds.set(stint, [rs.inEv?.i ?? (firstIdx.get(period) ?? 0) - 0.5, rs.outEv?.i ?? (lastIdx.get(period) ?? 0) + 0.5]);
+    if (!stintsBy.has(rs.player)) stintsBy.set(rs.player, []);
+    stintsBy.get(rs.player)!.push(stint);
+  }
+  for (const list of stintsBy.values()) list.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
 
-  // Personal fouls → the stint they happened in.
+  // Personal fouls → the stint they happened in (by event order).
   const orphanFouls: Game['orphanFouls'] = [];
   for (const e of evs) {
     const a = e.a;
     if (a.actionType !== 'foul' || !a.personId || !PF_FOUL_SUBTYPES.has(a.subType ?? '')) continue;
     const list = stintsBy.get(a.personId) ?? [];
-    const st = list.find((s) => periodOf.get(s) === e.period && s[0] - MATCH_TOL <= e.t && e.t <= s[1] + MATCH_TOL);
+    const st = list.find((s) => {
+      const [lo, hi] = orderBounds.get(s)!;
+      return lo < e.i && e.i < hi;
+    });
     if (st) (st[3] ??= []).push(e.t);
     else if (box.has(a.personId)) orphanFouls.push({ player: a.personId, t: e.t });
   }

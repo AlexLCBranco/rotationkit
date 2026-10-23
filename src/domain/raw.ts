@@ -46,6 +46,8 @@ export interface RawAction {
   teamTricode?: string;
   actionType: string;
   subType?: string;
+  /** e.g. "technical", "flagrant" on free throws. */
+  descriptor?: string;
   personId?: number;
   /** All players involved (actor, assist, fouled, …). */
   personIdsFilter?: number[];

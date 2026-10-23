@@ -70,24 +70,28 @@ export function stintsFromPbp(evs: Ev[], players: Map<number, PlayerRef>, period
 
   const replay = (info: PeriodInfo): { stints: RawStint[]; problems: string[] } => {
     const problems: string[] = [];
-    const on = new Map<number, number>();
-    for (const id of info.starters) on.set(id, periodStart(info.period));
+    const on = new Map<number, { t: number; ev?: Ev }>();
+    for (const id of info.starters) on.set(id, { t: periodStart(info.period) });
     const stints: RawStint[] = [];
-    const close = (id: number, t: number) => {
-      const s = on.get(id)!;
+    const close = (id: number, t: number, outEv?: Ev) => {
+      const { t: s, ev: inEv } = on.get(id)!;
       on.delete(id);
-      if (t > s) stints.push({ player: id, side: info.side, start: s, end: r1(t) });
+      // Zero-length stints (in and out at the same clock) are kept: free throws from a foul committed while
+      // the player was on can still count for him. Not at period start, where a "sub out" records a
+      // between-periods change (keeping those makes +/- worse across a season).
+      if (t > s || (t === s && s > periodStart(info.period)))
+        stints.push({ player: id, side: info.side, start: s, end: r1(t), ...(inEv ? { inEv } : {}), ...(outEv ? { outEv } : {}) });
     };
     for (const e of evs) {
       if (e.period !== info.period || e.a.actionType !== 'substitution') continue;
       const id = e.a.personId;
       if (!id || players.get(id)?.side !== info.side) continue;
       if (e.a.subType === 'out') {
-        if (on.has(id)) close(id, e.t);
+        if (on.has(id)) close(id, e.t, e);
         else problems.push(`P${info.period} ${info.side}: sub out of ${id} at ${e.t}s who is not on court`);
       } else if (e.a.subType === 'in') {
         if (on.has(id)) problems.push(`P${info.period} ${info.side}: sub in of ${id} at ${e.t}s who is already on court`);
-        else on.set(id, e.t);
+        else on.set(id, { t: e.t, ev: e });
       }
     }
     for (const id of [...on.keys()]) close(id, periodEnd(info.period));

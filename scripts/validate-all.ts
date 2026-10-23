@@ -18,6 +18,7 @@ for (const season of seasonsFromArgs()) {
   const games: Game[] = [];
   const errors: { id: string; error: string }[] = [];
   const rotation = { compared: 0, matched: 0, unavailable: 0, diffs: [] as ({ game: string } & StintDiff)[] };
+  const rotationVerdict = new Map<string, string>();
   for (const id of ids) {
     try {
       const raw = loadRaw(id);
@@ -26,6 +27,7 @@ for (const season of seasonsFromArgs()) {
       if (!raw.gamerotation) rotation.unavailable++;
       else {
         const d = compareStints(g, raw.gamerotation);
+        rotationVerdict.set(id, d.length ? `gamerotation DIFFERS from Path B (${d.length} player(s))` : 'gamerotation identical to Path B');
         rotation.compared++;
         if (!d.length) rotation.matched++;
         rotation.diffs.push(...d.map((x) => ({ game: id, ...x })));
@@ -45,6 +47,10 @@ for (const season of seasonsFromArgs()) {
   for (const i of issues.slice(0, 40)) console.log(`  ${i.game} [${i.check}] ${i.player ?? ''} ${i.detail}`);
   if (issues.length > 40) console.log(`  … ${issues.length - 40} more in data/${season}/validation.json`);
   for (const e of errors) console.log(`  ${e.id} [normalize] ${e.error}`);
+  const boxBad = new Set(issues.filter((i) => i.check.startsWith('box-')).map((i) => i.game));
+  const otherBad = [...failedGames].filter((id) => !boxBad.has(id));
+  for (const id of failedGames) console.log(`  ${id}: ${rotationVerdict.get(id) ?? 'no gamerotation (run fetch-game to get the cross-check)'}`);
+  console.log(`  → ${boxBad.size} failed game(s) have an internally inconsistent box score; ${otherBad.length} other(s)${otherBad.length ? ': ' + otherBad.join(', ') : ''}`);
 
   const notes = games.filter((g) => g.stintNotes?.length);
   console.log(`\nstint reconstruction notes: ${notes.length} game(s)`);
