@@ -11,10 +11,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
-  BOX_REFRESH_DAYS, CACHE_DIR, SCHEDULE_URL, fetchGame, isFetched, missingOptional, needsBoxRefresh, readCached,
+  BOX_REFRESH_DAYS, CACHE_DIR, fetchGame, isFetched, missingOptional, needsBoxRefresh, readCached,
   refetchSource, seasonFile, type GameFetchResult, type SeasonGames,
 } from './lib/cache.ts';
 import { fetchJson } from './lib/http.ts';
+import { finished, parseSchedule, regularSeason, SCHEDULE_URL } from '../src/shared/nba-schedule/parse.ts';
+import { fetchScheduleJson } from '../src/shared/nba-schedule/node.ts';
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(name);
@@ -23,18 +25,17 @@ const arg = (name: string) => {
 const cdnOnly = process.argv.includes('--cdn-only');
 const retryOptional = process.argv.includes('--retry-optional');
 
-type ScheduleGame = { gameId: string; gameStatus: number; gameDateEst?: string; gameDateTimeUTC?: string };
-const schedule = (await fetchJson(SCHEDULE_URL)) as { leagueSchedule: { seasonYear: string; gameDates: { games: ScheduleGame[] }[] } };
-const current = schedule.leagueSchedule.seasonYear;
+const rawSchedule = await fetchScheduleJson({ onRetry: (a, d, e) => console.warn(`  retry ${a} in ${d / 1000}s: schedule (${e.message})`) });
+mkdirSync(CACHE_DIR, { recursive: true });
+// Raw feed kept in the cache; normalize derives data/<season>/schedule.json (for ?game= deep links) from it.
+writeFileSync(join(CACHE_DIR, 'schedule.json'), JSON.stringify(rawSchedule));
+const schedule = parseSchedule(rawSchedule);
+const current = schedule.seasonYear;
 const season = arg('--season') ?? current;
 
 let list: SeasonGames;
 if (season === current) {
-  // Regular-season game IDs start with "002"; gameStatus 3 = final.
-  const games = schedule.leagueSchedule.gameDates
-    .flatMap((d) => d.games)
-    .filter((g) => g.gameId.startsWith('002') && g.gameStatus === 3)
-    .map((g) => ({ gameId: g.gameId, date: (g.gameDateEst ?? g.gameDateTimeUTC ?? '').slice(0, 10) }));
+  const games = finished(regularSeason(schedule)).map((g) => ({ gameId: g.gameId, date: g.dateEt }));
   list = { season, source: SCHEDULE_URL, games };
 } else {
   const url = `https://stats.nba.com/stats/leaguegamelog?Counter=0&Direction=ASC&LeagueID=00&PlayerOrTeam=T&Season=${season}&SeasonType=Regular%20Season&Sorter=DATE`;

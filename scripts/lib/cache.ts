@@ -7,7 +7,6 @@ import { join } from 'node:path';
 import { fetchJson, gapFor, sleep } from './http.ts';
 
 export const CACHE_DIR = 'cache';
-export const SCHEDULE_URL = 'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json';
 
 /**
  * Sources per game. Required ones (CDN) must all succeed for a game to count as fetched. Optional ones

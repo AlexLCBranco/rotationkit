@@ -23,5 +23,5 @@ function dataDir(): Plugin {
 
 export default defineConfig({
   plugins: [react(), dataDir()],
-  test: { include: ['tests/**/*.test.ts'] },
+  test: { include: ['tests/**/*.test.ts', 'src/**/*.test.ts'] },
 });
