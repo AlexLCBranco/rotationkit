@@ -132,6 +132,38 @@ Real-data tests (2025-26): Franz Wagner ORL 34 with / 48 without (official injur
 Christian Braun DEN 44 / 38 (35 inactive + 3 box DNPs); James Harden LAC→CLE (44 + 26 with; post-trade LAC
 and pre-trade CLE games in neither group); 5-on-court invariant across buckets for 4 teams, blowout ON and OFF.
 
+## UI (`src/App.tsx`, `src/components/`, `src/app/`)
+- **Team pattern view** (main): team picker, season (defaults to the current season), Last 5 / Last 10 /
+  Season, All / Home / Away, "Hide blowout time" (default on), With… / Without… + player. One row per player
+  sorted by average minutes: short name | 48-minute heat strip (viridis scale, colorblind-safe; 0% is near the
+  background; striped = only blowout time) | avg MIN | games played / games in selection. Quarter dividers,
+  light ticks every 3 minutes. Hover/tap a strip → sticky readout "Q2 6:00–5:30 · on court in 7 of 10 games".
+- **Labels**: plain words, e.g. "Last 10 games without F. Wagner · based on 10 games" (= the 10 most recent
+  games he missed). Short name = family name; first initial added when two team-mates share it. With/without
+  shows both group sizes and marks the "without" count *estimated* when any game lacked an official list.
+- **Few games**: under 5 games, a note offers the same view (same team, player, with/without) for the
+  previous season. Team and player are never reset.
+- **Player view**: one row per game (date + opponent), actual stints on the game timeline (OT included),
+  ⚠ on flagged games, collapsed list of games he missed with reasons. Click a row → game.
+- **Game chart**: per team, one row per player: name (starters bold) | stint bars (continuous stints merged
+  across quarters; duration written on the bar only when it fits, otherwise in the readout) with foul ticks
+  at the exact time | MIN PTS REB AST PF +/- (signed text, no red/green). Blowout time shaded with stripes.
+  Did-not-play / inactive players listed at the bottom with reasons. Flagged games show a data note.
+- **State** lives in the URL hash (`#/team/ORL?s=2025-26&w=10&p=1630532&m=without`), so views are linkable.
+- Dark theme only (no light theme by design). Works at 390 px phone width (no sideways scroll).
+
+## Testing
+- `npm test` — Vitest: normalization, validation, pattern engine, real-data checks (187 tests).
+- `npm run build && npm run e2e` — Playwright against the production build served by `vite preview`, desktop
+  1280px and phone 390px: no console errors, all 30 teams × both seasons render with the right "based on N",
+  filters/labels, low-sample switch, player + game click-through, flagged warning, no sideways scroll.
+  Screenshots go to `screenshots/` (gitignored).
+
+## Deploy (Vercel)
+`vercel.json`: install `npm ci`, build `npm run build` (typecheck + Vite), output `dist/`. The build copies
+`data/` to `dist/data/`; the app only reads those JSON files (never NBA.com). Vercel deploys `main` to
+production; feature branches get preview deployments.
+
 ## How to update data
 ```
 npm install
@@ -157,7 +189,7 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
 - Step 3 (validation): done.
 - Path B (stints from play-by-play) is the primary source; 2025-26 backfilled via CDN (1230/1230 fetched).
 - Step 4 (pattern engine): done; with/without included. 186 tests.
-- Next: Step 5 (UI).
+- Step 5 (UI): built; e2e passing locally. Awaiting review of the Vercel preview.
 
 ## Open problems
 - stats.nba.com is slow/flaky (timeouts, 500s). It is optional now; `--cdn-only` skips it.

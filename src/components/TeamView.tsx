@@ -59,7 +59,7 @@ export function SelectionSummary({ sel, names, seasons, onSwitchSeason }: { sel:
       )}
       {n < 5 && older && (
         <p className="note" data-testid="low-sample">
-          Only {n} game{n === 1 ? '' : 's'} match in {sel.season}.{' '}
+          {n === 0 ? 'No games' : `Only ${n} game${n === 1 ? '' : 's'}`} {n === 1 ? 'matches' : 'match'} in {sel.season}.{' '}
           <button className="link" onClick={() => onSwitchSeason(older)}>
             Show the same view for {older}
           </button>
@@ -183,8 +183,8 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
               </span>
             ))}
             <span className="chip">
-              <i style={{ background: heat(null) }} />
-              excluded
+              <i className="excluded-swatch" />
+              only blowout time (excluded)
             </span>
           </div>
         </>

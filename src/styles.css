@@ -120,7 +120,8 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 @media (max-width: 640px) {
   body { font-size: 14px; }
   .page { padding: 8px 16px 32px; }
-  .team-grid { grid-template-columns: 74px minmax(0, 1fr) 34px 44px; column-gap: 6px; }
+  .team-grid { grid-template-columns: 84px minmax(0, 1fr) 34px 44px; column-gap: 6px; }
+  .team-grid .name { font-size: 13px; }
   .player-grid { grid-template-columns: 96px minmax(0, 1fr) 40px; column-gap: 6px; }
   .game-grid { grid-template-columns: minmax(0, 1fr) repeat(6, 30px); column-gap: 4px; row-gap: 0; }
   .game-grid > .gh.strip { grid-column: 1 / -1; grid-row: 2; }
