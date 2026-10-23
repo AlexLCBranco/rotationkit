@@ -21,7 +21,7 @@ export const FOUL_TROUBLE: Record<'1' | '2' | '3' | '4', { caution: number | nul
   '2': { caution: 3, trouble: 4 },
   '3': { caution: 4, trouble: 5 },
   /** Also used for every OT period. */
-  '4': { caution: null, trouble: 5 },
+  '4': { caution: 4, trouble: 5 },
 };
 
 /** Game-type badge from the final margin (same cut-offs as the reference chart). */

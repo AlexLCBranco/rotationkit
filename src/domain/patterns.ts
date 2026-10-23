@@ -214,8 +214,8 @@ export interface QuarterAverages {
 }
 
 /**
- * Per-player averages over the selection's games he played. With the blowout filter on, minutes and fouls in
- * excluded (garbage) time are left out, like everywhere else in the pattern view.
+ * Per-player averages over the selection's games he played. With the blowout filter on, minutes in excluded
+ * (garbage) time are left out; fouls always count.
  */
 export function quarterAverages(sel: Selection, cfg: BlowoutConfig = PATTERN_CONFIG.blowout): QuarterAverages[] {
   const acc = new Map<number, { name: string; gp: number; minQ: number[]; pfQ: number[] }>();
@@ -234,10 +234,8 @@ export function quarterAverages(sel: Selection, cfg: BlowoutConfig = PATTERN_CON
           if (a1 > a0) a.minQ[i]! += a1 - a0 - overlapAll(a0, a1, excl);
         }
       }
-      for (const [t, period] of p.fouls ?? []) {
-        if (excl.some(([x, y]) => x <= t && t < y)) continue;
-        a.pfQ[Math.min(period, 5) - 1]!++;
-      }
+      // Fouls always count, including in garbage time: the blowout filter hides minutes only.
+      for (const [, period] of p.fouls ?? []) a.pfQ[Math.min(period, 5) - 1]!++;
     }
   }
   return [...acc.entries()]

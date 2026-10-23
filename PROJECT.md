@@ -158,7 +158,7 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   - Fouls: numbered ticks (cumulative count) at the exact time; hover/tap → "Player — foul #3 — offensive foul
     (turnover) — Q2 10:04" (type from play-by-play only). Per-quarter PF badge at the end of each quarter with fouls.
   - Foul-trouble coloring (toggle, default on): thresholds per quarter in `FOUL_TROUBLE` (`src/domain/config.ts`):
-    Q1 2 caution / 3 trouble, Q2 3 / 4, Q3 4 / 5, Q4 & OT 5 trouble. Trouble is striped (not color alone).
+    Q1 2 caution / 3 trouble, Q2 3 / 4, Q3 4 / 5, Q4 & OT 4 / 5. Trouble is striped (not color alone).
   - Clock: quarter names, light ticks and labels at 12:00/9:00/6:00/3:00 (OT 5:00/2:30).
   - Lineup cursor: hover (desktop), tap or drag its handle (phone); click pins/unpins. Panel: clock + score, the 5
     on court per team with fouls at that moment and "on since". Lineup list per team (collapsible): start/end/
@@ -168,7 +168,8 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
     (= box score).
   - `#/game/latest?t=PHI` (or "Latest game →" on the team view) opens the team's most recent game.
 - **Team view extras**: "Minutes & fouls per game" table (avg MIN, avg MIN per quarter, avg PF per quarter, avg PF,
-  GP; follows all filters — with "hide blowout time" on, minutes *and fouls* in excluded time are left out).
+  GP; follows all filters — "hide blowout time" removes garbage-time **minutes only**; fouls always count, in
+  every PF total, per-quarter PF and average).
   Matchup mode: pick an opponent (`vs=`) to stack both teams' pattern views with the same filters (with/without
   applies to the first team only).
 - **Player view extras**: game-type badge on each game row; game log table (date, opponent, H/A, badge, starter,

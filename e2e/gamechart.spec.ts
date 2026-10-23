@@ -220,3 +220,14 @@ test('reference screenshots', async ({ page }, info) => {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `screenshots/gamechart-${info.project.name}.png`, fullPage: true });
 });
+
+test('rows use short names on phone (incl. DNP rows), full names on desktop', async ({ page }, info) => {
+  await page.goto('/#/game/0022500093');
+  const dnp = page.getByTestId('dnp-row').first().locator('.gc-name');
+  if (info.project.name === 'phone') {
+    await expect(dnp.locator('.short')).toBeVisible();
+    await expect(dnp.locator('.full')).toBeHidden();
+    // The short name fits: no truncation.
+    expect(await dnp.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  } else await expect(dnp.locator('.full')).toBeVisible();
+});

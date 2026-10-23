@@ -172,7 +172,7 @@ describe('mergeContinuous (display)', () => {
 });
 
 describe('quarterAverages', () => {
-  it('per-quarter minutes and fouls averaged over games played; blowout time removed when filtered', async () => {
+  it('per-quarter minutes and fouls averaged over games played; blowout filter removes minutes, never fouls', async () => {
     const { quarterAverages } = await import('../src/domain/patterns.ts');
     const p1 = { ...pl(1, 'AAA', FULL), fouls: [[100, 1, 'x'], [2600, 4, 'y']] as [number, number, string][], pf: 2 };
     const p2 = { ...pl(1, 'AAA', [[0, 720, 0]]) };
@@ -185,7 +185,8 @@ describe('quarterAverages', () => {
     expect(off.pf).toBe(1);
     const on = quarterAverages(selectGames([g1, g2], '2025-26', 'AAA', F({ blowout: true })))[0]!;
     expect(on.minQ[3]).toBe((720 - 360) / 2); // Q4 6:00–0:00 excluded in g1
-    expect(on.pfQ[3]).toBe(0); // the Q4 foul at 2600 is in garbage time
+    expect(on.pfQ[3]).toBe(0.5); // the Q4 foul at 2600 is in garbage time but fouls always count
+    expect(on.pf).toBe(off.pf);
     expect(on.min).toBe(on.minQ.reduce((x, y) => x + y, 0));
   });
 });

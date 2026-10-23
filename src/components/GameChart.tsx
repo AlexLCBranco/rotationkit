@@ -146,13 +146,14 @@ function TeamRows({
   setInfo: (s: string | null) => void;
 }) {
   const players = g.players.filter((p) => p.team === team.tri);
-  const names = useMemo(() => shortNames(players), [players]);
+  const inactive = (g.inactive ?? []).filter((p) => p.team === team.tri);
+  const names = useMemo(() => shortNames([...players, ...inactive]), [g, team.tri]); // eslint-disable-line react-hooks/exhaustive-deps
   const played = players.filter((p) => p.played && p.stints.length);
   const starters = played.filter((p) => p.starter).sort((a, b) => totalPlayed(b) - totalPlayed(a));
   const bench = played.filter((p) => !p.starter).sort((a, b) => totalPlayed(b) - totalPlayed(a));
   const dnp = [
     ...players.filter((p) => !p.played || !p.stints.length).map((p) => ({ id: p.id, name: p.name, reason: reasonText(p.reason, p.reasonDetail) })),
-    ...(g.inactive ?? []).filter((p) => p.team === team.tri).map((p) => ({ id: p.id, name: p.name, reason: reasonText(p.reason, p.reasonDetail) ?? 'Inactive' })),
+    ...inactive.map((p) => ({ id: p.id, name: p.name, reason: reasonText(p.reason, p.reasonDetail) ?? 'Inactive' })),
   ];
   const grid = (
     <>
@@ -203,7 +204,10 @@ function TeamRows({
         <div className="gc-row gc-dnp" key={p.id} data-testid="dnp-row">
           <div className="gc-left gc-sticky">
             <Headshot id={p.id} name={p.name} />
-            <span className="gc-name">{p.name}</span>
+            <span className="gc-name" title={p.name}>
+              <span className="full">{p.name}</span>
+              <span className="short">{names.get(p.id) ?? p.name}</span>
+            </span>
             <span className="gc-min muted">—</span>
           </div>
           <div className="gc-track" style={{ width: W }} />

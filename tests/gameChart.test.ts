@@ -20,8 +20,8 @@ describe('foul trouble thresholds (config)', () => {
     [1, 1, 'ok'], [1, 2, 'caution'], [1, 3, 'trouble'],
     [2, 2, 'ok'], [2, 3, 'caution'], [2, 4, 'trouble'],
     [3, 3, 'ok'], [3, 4, 'caution'], [3, 5, 'trouble'],
-    [4, 4, 'ok'], [4, 5, 'trouble'], [4, 6, 'trouble'],
-    [5, 4, 'ok'], [5, 5, 'trouble'], [6, 5, 'trouble'],
+    [4, 3, 'ok'], [4, 4, 'caution'], [4, 5, 'trouble'], [4, 6, 'trouble'],
+    [5, 3, 'ok'], [5, 4, 'caution'], [5, 5, 'trouble'], [6, 4, 'caution'], [6, 5, 'trouble'],
   ] as const)('Q%i with %i fouls → %s', (q, n, level) => expect(troubleLevel(q, n)).toBe(level));
 });
 

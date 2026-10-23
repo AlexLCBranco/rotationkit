@@ -269,7 +269,7 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
   return (
     <details className="avg-table" open>
       <summary>
-        Minutes & fouls per game <span className="muted">· {basedOn(sel.games.length)}{sel.filters.blowout ? ' · blowout time excluded (minutes and fouls)' : ''}</span>
+        Minutes & fouls per game <span className="muted">· {basedOn(sel.games.length)}{sel.filters.blowout ? ' · garbage-time minutes excluded (fouls always count)' : ''}</span>
       </summary>
       <div className="table-wrap">
         <table className="tbl" data-testid="averages-table">
