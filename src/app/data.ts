@@ -1,6 +1,6 @@
 // Browser-side loading of committed JSON (served at /data). Everything is memoized per session.
 
-import type { Game, GameIndexEntry } from '../domain/types.ts';
+import type { Game, GameIndexEntry, ScheduleEntry } from '../domain/types.ts';
 import { appearancesFromFile, buildAppearances, type AppearanceIndex } from '../domain/availability.ts';
 
 export interface SeasonInfo {
@@ -24,6 +24,8 @@ function get<T>(path: string): Promise<T> {
 
 export const loadSeasons = () => get<SeasonInfo[]>('seasons.json');
 export const loadIndex = (season: string) => get<GameIndexEntry[]>(`${season}/index.json`);
+/** Schedule of a season incl. unplayed games (only for seasons the feed was cached for). */
+export const loadSchedule = (season: string) => get<ScheduleEntry[]>(`${season}/schedule.json`);
 export const loadGame = (season: string, id: string) => get<Game>(`${season}/games/${id}.json`);
 
 /** All games of a team in a season, oldest first (fetched with limited concurrency). */

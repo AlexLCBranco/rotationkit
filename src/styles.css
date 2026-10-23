@@ -134,3 +134,6 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
   .label { font-size: 15px; }
 }
 .legend i.excluded-swatch { background: repeating-linear-gradient(90deg, #4a5163 0 3px, #262b36 3px 6px); }
+.unavailable { margin-top: 24px; }
+.unavailable h1 { font-size: 20px; margin: 0 0 10px; }
+.unavailable a { color: var(--accent); }

@@ -89,3 +89,14 @@ export interface QualityNote {
   verdict: 'box-score' | 'unresolved';
   why: string;
 }
+
+/** data/<season>/schedule.json: every game in the schedule feed (incl. unplayed), for deep links. */
+export interface ScheduleEntry {
+  id: string;
+  date: string;
+  /** "" while a knockout opponent is still to be decided. */
+  home: string;
+  away: string;
+  status: 'scheduled' | 'live' | 'final' | 'unknown';
+  label?: string;
+}

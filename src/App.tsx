@@ -5,6 +5,7 @@ import { TEAM_CODES } from './app/teams.ts';
 import { TeamView } from './components/TeamView.tsx';
 import { PlayerView } from './components/PlayerView.tsx';
 import { GameView } from './components/GameView.tsx';
+import { DeepLink } from './components/DeepLink.tsx';
 
 export function App() {
   const [route, go] = useRoute();
@@ -12,6 +13,9 @@ export function App() {
   if (seasons.status === 'loading') return <div className="page muted">Loading…</div>;
   if (seasons.status === 'error') return <div className="page error">Could not load data: {seasons.error}</div>;
   const list = seasons.value.map((s) => s.season).sort();
+  // Deep link: <BASE_URL>/?game=<NBA gameId>
+  const deepLink = new URLSearchParams(location.search).get('game');
+  if (deepLink !== null) return <DeepLink id={deepLink.trim()} seasons={list} nav={go} />;
   const current = list[list.length - 1]!;
   // Default: the current season; an unknown season in the URL falls back to it.
   const season = route.season && list.includes(route.season) ? route.season : current;

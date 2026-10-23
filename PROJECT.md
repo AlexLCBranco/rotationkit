@@ -152,11 +152,30 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
 - **State** lives in the URL hash (`#/team/ORL?s=2025-26&w=10&p=1630532&m=without`), so views are linkable.
 - Dark theme only (no light theme by design). Works at 390 px phone width (no sideways scroll).
 
+## Deep link by game ID
+Contract: **`<BASE_URL>/?game=<gameId>`** — `gameId` is the NBA game ID from the schedule feed (e.g. `0022600123`).
+`<BASE_URL>` is the production URL, to be filled in after the first merge to main.
+- Game in rotationkit's data → opens that game's chart (the URL becomes `<BASE_URL>/#/game/<gameId>`).
+- Unknown ID, not played yet, in progress, or data not added yet → page saying
+  "Rotation data not available for this game yet", with matchup, date and status when the schedule knows the
+  game. Never a blank page.
+- Uses `data/<season>/schedule.json` (written by `normalize`: every game of the cached feed's season, incl.
+  unplayed ones; for past seasons the played games).
+
+## Shared module: `src/shared/nba-schedule/`
+Self-contained schedule-feed reader, also used by the NBA calendar project (copied as-is; see its README).
+- `parse.ts` — **browser-safe**: no imports, no Node APIs. Raw feed JSON → full game objects (all raw fields
+  kept + derived status/type/UTC start/TBD/Cup flags).
+- `node.ts` — **Node only, optional**: fetch with browser-like headers, timeout, retries, `HTTPS_PROXY` support.
+- Tests next to it (`*.test.ts`, `fixture.json`), runnable on their own; one runs the parser in a JS realm
+  without Node globals. rotationkit's `fetch-season` imports from here.
+
 ## Testing
-- `npm test` — Vitest: normalization, validation, pattern engine, real-data checks (187 tests).
+- `npm test` — Vitest: normalization, validation, pattern engine, real-data checks, nba-schedule module (199 tests).
 - `npm run build && npm run e2e` — Playwright against the production build served by `vite preview`, desktop
   1280px and phone 390px: no console errors, all 30 teams × both seasons render with the right "based on N",
-  filters/labels, low-sample switch, player + game click-through, flagged warning, no sideways scroll.
+  filters/labels, low-sample switch, player + game click-through, flagged warning, no sideways scroll,
+  `?game=` deep links (valid, future, unknown, garbage).
   Screenshots go to `screenshots/` (gitignored).
 
 ## Deploy (Vercel)

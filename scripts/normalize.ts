@@ -8,6 +8,31 @@ import { cachedSeasons, fetchedSeasonGames, loadRaw, seasonsFromArgs } from './l
 import { normalizeGame } from '../src/domain/normalize.ts';
 import { validateGame } from '../src/domain/validate.ts';
 import { qualityNotes } from '../src/domain/quality.ts';
+import { parseSchedule } from '../src/shared/nba-schedule/parse.ts';
+import { CACHE_DIR } from './lib/cache.ts';
+import type { ScheduleEntry } from '../src/domain/types.ts';
+
+/** Compact schedule per season for ?game= deep links: every game in the feed (played or not) for the feed's season. */
+function writeSchedule(season: string, dir: string, index: GameIndexEntry[]) {
+  const file = join(CACHE_DIR, 'schedule.json');
+  const s = existsSync(file) ? parseSchedule(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
+  if (s?.seasonYear !== season) {
+    // Past season (feed not cached for it): every game we have is final.
+    const entries: ScheduleEntry[] = index.map((g) => ({ id: g.id, date: g.date, home: g.home, away: g.away, status: 'final' }));
+    writeFileSync(join(dir, 'schedule.json'), JSON.stringify(entries));
+    return;
+  }
+  const entries: ScheduleEntry[] = s.games.map((g) => ({
+    id: g.gameId,
+    date: g.dateEt,
+    home: g.homeTeam.teamTricode,
+    away: g.awayTeam.teamTricode,
+    status: g.status,
+    ...(g.gameLabel ? { label: [g.gameLabel, g.gameSubLabel].filter(Boolean).join(' · ') } : {}),
+  }));
+  writeFileSync(join(dir, 'schedule.json'), JSON.stringify(entries));
+  console.log(`  schedule.json: ${entries.length} games from the feed`);
+}
 import type { GameIndexEntry } from '../src/domain/types.ts';
 
 const DATA = 'data';
@@ -46,6 +71,7 @@ for (const season of seasonsFromArgs()) {
   const indexJson = JSON.stringify(index);
   writeFileSync(join(dir, 'index.json'), indexJson);
   writeFileSync(join(dir, 'appearances.json'), JSON.stringify(apps));
+  writeSchedule(season, dir, index);
   console.log(`${season}: normalized ${index.length}/${ids.length} games, ${(bytes / 1024).toFixed(0)} KB games + ${(indexJson.length / 1024).toFixed(0)} KB index, ${(bytes / 1024 / Math.max(1, index.length)).toFixed(1)} KB/game`);
   console.log(`  ${flagged} game(s) carry data-quality notes`);
   for (const f of failed) console.log(`  FAILED ${f.id}: ${f.error}`);
