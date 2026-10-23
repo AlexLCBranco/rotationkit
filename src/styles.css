@@ -271,3 +271,14 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .name .badge { padding: 0 5px; }
 .sit-cell { white-space: nowrap; font-size: 12px; }
 .sit-line { margin: 6px 0; font-size: 14px; }
+.trend { margin: 14px 0 6px; max-width: 760px; }
+.trend figcaption { font-size: 14px; margin-bottom: 4px; }
+.trend svg { width: 100%; height: auto; display: block; }
+.trend-grid { stroke: #232938; stroke-width: 1; }
+.trend-axis { fill: var(--muted); font: 10px system-ui, sans-serif; }
+.trend-avg { stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.trend-line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.trend-pt { fill: var(--accent); stroke: var(--bg); stroke-width: 1; cursor: pointer; }
+.trend-pt.garbage { fill: var(--bg); stroke: var(--accent); stroke-width: 2; }
+.trend-dnp { stroke: #ff8a8a; stroke-width: 2; }
+.trend-readout { font-size: 12px; margin: 2px 0 0; }

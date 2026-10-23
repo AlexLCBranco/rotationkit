@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { loadSeason } from './data.ts';
-import { DEFAULT_FILTERS, selectGames, teamPattern, type Filters } from '../src/domain/patterns.ts';
+import { blowoutIntervals, DEFAULT_FILTERS, selectGames, teamPattern, type Filters } from '../src/domain/patterns.ts';
 import { buildAppearances } from '../src/domain/availability.ts';
 import type { Game } from '../src/domain/types.ts';
 
@@ -94,5 +94,30 @@ describe('invariants on real data', () => {
     expect(flagged.map((g) => g.id).sort()).toEqual(['0022500093', '0022500374', '0022500722', '0022500753']);
     expect(sel('HOU', {}).games.some((g) => g.id === '0022500093')).toBe(true);
     expect(flagged.find((g) => g.id === '0022500093')!.quality![0]).toMatchObject({ check: 'minutes', verdict: 'box-score' });
+  });
+});
+
+describe('minutes trend (real data)', () => {
+  it('Franz Wagner, full season: one point per ORL game, minutes = his stints, DNP for the 48 injury games', async () => {
+    const { minutesTrend } = await import('../src/domain/patterns.ts');
+    const id = pid('Franz Wagner');
+    const s = sel('ORL', { blowout: false });
+    const t = minutesTrend(s, id, idx);
+    expect(t.points).toHaveLength(82);
+    expect(t.points.filter((x) => x.status === 'dnp')).toHaveLength(48);
+    for (const pt of t.points) {
+      const g = s.games.find((x) => x.id === pt.gameId)!;
+      const p = g.players.find((x) => x.id === id);
+      expect(pt.min).toBeCloseTo(p?.played ? p.stints.reduce((x, [a, b]) => x + b - a, 0) : 0, 6);
+      expect(pt.garbage).toBe(blowoutIntervals(g).length > 0);
+    }
+    const played = t.points.filter((x) => x.status === 'played');
+    expect(t.avg).toBeCloseTo(played.reduce((x, y) => x + y.min, 0) / 34, 6);
+  });
+  it('a traded player: games before he joined are not in the trend', async () => {
+    const { minutesTrend } = await import('../src/domain/patterns.ts');
+    const t = minutesTrend(sel('CLE', {}), pid('James Harden'), idx);
+    expect(t.points.every((x) => x.date >= '2026-02-01')).toBe(true);
+    expect(t.points.filter((x) => x.status === 'played')).toHaveLength(26);
   });
 });

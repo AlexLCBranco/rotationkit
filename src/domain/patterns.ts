@@ -307,3 +307,46 @@ export function sitPattern(sel: Selection, playerId: number, minGames = 3, cfg: 
 }
 
 export const describeSit = (evs: SitEvent[]) => evs.map((e) => `Q${e.period} ${e.kind} ~${e.clock} (${e.n})`).join(' · ');
+
+export interface TrendPoint {
+  gameId: string;
+  date: string;
+  opponent: string;
+  home: boolean;
+  /** Seconds played (0 when he did not play). */
+  min: number;
+  status: 'played' | 'dnp';
+  reason?: string;
+  /** Game had garbage time (time excluded by the blowout rule). */
+  garbage: boolean;
+}
+
+/**
+ * Minutes per game over the selection (oldest first). Games where he was with the team but did not play are
+ * included as DNP (0); games when he was not with the team are left out. Average is over games played.
+ */
+export function minutesTrend(sel: Selection, playerId: number, idx: AppearanceIndex, cfg: BlowoutConfig = PATTERN_CONFIG.blowout) {
+  const points: TrendPoint[] = [];
+  for (const g of sel.games) {
+    const a = availabilityFor(idx, g, sel.team, playerId, true);
+    if (a.status === 'not-with-team') continue;
+    const p = g.players.find((x) => x.id === playerId && x.team === sel.team);
+    const played = a.status === 'played' && !!p && p.stints.length > 0;
+    const inactive = g.inactive?.find((x) => x.id === playerId);
+    const reason = played ? undefined : (p?.reason ?? inactive?.reason ?? (a.status === 'out' ? 'INACTIVE' : undefined));
+    const home = g.home.tri === sel.team;
+    points.push({
+      gameId: g.id,
+      date: g.date,
+      opponent: home ? g.away.tri : g.home.tri,
+      home,
+      min: played ? p!.stints.reduce((x, [s, e]) => x + e - s, 0) : 0,
+      status: played ? 'played' : 'dnp',
+      ...(reason ? { reason } : {}),
+      garbage: blowoutIntervals(g, cfg).length > 0,
+    });
+  }
+  const played = points.filter((x) => x.status === 'played');
+  const avg = played.length ? played.reduce((x, y) => x + y.min, 0) / played.length : null;
+  return { points, avg };
+}

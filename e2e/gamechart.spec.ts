@@ -239,3 +239,20 @@ test('"when does he sit?" in the team table and the player view header', async (
   await page.goto('/#/player/ORL/1631094?s=2025-26&w=10');
   await expect(page.getByTestId('sit-line')).toContainText(/When he sits: Q1 out ~\d+:\d0 \(\d+\)/);
 });
+
+test('minutes trend: one mark per game with the team, values = per-game minutes, DNP and garbage-time marks', async ({ page }, info) => {
+  await page.goto('/#/player/ORL/1630532?s=2025-26&b=0');
+  const chart = page.getByTestId('minutes-trend');
+  await expect(chart.getByTestId('trend-point')).toHaveCount(34);
+  await expect(chart.getByTestId('trend-dnp')).toHaveCount(48);
+  await expect(chart.getByTestId('trend-avg')).toBeAttached();
+  const mins = (await chart.getByTestId('trend-point').evaluateAll((els) => els.map((e) => Number(e.getAttribute('data-min'))))) as number[];
+  const games = index('2025-26').map((e) => load('2025-26', e.id)).filter((g) => g.home.tri === 'ORL' || g.away.tri === 'ORL');
+  const expected = games.flatMap((g) => {
+    const p = g.players.find((x) => x.id === 1630532 && x.played && x.stints.length);
+    return p ? [p.stints.reduce((x, [a, b]) => x + b - a, 0)] : [];
+  });
+  expect(mins.map((m) => Math.round(m))).toEqual(expected.map((m) => Math.round(m)));
+  expect(await chart.locator('[data-garbage=true]').count()).toBeGreaterThan(0);
+  await chart.screenshot({ path: `screenshots/minutes-trend-${info.project.name}.png` });
+});

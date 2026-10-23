@@ -14,7 +14,9 @@ import { describeStint, StintBars } from './Stints.tsx';
 import { rosterOf, SelectionSummary } from './TeamView.tsx';
 import { GameBadge } from './GameBadge.tsx';
 import { quarterStats } from '../domain/gameChart.ts';
-import { describeSit, sitPattern, type Selection } from '../domain/patterns.ts';
+import { describeSit, minutesTrend, sitPattern, type Selection } from '../domain/patterns.ts';
+import { buildAppearances } from '../domain/availability.ts';
+import { MinutesTrend } from './MinutesTrend.tsx';
 
 interface Props {
   seasons: string[];
@@ -49,7 +51,8 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
     const periods = Math.max(4, ...sel.games.filter((g) => inBox.has(g.id)).map((g) => g.periods));
     const anyName =
       games.flatMap((g) => g.players).find((p) => p.id === player)?.name ?? games.flatMap((g) => g.inactive ?? []).find((p) => p.id === player)?.name;
-    return { ...roster, sel, rows, missed, periods, fullName: anyName ?? String(player) };
+    const trend = minutesTrend(sel, player, idx ?? buildAppearances(games));
+    return { ...roster, sel, rows, missed, periods, trend, fullName: anyName ?? String(player) };
   }, [data, season, team, player, route.filters]);
 
   const total = c ? periodEnd(c.periods) : 2880;
@@ -129,6 +132,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
               ))}
             </div>
           )}
+          <MinutesTrend {...c.trend} />
           {c.rows.some((r) => r.played) && <GameLog sel={c.sel} player={player} team={team} onOpen={(id) => nav({ view: 'game', game: id, team, season, filters: route.filters })} />}
           {c.missed.length > 0 && (
             <details className="missed">
