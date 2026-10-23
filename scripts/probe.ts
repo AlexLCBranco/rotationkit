@@ -1,8 +1,9 @@
 // Step 0 connectivity probe: checks which NBA data endpoints are reachable
 // from this environment and inspects the shape of real responses.
-// Run: npm run probe   (NODE_USE_ENV_PROXY=1 makes Node's fetch use HTTPS_PROXY)
+// Run: npm run probe
 
 import { mkdirSync, writeFileSync } from 'node:fs';
+import './lib/http.ts'; // installs proxy dispatcher when HTTPS_PROXY is set
 
 const HEADERS: Record<string, string> = {
   'User-Agent':
