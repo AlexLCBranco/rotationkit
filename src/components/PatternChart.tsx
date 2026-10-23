@@ -46,9 +46,11 @@ interface Props {
   tp: TeamPattern;
   names: Map<number, string>;
   onPlayer: (id: number) => void;
+  showRare: boolean;
+  onToggleRare: () => void;
 }
 
-export function PatternChart({ sel, tp, names, onPlayer }: Props) {
+export function PatternChart({ sel, tp, names, onPlayer, showRare, onToggleRare }: Props) {
   const phone = usePhone();
   const cols = { left: (phone ? COLS.phone : COLS.desktop).left, pf: phone ? GP_COL.phone : GP_COL.desktop };
   const [boxRef, boxW] = useWidth<HTMLDivElement>();
@@ -97,7 +99,6 @@ export function PatternChart({ sel, tp, names, onPlayer }: Props) {
       }),
     [tp, sel, W],
   );
-  const [showRare, setShowRare] = useState(false);
   const regular = rows.filter((r) => !r.rarelyUsed);
   const rare = rows.filter((r) => r.rarelyUsed);
 
@@ -228,7 +229,7 @@ export function PatternChart({ sel, tp, names, onPlayer }: Props) {
             <span>
               <i className="lvl-typ-mid" /> 50–{Math.round(STRONG_SHARE * 100)}%
             </span>
-            <span className="muted">(stretches he plays in at least half of his games; bars under {formatMin(TEAM_PATTERN.minBarSeconds)} not drawn; hover for exact counts)</span>
+            <span className="muted">(stretches he plays in at least half of his games{tp.games >= 2 ? `; bars under ${formatMin(TEAM_PATTERN.minBarSeconds)} not drawn` : ''}; hover for exact counts)</span>
             {sel.games.some((g) => g.periods > 4) && <span className="muted">Overtime is not shown here.</span>}
           </div>
         </div>
@@ -262,10 +263,7 @@ export function PatternChart({ sel, tp, names, onPlayer }: Props) {
         </div>
         {regular.map(renderRow)}
         {rare.length > 0 && (
-          <button className="gc-rare-toggle" aria-expanded={showRare} onClick={() => setShowRare(!showRare)} data-testid="rare-toggle">
-            {showRare ? '▾' : '▸'} Rarely used ({rare.length}) · played in fewer than {Math.ceil(tp.games * TEAM_PATTERN.rarelyUsedShare)} of the {tp.games}{' '}
-            game{tp.games === 1 ? '' : 's'}
-          </button>
+          <RareToggle count={rare.length} games={tp.games} open={showRare} onToggle={onToggleRare} />
         )}
         {showRare && rare.map(renderRow)}
         {tip && (
@@ -283,5 +281,15 @@ export function PatternChart({ sel, tp, names, onPlayer }: Props) {
         )}
       </div>
     </div>
+  );
+}
+
+/** "Rarely used (N)" header; the same open/closed state drives both team-page views. */
+export function RareToggle({ count, games, open, onToggle }: { count: number; games: number; open: boolean; onToggle: () => void }) {
+  return (
+    <button className="gc-rare-toggle" aria-expanded={open} onClick={onToggle} data-testid="rare-toggle">
+      {open ? '▾' : '▸'} Rarely used ({count}) · played in fewer than {Math.ceil(games * TEAM_PATTERN.rarelyUsedShare)} of the {games} game
+      {games === 1 ? '' : 's'}
+    </button>
   );
 }

@@ -149,7 +149,7 @@ test('team page with one game shows exactly that game\'s stints, numbers inside'
   const errors = trackErrors(page);
   const g = index('2026-27').find((x) => x.home === 'DET' || x.away === 'DET') as unknown as { id: string };
   const game = JSON.parse(readFileSync(`data/2026-27/games/${g.id}.json`, 'utf8')) as {
-    players: { id: number; team: string; played: boolean; stints: [number, number, number][] }[];
+    players: { id: number; name: string; team: string; played: boolean; stints: [number, number, number][] }[];
   };
   await page.goto('/#/team/DET?s=2026-27');
   await expect(label(page)).toContainText('based on 1 game');
@@ -160,10 +160,15 @@ test('team page with one game shows exactly that game\'s stints, numbers inside'
   for (const p of played) {
     const row = page.locator(`[data-testid=player-row][data-player="${p.id}"]`);
     const bars = await row.getByTestId('typical-stint').evaluateAll((els) => els.map((e) => [Number(e.dataset.start), Number(e.dataset.end)]));
-    const want = p.stints.filter(([s, e]) => e > s && s < 2880).map(([s, e]) => [s, Math.min(e, 2880)] as [number, number]).filter(([s, e]) => e - s >= 60);
+    const want = p.stints.filter(([s, e]) => e > s && s < 2880).map(([s, e]) => [s, Math.min(e, 2880)] as [number, number]);
     expect(bars, `player ${p.id}`).toEqual(want);
   }
   expect(await page.locator('[data-testid=pattern-chart] [data-testid=stint-label][data-inside=true]').count()).toBeGreaterThan(10);
+  // One game: every real stint is drawn, short ones labelled beside the bar (as in the game chart).
+  const joe = game.players.find((p) => p.name === 'Isaiah Joe')!;
+  const joeRow = page.locator(`[data-testid=player-row][data-player="${joe.id}"]`);
+  await expect(joeRow.locator('[data-testid=stint-label][data-inside=false]', { hasText: /^0:35$/ })).toHaveCount(1);
+  await expect(page.getByTestId('typical-legend')).not.toContainText('not drawn');
   // Hover readout.
   await page.locator('[data-testid=pattern-chart] .gc-track').nth(1).click({ position: { x: 5, y: 20 } });
   await expect(page.getByTestId('pattern-tip')).toContainText(/Q1 1[12]:\d\d · on court in [01] of 1 game\b/);
@@ -192,6 +197,7 @@ test('team page: rarely-used group follows the window\'s game count; no pattern 
     const bars = await page.getByTestId('typical-stint').evaluateAll((els) => els.map((e) => Number(e.dataset.end) - Number(e.dataset.start)));
     expect(bars.length).toBeGreaterThan(20);
     expect(Math.min(...bars)).toBeGreaterThanOrEqual(60);
+    await expect(page.getByTestId('typical-legend')).toContainText('bars under 1:00 not drawn');
   };
   await page.goto('/#/team/ORL?s=2025-26');
   await expect(page.getByTestId('rare-toggle')).toHaveAttribute('aria-expanded', 'false'); // collapsed by default
@@ -200,5 +206,34 @@ test('team page: rarely-used group follows the window\'s game count; no pattern 
   await shot(page, 'team-rarely-used', info.project.name);
   await page.goto('/#/team/ORL?s=2025-26&w=10');
   await check(10);
+  expect(errors).toEqual([]);
+});
+
+test('heat map: same "Rarely used" group and the same open/closed state as the default view', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto('/#/team/ORL?s=2025-26&w=10');
+  await expect(label(page)).toContainText('based on 10 games');
+  const rareRows = page.locator('[data-testid=player-row][data-rare=true]');
+  const gps = (sel: string) =>
+    page.locator(sel).evaluateAll((els) => els.map((e) => Number(e.querySelector('[data-testid=gp]')!.firstChild!.textContent)));
+  // Typical view: collapsed → open it.
+  const typicalRare = await page.getByTestId('rare-toggle').textContent();
+  await page.getByTestId('rare-toggle').click();
+  const typicalIds = await rareRows.evaluateAll((els) => els.map((e) => e.getAttribute('data-player')));
+  // Heat map: still open, same players, same rule.
+  await page.getByRole('button', { name: 'Heat map' }).click();
+  await expect(page.getByTestId('team-grid')).toBeVisible();
+  await expect(page.getByTestId('rare-toggle')).toHaveAttribute('aria-expanded', 'true');
+  expect(await page.getByTestId('rare-toggle').textContent()).toBe(typicalRare!.replace('▸', '▾'));
+  expect(await rareRows.evaluateAll((els) => els.map((e) => e.getAttribute('data-player')))).toEqual(typicalIds);
+  expect((await gps('[data-testid=team-grid] [data-testid=player-row][data-rare=true]')).every((gp) => gp * 3 < 10)).toBe(true);
+  expect((await gps('[data-testid=team-grid] [data-testid=player-row][data-rare=false]')).every((gp) => gp * 3 >= 10)).toBe(true);
+  // Close in the heat map → closed in the default view too.
+  await page.getByTestId('rare-toggle').click();
+  await expect(rareRows).toHaveCount(0);
+  await page.getByRole('button', { name: 'Typical stints' }).click();
+  await expect(page.getByTestId('rare-toggle')).toHaveAttribute('aria-expanded', 'false');
+  await expect(rareRows).toHaveCount(0);
+  await noHorizontalScroll(page);
   expect(errors).toEqual([]);
 });

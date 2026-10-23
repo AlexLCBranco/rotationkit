@@ -6,14 +6,14 @@ import { basedOn, describeSelection, formatMin } from '../app/labels.ts';
 import { shortNames } from '../app/names.ts';
 import type { Route } from '../app/route.ts';
 import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
-import { describeSit, quarterAverages, selectGames, sitPattern, teamPattern, type Filters as F, type QuarterAverages, type Selection } from '../domain/patterns.ts';
+import { describeSit, isRarelyUsed, quarterAverages, selectGames, sitPattern, teamPattern, type Filters as F, type PlayerPattern, type QuarterAverages, type Selection } from '../domain/patterns.ts';
 import { formatClock, periodAt, periodEnd } from '../domain/time.ts';
 import type { Game } from '../domain/types.ts';
 import { Filters } from './Filters.tsx';
 import { Header } from './Header.tsx';
 import { HeatDefs, HeatStrip } from './HeatStrip.tsx';
 import { Headshot, TeamLogo } from './Headshot.tsx';
-import { PatternChart } from './PatternChart.tsx';
+import { PatternChart, RareToggle } from './PatternChart.tsx';
 
 interface Props {
   seasons: string[];
@@ -167,6 +167,7 @@ function TeamBlock({
   }, [season, team, !!ww]);
   const [hover, setHover] = useState<{ player: number; bucket: number; x: number; y: number } | null>(null);
   const [view, setView] = useState<'typical' | 'heat'>('typical');
+  const [showRare, setShowRare] = useState(false);
 
   const computed = useMemo(() => {
     if (data.status !== 'ok') return null;
@@ -180,6 +181,35 @@ function TeamBlock({
   // Team id (for the logo) from the team's own games.
   const g0 = data.status === 'ok' ? data.value.games[0] : undefined;
   const teamId = g0 ? (g0.home.tri === team ? g0.home.id : g0.away.id) : 0;
+
+  const rareHeat = computed ? computed.tp.players.filter((p) => isRarelyUsed(p.gamesPlayed, computed.tp.games)) : [];
+  const heatRow = (p: PlayerPattern, rare: boolean) => (
+    <div className={`tp-row${rare ? ' rare' : ''}`} key={p.id} data-testid="player-row" data-player={p.id} data-rare={rare}>
+      <span className="tp-player">
+        <Headshot id={p.id} name={p.name} />
+        <button
+          className={`tp-name${Math.max(...(computed!.names.get(p.id) ?? p.name).split(/[\s-]+/).map((w) => w.length)) > 10 ? ' long' : ''}`}
+          onClick={() => nav({ view: 'player', team, player: p.id, season, filters })}
+        >
+          {computed!.names.get(p.id) ?? p.name}
+        </button>
+      </span>
+      <span className="tp-min">{formatMin(p.avgMin)}</span>
+      <HeatStrip
+        shares={p.onCourt}
+        bucketSeconds={computed!.tp.bucketSeconds}
+        active={hover?.player === p.id ? hover.bucket : null}
+        onHover={(b, e) => {
+          const r = (e.currentTarget as Element).closest('.tp-grid')!.getBoundingClientRect();
+          setHover({ player: p.id, bucket: b, x: e.clientX - r.left, y: e.clientY - r.top });
+        }}
+      />
+      <span className="tp-gp" data-testid="gp">
+        {p.gamesPlayed}
+        <span className="muted">/{computed!.tp.games}</span>
+      </span>
+    </div>
+  );
 
   return (
     <section className="team-block" data-testid="team-block" data-team={team}>
@@ -206,7 +236,14 @@ function TeamBlock({
           {computed.tp.players.length === 0 ? (
             <p className="muted">No games match these filters.</p>
           ) : view === 'typical' ? (
-            <PatternChart sel={computed.sel} tp={computed.tp} names={computed.names} onPlayer={(id) => nav({ view: 'player', team, player: id, season, filters })} />
+            <PatternChart
+              sel={computed.sel}
+              tp={computed.tp}
+              names={computed.names}
+              onPlayer={(id) => nav({ view: 'player', team, player: id, season, filters })}
+              showRare={showRare}
+              onToggleRare={() => setShowRare(!showRare)}
+            />
           ) : (
             <>
               <div className="tp-grid" data-testid="team-grid" onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}>
@@ -222,33 +259,9 @@ function TeamBlock({
                     GP
                   </span>
                 </div>
-                {computed.tp.players.map((p) => (
-                  <div className="tp-row" key={p.id} data-testid="player-row">
-                    <span className="tp-player">
-                      <Headshot id={p.id} name={p.name} />
-                      <button
-                        className={`tp-name${Math.max(...(computed.names.get(p.id) ?? p.name).split(/[\s-]+/).map((w) => w.length)) > 10 ? ' long' : ''}`}
-                        onClick={() => nav({ view: 'player', team, player: p.id, season, filters })}
-                      >
-                        {computed.names.get(p.id) ?? p.name}
-                      </button>
-                    </span>
-                    <span className="tp-min">{formatMin(p.avgMin)}</span>
-                    <HeatStrip
-                      shares={p.onCourt}
-                      bucketSeconds={computed.tp.bucketSeconds}
-                      active={hover?.player === p.id ? hover.bucket : null}
-                      onHover={(b, e) => {
-                        const r = (e.currentTarget as Element).closest('.tp-grid')!.getBoundingClientRect();
-                        setHover({ player: p.id, bucket: b, x: e.clientX - r.left, y: e.clientY - r.top });
-                      }}
-                    />
-                    <span className="tp-gp">
-                      {p.gamesPlayed}
-                      <span className="muted">/{computed.tp.games}</span>
-                    </span>
-                  </div>
-                ))}
+                {computed.tp.players.filter((p) => !isRarelyUsed(p.gamesPlayed, computed.tp.games)).map((p) => heatRow(p, false))}
+                {rareHeat.length > 0 && <RareToggle count={rareHeat.length} games={computed.tp.games} open={showRare} onToggle={() => setShowRare(!showRare)} />}
+                {showRare && rareHeat.map((p) => heatRow(p, true))}
                 {hp && hover && (
                   <div className="gc-tip" data-testid="pattern-tip" style={{ left: hover.x, top: hover.y, transform: `translate(${hover.x > 500 ? 'calc(-100% - 12px)' : '12px'}, -120%)` }}>
                     <strong>{computed.names.get(hp.id) ?? hp.name}</strong> · {bucketLabel(hover.bucket, computed.tp.bucketSeconds)} ·{' '}

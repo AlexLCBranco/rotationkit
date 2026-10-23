@@ -342,3 +342,7 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .gc-row.rare .gc-gp .muted { color: #f5c542; opacity: 0.8; }
 .tp-legend-row { height: auto; min-height: 30px; padding: 4px 0; }
 @media (max-width: 640px) { .gc-rare-toggle { max-width: calc(100vw - 32px); white-space: normal; } }
+.tp-row.rare .tp-strip { opacity: 0.45; }
+.tp-row.rare .tp-gp { color: #f5c542; font-weight: 700; font-size: 15px; }
+.tp-row.rare .tp-gp .muted { color: #f5c542; opacity: 0.8; }
+.tp-grid .gc-rare-toggle { position: static; }

@@ -140,10 +140,12 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   stretches he is on court in at least half of his eligible games (`typicalStints` in `patterns.ts`: exact sweep,
   split at quarter lines, garbage time excluded, regulation only), duration inside the bar (same label rules as
   the game chart). Bright green = 75%+ of games, darker = 50–75%. With one game it is exactly that game's
-  stints. A row with no such stretch says so. Bars shorter than `TEAM_PATTERN.minBarSeconds` (1:00) are not drawn
-  (blowout-cut noise); hover still gives the exact share. Players who played in fewer than
+  stints. A row with no such stretch says so. With 2+ games, bars shorter than `TEAM_PATTERN.minBarSeconds` (1:00)
+  are not drawn (blowout-cut noise); hover still gives the exact share. With exactly 1 game every real stint is
+  drawn (short ones labelled beside the bar), so it matches the game chart. Players who played in fewer than
   `TEAM_PATTERN.rarelyUsedShare` (1/3) of the selection's games go into a collapsed "Rarely used" group at the
-  bottom: dimmed bars (from the games they played), GP in bold yellow. Both settings live in `config.ts`;
+  bottom, in both views (Typical stints and Heat map) with one shared open/closed state: dimmed bars/strips
+  (from the games they played), GP in bold yellow. Both settings live in `config.ts`;
   rows come from `teamPatternRows` in `patterns.ts`. Hover/tap → "Q2 6:00 · on court in 7 of 10 games" plus the
   stretch's share. **Heat map** toggle keeps the older 30-second green-ramp strips (striped = only garbage time).
 - **Labels**: plain words, e.g. "Last 10 games without F. Wagner · based on 10 games" (= the 10 most recent

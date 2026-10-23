@@ -421,17 +421,24 @@ export function typicalStints(sel: Selection, playerId: number, minSeconds = 10,
 
 export interface PatternRow {
   player: PlayerPattern;
-  /** Typical stretches to draw (those under `minBarSeconds` left out). */
+  /** Typical stretches to draw (with 2+ games, those under `minBarSeconds` left out). */
   bars: TypicalStint[];
   /** Played in fewer than `rarelyUsedShare` of the selection's games. */
   rarelyUsed: boolean;
 }
 
+/** Played in fewer than `rarelyUsedShare` of the selection's games (team page "Rarely used" group, both views). */
+export function isRarelyUsed(gamesPlayed: number, games: number, cfg: TeamPatternConfig = TEAM_PATTERN): boolean {
+  return gamesPlayed < games * cfg.rarelyUsedShare;
+}
+
 /** Team-page rows: bars to draw per player, and whether he goes in the "Rarely used" group (vs the window's game count). */
 export function teamPatternRows(tp: TeamPattern, cfg: TeamPatternConfig = TEAM_PATTERN, blowoutCfg: BlowoutConfig = PATTERN_CONFIG.blowout): PatternRow[] {
+  // With one game every real stint is drawn (matches the game chart); the 1:00 minimum only applies to 2+ games.
+  const minBar = tp.games >= 2 ? cfg.minBarSeconds : 0;
   return tp.players.map((player) => ({
     player,
-    bars: typicalStints(tp.selection, player.id, 10, blowoutCfg).filter((s) => s.end - s.start >= cfg.minBarSeconds),
-    rarelyUsed: player.gamesPlayed < tp.games * cfg.rarelyUsedShare,
+    bars: typicalStints(tp.selection, player.id, 10, blowoutCfg).filter((s) => s.end - s.start >= minBar),
+    rarelyUsed: isRarelyUsed(player.gamesPlayed, tp.games, cfg),
   }));
 }

@@ -293,10 +293,17 @@ describe('teamPatternRows', () => {
     expect(teamPatternRows(tp).find((r) => r.player.id === 2)!.rarelyUsed).toBe(false);
     expect(teamPatternRows(tp, { rarelyUsedShare: 0.5, minBarSeconds: 60 }).find((r) => r.player.id === 2)!.rarelyUsed).toBe(true);
   });
-  it('no bar under 1:00 is drawn; 1:00 exactly is kept', async () => {
+  it('2+ games: no bar under 1:00 is drawn; 1:00 exactly is kept', async () => {
     const { teamPatternRows } = await import('../src/domain/patterns.ts');
-    const g = game('2026-03-01', 'AAA', 'BBB', [pl(1, 'AAA', [[0, 59, 0], [100, 160, 0], [800, 1000, 0]])]);
-    const rows = teamPatternRows(teamPattern(selectGames([g], '2025-26', 'AAA', F({}))));
+    const st: Stint[] = [[0, 59, 0], [100, 160, 0], [800, 1000, 0]];
+    const gs2 = [1, 2].map((d) => game(`2026-03-0${d}`, 'AAA', 'BBB', [pl(1, 'AAA', st)]));
+    const rows = teamPatternRows(teamPattern(selectGames(gs2, '2025-26', 'AAA', F({}))));
     expect(rows[0]!.bars.map((b) => [b.start, b.end])).toEqual([[100, 160], [800, 1000]]);
+  });
+  it('exactly 1 game: every real stint is drawn, short ones included', async () => {
+    const { teamPatternRows } = await import('../src/domain/patterns.ts');
+    const g = game('2026-03-01', 'AAA', 'BBB', [pl(1, 'AAA', [[0, 35, 0], [100, 160, 0], [800, 1000, 0]])]);
+    const rows = teamPatternRows(teamPattern(selectGames([g], '2025-26', 'AAA', F({}))));
+    expect(rows[0]!.bars.map((b) => [b.start, b.end])).toEqual([[0, 35], [100, 160], [800, 1000]]);
   });
 });

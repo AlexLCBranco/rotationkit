@@ -19,7 +19,7 @@ export type BlowoutConfig = typeof PATTERN_CONFIG.blowout;
 export const TEAM_PATTERN = {
   /** Players who played in fewer than this share of the selection's games go into the collapsed "Rarely used" group. */
   rarelyUsedShare: 1 / 3,
-  /** Pattern bars shorter than this (seconds) are not drawn; hover/tap still gives the exact share at any moment. */
+  /** With 2+ games, pattern bars shorter than this (seconds) are not drawn; hover/tap still gives the exact share. */
   minBarSeconds: 60,
 };
 
