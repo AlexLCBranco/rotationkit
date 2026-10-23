@@ -23,18 +23,28 @@ stats.nba.com notes: reachable from the cloud session (2026-10-23), but returns 
 the fetcher retries (2s/4s/8s backoff) and those have always succeeded so far.
 
 ### Inactive players / not-playing reasons
-- CDN box score lists only active players (played flag, no reason). Injured/inactive players are absent.
-- `boxscoresummaryv3` has an `inactives` array, but it was empty in every game checked → no reasons available. Dropped.
-- Its `players` list is the full per-game roster *including* inactive players (e.g. GSW 0022600005 lists
-  Butler, Porziņģis, Moody, who are not in the box score). Stored as an optional per-game list.
-  Whether it is reliable enough to replace the appearance rule (below) is checked in validation.
+Order of preference per game (`Game.inactive`, `Game.inactiveSource`):
+1. **Box score** (`inactiveSource: 'box'`): 2025-26 CDN box scores list inactive players with `status: INACTIVE`
+   and reasons (`INACTIVE_INJURY` + "Right Hamstring; Strain", `INACTIVE_GLEAGUE_TWOWAY`, `INACTIVE_REST`, …);
+   active DNPs may carry `DND_INJURY` / `DNP_COACH`. **2026-27 box scores so far list only active players
+   and no reasons.** `fetch-season` re-fetches box scores from the last 7 days that lack inactive players,
+   in case the CDN fills them in later (as of 2026-10-23 it has not).
+2. **Roster list** (`'roster'`): `boxscoresummaryv3` `players` = full per-game roster incl. inactive players
+   for 2026-27 games (no reasons; its `inactives` array is always empty). For 2025-26 games it holds only active
+   players, so the box score is used there.
+3. **Appearance rule** (`inactive: null`): estimate, see below. Shown as *estimated* in the UI.
 
 ### "Did not play" rule (with/without filter)
-A player only counts as "did not play" for team T in a game if he was with T at that time:
-- with T from his first appearance for T to his last appearance for T;
+A player only counts as "did not play" for team T in a game if he was with T at that time.
+With an official list (1 or 2 above): listed inactive or in the box score as DNP. Otherwise the appearance rule:
+- with T from his first appearance for T to his last appearance for T (appearance = in T's active box score);
 - after his last appearance he still counts as with T unless he has appeared for another team since;
 - games before his first appearance for T don't count.
-Counts derived from this rule are shown as *estimated* in the UI.
+
+Rule vs official list, DEN 2025-26 (82 games, box-score lists): 511/594 player-games agree (332 "out",
+179 "not with team"). Disagreements are fringe players only: two-way/G-League players listed inactive before
+their first appearance (rule: not yet with team; 33) and players who left without appearing elsewhere
+(rule: still with team; 50, Hunter Tyson and Tamar Bates).
 
 ## Normalized data (`data/`)
 - `data/index.json`: one entry per game (id, date, home/away tricode, score, periods).
@@ -84,4 +94,9 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
 - Step 3 (validation): done — 14/14 season games and 8/8 fixtures pass all checks.
 
 ## Open problems
-- No not-playing reasons from any tested source.
+- stats.nba.com reliability: on 2026-10-23 `gamerotation` went from occasional 500s to mostly timeouts/500s
+  (~1 min per game with retries, some games failing after 4 attempts). Failed games are skipped and retried
+  on the next run. If this persists, implement Path B (stints from play-by-play); the +/- attribution and
+  validation already work from play-by-play, so gamerotation would then serve only as a cross-check.
+- 2026-27 box scores carry no inactive players/reasons (yet); roster list used instead (no reasons).
+- Appearance rule misjudges fringe two-way/G-League players (see above); fine for rotation players.

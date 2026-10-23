@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { normalizeGame } from '../src/domain/normalize.ts';
+import { loadFixtureGame } from './fixtures.ts';
 import type { RawAction, RawBoxPlayer, RawGame } from '../src/domain/raw.ts';
 
 const HOME = 1;
@@ -68,7 +69,7 @@ function game(): RawGame {
     summary: {
       boxScoreSummary: {
         homeTeam: { teamTricode: 'HOM', players: [{ personId: 18, name: 'Hurt Guy' }, ...[11, 12, 13, 14, 15, 16, 17].map((i) => ({ personId: i, name: `P${i}` }))] },
-        awayTeam: { teamTricode: 'AWY', players: [] },
+        awayTeam: { teamTricode: 'AWY', players: [21, 22, 23, 24, 25, 26].map((i) => ({ personId: i, name: `P${i}` })) },
       },
     },
   };
@@ -101,8 +102,24 @@ describe('normalizeGame (hand-made game)', () => {
     expect(p.played).toBe(false);
     expect(p.stints).toEqual([]);
   });
-  it('inactive = roster list minus box score', () => {
+  it('inactive = roster list minus box score when the box has no inactive players', () => {
     expect(g.inactive).toEqual([{ id: 18, name: 'Hurt Guy', team: 'HOM' }]);
+    expect(g.inactiveSource).toBe('roster');
+  });
+  it('box-score INACTIVE players (with reason) take precedence and are not players', () => {
+    const raw = game();
+    raw.boxscore.game.awayTeam.players.push({
+      ...bp(27, false, false), status: 'INACTIVE', notPlayingReason: 'INACTIVE_INJURY', notPlayingDescription: 'Left Knee; Sprain',
+    });
+    const g2 = normalizeGame(raw);
+    expect(g2.inactiveSource).toBe('box');
+    expect(g2.inactive).toEqual([{ id: 27, name: 'P27', team: 'AWY', reason: 'INACTIVE_INJURY', reasonDetail: 'Left Knee; Sprain' }]);
+    expect(g2.players.some((p) => p.id === 27)).toBe(false);
+  });
+  it('no usable roster list → inactive null (appearance rule applies)', () => {
+    const raw = game();
+    delete raw.summary;
+    expect(normalizeGame(raw).inactive).toBeNull();
   });
   it('margin timeline', () => {
     expect(g.margin).toEqual([[0, 0], [100, 2], [300, 4], [500, 3]]);
@@ -113,5 +130,14 @@ describe('normalizeGame (hand-made game)', () => {
     raw.gamerotation.resultSets[0]!.rowSet[1] = rot(HOME, 16, 300, 900);
     const g2 = normalizeGame(raw);
     expect(g2.players.find((p) => p.id === 16)!.stints.map((s) => s.slice(0, 2))).toEqual([[300, 720], [720, 900]]);
+  });
+});
+
+describe('normalizeGame (real 2025-26 box score with inactive players)', () => {
+  it('takes inactive players and reasons from the box score', () => {
+    const g = loadFixtureGame('0022501147');
+    expect(g.inactiveSource).toBe('box');
+    expect(g.inactive).toContainEqual({ id: expect.any(Number), name: 'Peyton Watson', team: 'DEN', reason: 'INACTIVE_INJURY', reasonDetail: 'Right Hamstring; Strain' });
+    expect(g.players.some((p) => p.name === 'Peyton Watson')).toBe(false);
   });
 });

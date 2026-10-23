@@ -9,6 +9,7 @@ export interface RosterDiff {
   name: string;
   official: 'out' | 'not-listed';
   rule: 'out' | 'not-with-team';
+  reason?: string;
 }
 
 export function compareRosterToRule(games: Game[]) {
@@ -20,6 +21,11 @@ export function compareRosterToRule(games: Game[]) {
   let agreeNotWith = 0;
   const officialOnly: RosterDiff[] = [];
   const ruleOnly: RosterDiff[] = [];
+  const byTeam = new Map<string, { agreeOut: number; agreeNotWith: number; officialOnly: number; ruleOnly: number }>();
+  const bump = (team: string, k: 'agreeOut' | 'agreeNotWith' | 'officialOnly' | 'ruleOnly') => {
+    if (!byTeam.has(team)) byTeam.set(team, { agreeOut: 0, agreeNotWith: 0, officialOnly: 0, ruleOnly: 0 });
+    byTeam.get(team)![k]++;
+  };
   const withRoster = games.filter((g) => g.inactive);
   for (const g of withRoster) {
     for (const team of [g.home.tri, g.away.tri]) {
@@ -35,12 +41,22 @@ export function compareRosterToRule(games: Game[]) {
         const rule = withTeamByRule(idx.get(pid), g, team);
         const off = listed.has(pid);
         const d = { game: g.id, team, name: names.get(pid) ?? String(pid) };
-        if (off && rule) agreeOut++;
-        else if (!off && !rule) agreeNotWith++;
-        else if (off) officialOnly.push({ ...d, official: 'out', rule: 'not-with-team' });
-        else ruleOnly.push({ ...d, official: 'not-listed', rule: 'out' });
+        if (off && rule) {
+          agreeOut++;
+          bump(team, 'agreeOut');
+        } else if (!off && !rule) {
+          agreeNotWith++;
+          bump(team, 'agreeNotWith');
+        } else if (off) {
+          const x = g.inactive!.find((i) => i.id === pid && i.team === team)!;
+          officialOnly.push({ ...d, official: 'out', rule: 'not-with-team', ...(x.reason ? { reason: x.reason } : {}) });
+          bump(team, 'officialOnly');
+        } else {
+          ruleOnly.push({ ...d, official: 'not-listed', rule: 'out' });
+          bump(team, 'ruleOnly');
+        }
       }
     }
   }
-  return { gamesWithRoster: withRoster.length, compared, agreeOut, agreeNotWith, officialOnly, ruleOnly };
+  return { gamesWithRoster: withRoster.length, compared, agreeOut, agreeNotWith, officialOnly, ruleOnly, byTeam: Object.fromEntries(byTeam) };
 }

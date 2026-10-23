@@ -5,7 +5,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CACHE_DIR, SCHEDULE_URL, fetchGame, isFetched, type GameFetchResult } from './lib/cache.ts';
+import { BOX_REFRESH_DAYS, CACHE_DIR, SCHEDULE_URL, fetchGame, isFetched, needsBoxRefresh, readCached, refetchSource, type GameFetchResult } from './lib/cache.ts';
 import { fetchJson } from './lib/http.ts';
 
 type ScheduleGame = { gameId: string; gameStatus: number; gameDateTimeUTC?: string };
@@ -28,6 +28,18 @@ for (const [i, g] of todo.entries()) {
   if (!r.ok) failed.push(r);
   else if (r.errors.length) warnings.push(r);
 }
+
+// Box scores of this season's games have so far lacked inactive players (2025-26 ones list them, with
+// reasons). Re-fetch recent ones in case the CDN fills them in later.
+const refresh = finished.filter((g) => isFetched(g.gameId) && needsBoxRefresh(g.gameId));
+let gained = 0;
+if (refresh.length) console.log(`\nre-fetching ${refresh.length} box score(s) from the last ${BOX_REFRESH_DAYS} days without inactive players`);
+for (const g of refresh) {
+  const err = await refetchSource(g.gameId, 'boxscore');
+  if (err) console.log(`  ${g.gameId} box refresh failed (kept old copy): ${err}`);
+  else if (!needsBoxRefresh(g.gameId) && readCached(g.gameId, 'boxscore')) gained++;
+}
+if (refresh.length) console.log(`  ${gained} now list inactive players`);
 
 writeFileSync(join(CACHE_DIR, 'fetch-errors.json'), JSON.stringify({ at: new Date().toISOString(), failed, warnings }, null, 2));
 console.log(`\ndone: ${todo.length - failed.length} fetched, ${failed.length} failed, ${warnings.length} with optional-source warnings`);

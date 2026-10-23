@@ -60,6 +60,13 @@ function splitByPeriod(start: number, end: number): { period: number; start: num
   return pieces;
 }
 
+function reasonOf(p: { notPlayingReason?: string; notPlayingDescription?: string }) {
+  const r: { reason?: string; reasonDetail?: string } = {};
+  if (p.notPlayingReason?.trim()) r.reason = p.notPlayingReason.trim();
+  if (p.notPlayingDescription?.trim()) r.reasonDetail = p.notPlayingDescription.trim();
+  return r;
+}
+
 export function normalizeGame(raw: RawGame): Game {
   const bg = raw.boxscore.game;
   const team = (t: typeof bg.homeTeam): TeamInfo => ({ id: t.teamId, tri: t.teamTricode, name: t.teamName, city: t.teamCity, score: t.score });
@@ -114,8 +121,16 @@ export function normalizeGame(raw: RawGame): Game {
     return { home, away };
   };
 
+  // Box scores of some seasons also list inactive players (status INACTIVE, with reason); those go to `inactive`.
+  const isInactive = (p: (typeof bg.homeTeam.players)[number]) => p.status === 'INACTIVE';
   const box = new Map<number, { side: 'home' | 'away'; p: (typeof bg.homeTeam.players)[number] }>();
-  for (const side of ['home', 'away'] as const) for (const p of bg[`${side}Team`].players) box.set(p.personId, { side, p });
+  const boxInactive: InactivePlayer[] = [];
+  for (const side of ['home', 'away'] as const) {
+    for (const p of bg[`${side}Team`].players) {
+      if (isInactive(p)) boxInactive.push({ id: p.personId, name: p.name, team: triOf[side], ...reasonOf(p) });
+      else box.set(p.personId, { side, p });
+    }
+  }
 
   const stintsBy = new Map<number, Stint[]>();
   const periodOf = new Map<Stint, number>();
@@ -148,7 +163,6 @@ export function normalizeGame(raw: RawGame): Game {
   }
 
   const players: PlayerGame[] = [...box.values()].map(({ side, p }) => {
-    const reason = p.notPlayingDescription || p.notPlayingReason || undefined;
     return {
       id: p.personId,
       name: p.name,
@@ -161,16 +175,23 @@ export function normalizeGame(raw: RawGame): Game {
       ast: p.statistics.assists,
       pf: p.statistics.foulsPersonal,
       pm: p.statistics.plusMinusPoints,
-      ...(reason ? { reason } : {}),
+      ...reasonOf(p),
       stints: stintsBy.get(p.personId) ?? [],
     };
   });
 
   let inactive: InactivePlayer[] | null = null;
-  if (raw.summary?.boxScoreSummary) {
+  let inactiveSource: Game['inactiveSource'];
+  const sum = raw.summary?.boxScoreSummary;
+  if (boxInactive.length) {
+    inactive = boxInactive;
+    inactiveSource = 'box';
+  } else if (sum?.homeTeam?.players?.length && sum.awayTeam?.players?.length) {
+    // Roster list counts only when both teams have one.
     inactive = [];
+    inactiveSource = 'roster';
     for (const side of ['home', 'away'] as const) {
-      for (const p of raw.summary.boxScoreSummary[`${side}Team`].players ?? []) {
+      for (const p of sum[`${side}Team`].players) {
         if (!box.has(p.personId)) inactive.push({ id: p.personId, name: p.name, team: triOf[side] });
       }
     }
@@ -193,6 +214,7 @@ export function normalizeGame(raw: RawGame): Game {
     periods: bg.period,
     players,
     inactive,
+    ...(inactiveSource ? { inactiveSource } : {}),
     margin,
     orphanFouls,
   };

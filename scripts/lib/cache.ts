@@ -44,6 +44,32 @@ function checkShape(s: Source, json: any): string | undefined {
   }
 }
 
+/** Box score of a recent game that does not (yet) list inactive players: worth re-fetching. */
+export const BOX_REFRESH_DAYS = 7;
+export function needsBoxRefresh(id: string, now = new Date()): boolean {
+  const box = readCached(id, 'boxscore') as { game?: { gameTimeUTC?: string; homeTeam?: { players?: { status?: string }[] }; awayTeam?: { players?: { status?: string }[] } } } | undefined;
+  const g = box?.game;
+  if (!g?.gameTimeUTC) return false;
+  const ageDays = (now.getTime() - new Date(g.gameTimeUTC).getTime()) / 86_400_000;
+  const hasInactive = [...(g.homeTeam?.players ?? []), ...(g.awayTeam?.players ?? [])].some((p) => p.status === 'INACTIVE');
+  return !hasInactive && ageDays <= BOX_REFRESH_DAYS;
+}
+
+/** Re-fetch one source, replacing the cached copy only if the new response passes the shape check. */
+export async function refetchSource(id: string, s: Source): Promise<string | undefined> {
+  try {
+    const json = await fetchJson(SOURCES[s].url(id));
+    const problem = checkShape(s, json);
+    if (problem) return problem;
+    writeFileSync(sourcePath(id, s), JSON.stringify(json));
+    return undefined;
+  } catch (e) {
+    return (e as Error).message;
+  } finally {
+    await sleep(REQUEST_GAP_MS);
+  }
+}
+
 export type GameFetchResult = { gameId: string; ok: boolean; errors: string[]; fetched: Source[] };
 
 /** Fetch every missing source for one game. Sources already cached are not re-fetched. */

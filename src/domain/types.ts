@@ -25,16 +25,20 @@ export interface PlayerGame {
   ast: number;
   pf: number;
   pm: number;
-  /** Not-playing reason, when the source provides one (currently none does). */
+  /** Not-playing reason code + detail when the box score has them, e.g. "DND_INJURY", "Left Ankle; Sprain". */
   reason?: string;
+  reasonDetail?: string;
   stints: Stint[];
 }
 
-/** Player on the official per-game roster but absent from the box score (inactive). */
+/** Player with the team but inactive for the game (official list). */
 export interface InactivePlayer {
   id: number;
   name: string;
   team: string;
+  /** e.g. "INACTIVE_INJURY", "INACTIVE_GLEAGUE_TWOWAY" (box-score source only). */
+  reason?: string;
+  reasonDetail?: string;
 }
 
 export interface Game {
@@ -44,8 +48,12 @@ export interface Game {
   away: TeamInfo;
   periods: number;
   players: PlayerGame[];
-  /** null = per-game roster source unavailable for this game. */
+  /**
+   * Official inactive list: from the box score (status INACTIVE, with reasons) when it has one, else from
+   * the boxscoresummaryv3 roster list (no reasons). null = no official list; the appearance rule applies.
+   */
   inactive: InactivePlayer[] | null;
+  inactiveSource?: 'box' | 'roster';
   /** Score margin (home minus away) after each change: [t, margin] pairs, t ascending. Starts at [0, 0]. */
   margin: [number, number][];
   /** Personal fouls that could not be matched to one of the player's stints (should be empty). */
