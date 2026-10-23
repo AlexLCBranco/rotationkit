@@ -204,6 +204,8 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   MIN, MIN and PF per quarter, PF) with an average row on top.
 - **State** lives in the URL hash (`#/team/ORL?s=2025-26&w=10&p=1630532&m=without`), so views are linkable.
 - Dark theme only (no light theme by design). Works at 390 px phone width (no sideways scroll).
+- **Desktop only from now on** (user decision, 2026-10-23): nothing new is built or polished for phones. What
+  already works on phones stays, and the existing phone tests must keep passing.
 
 ## Deep link by game ID
 Contract: **`<BASE_URL>/?game=<gameId>`** — `gameId` is the NBA game ID from the schedule feed (e.g. `0022600123`).
@@ -233,6 +235,8 @@ Self-contained schedule-feed reader, also used by the NBA calendar project (copi
   bars, tick count = PF, no overlaps) on a sample of games; `E2E_ALL_GAMES=1 npx playwright test e2e/gamechart.spec.ts
   -g "labels"` runs them on every game (≈2.5 min per viewport).
   Screenshots go to `screenshots/` (gitignored).
+- New features get desktop tests only: put `@desktop` in the test title and the phone project skips it
+  (`grepInvert` in `playwright.config.ts`). Existing phone tests keep running.
 
 ## Deploy (Vercel)
 `vercel.json`: install `npm ci`, build `npm run build` (typecheck + Vite), output `dist/`. The build copies

@@ -11,6 +11,7 @@ export default defineConfig({
   webServer: { command: 'npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 60_000 },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } } },
-    { name: 'phone', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } } },
+    // Desktop only from now on: tests tagged @desktop (new features) don't run on the phone project.
+    { name: 'phone', grepInvert: /@desktop/, use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } } },
   ],
 });
