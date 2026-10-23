@@ -256,3 +256,19 @@ test('minutes trend: one mark per game with the team, values = per-game minutes,
   expect(await chart.locator('[data-garbage=true]').count()).toBeGreaterThan(0);
   await chart.screenshot({ path: `screenshots/minutes-trend-${info.project.name}.png` });
 });
+
+test('rest filter: back-to-back / rested in the filter chain with "based on N games"', async ({ page }) => {
+  const { restForTeam } = await import('../src/domain/rest.ts');
+  const idx = JSON.parse(readFileSync('data/2025-26/index.json', 'utf8')) as { id: string; date: string; home: string; away: string }[];
+  const rest = restForTeam(idx, 'ORL');
+  const b2b = [...rest.values()].filter((r) => r.rest === 'b2b').length;
+  await page.goto('/#/team/ORL?s=2025-26');
+  await page.getByRole('button', { name: 'Back-to-back' }).click();
+  await expect(page.getByTestId('selection-label')).toHaveText(`All 2025-26 games on the second night of a back-to-back · based on ${b2b} games`);
+  await page.getByRole('button', { name: 'Rested' }).click();
+  await expect(page.getByTestId('selection-label')).toHaveText(`All 2025-26 games with 1+ days of rest · based on ${82 - b2b} games`);
+  await page.getByRole('button', { name: 'Last 5' }).click();
+  await expect(page.getByTestId('selection-label')).toHaveText('Last 5 games with 1+ days of rest · based on 5 games');
+  await page.getByRole('button', { name: 'Any rest' }).click();
+  await expect(page.getByTestId('selection-label')).toHaveText('Last 5 games · based on 5 games');
+});

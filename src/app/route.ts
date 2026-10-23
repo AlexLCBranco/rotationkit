@@ -20,9 +20,11 @@ export function parse(hash: string): Route {
   const venue: Venue = v === 'home' || v === 'away' ? v : 'all';
   const p = Number(q.get('p'));
   const m = q.get('m');
+  const rest = q.get('rest');
   const filters: Filters = {
     window,
     venue,
+    ...(rest === 'b2b' || rest === 'rested' ? { rest } : {}),
     blowout: q.get('b') !== '0',
     ...(p && (m === 'with' || m === 'without') ? { withWithout: { player: p, mode: m } } : {}),
   };
@@ -39,6 +41,7 @@ export function format(r: Route): string {
   if (r.season) q.set('s', r.season);
   if (r.filters.window !== 'season') q.set('w', String(r.filters.window));
   if (r.filters.venue !== 'all') q.set('v', r.filters.venue);
+  if (r.filters.rest) q.set('rest', r.filters.rest);
   if (!r.filters.blowout) q.set('b', '0');
   if (r.filters.withWithout) {
     q.set('p', String(r.filters.withWithout.player));

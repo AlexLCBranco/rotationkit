@@ -172,6 +172,20 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   every PF total, per-quarter PF and average).
   Matchup mode: pick an opponent (`vs=`) to stack both teams' pattern views with the same filters (with/without
   applies to the first team only).
+- **"When does he sit?"** (`sitPattern` in `src/domain/patterns.ts`): per regulation quarter, his first sub-out
+  before the quarter ends and first entry after it starts, as the **median** game clock (rounded to 10 s) over the
+  selection's games where it happened, with that count: "Q1 out ~4:40 (9) · Q2 in ~9:00 (8)". Shown only for
+  events seen in **≥ 3 games** of the selection; subs in garbage time are ignored when "hide blowout time" is on.
+  In the team view's "Minutes & fouls per game" table and under the player view header.
+- **Minutes trend** (player view): minutes per game over the selection (games he was with the team), dashed
+  average over games played, × for DNP/inactive games (reason on hover/tap), hollow markers for games with garbage
+  time.
+- **Rest filter** (`src/domain/rest.ts`, team/player views): Any rest / Back-to-back (second night) / Rested
+  (1 or 2+ days off), applied after home/away and before with/without in the filter chain, with "based on N
+  games". Rest = days since the team's previous game in `data/<season>/schedule.json`; the season opener counts as
+  rested; preseason games are ignored; the NBA Cup final (006 ID) counts as a game played. Known gap: the 2025-26
+  schedule file only has the regular-season games we fetched, so the day after the 2025-26 Cup final is not
+  recognised as a back-to-back for the two finalists (2026-27 uses the full feed, which includes it).
 - **Player view extras**: game-type badge on each game row; game log table (date, opponent, H/A, badge, starter,
   MIN, MIN and PF per quarter, PF) with an average row on top.
 - **State** lives in the URL hash (`#/team/ORL?s=2025-26&w=10&p=1630532&m=without`), so views are linkable.

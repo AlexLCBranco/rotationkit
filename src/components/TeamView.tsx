@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { appearanceIndex, loadTeamGames } from '../app/data.ts';
+import { appearanceIndex, loadSchedule, loadTeamGames } from '../app/data.ts';
+import { restForTeam } from '../domain/rest.ts';
 import { useAsync } from '../app/hooks.ts';
 import { basedOn, describeSelection, formatMin } from '../app/labels.ts';
 import { shortNames } from '../app/names.ts';
@@ -162,17 +163,17 @@ function TeamBlock({
 }) {
   const ww = filters.withWithout;
   const data = useAsync(async () => {
-    const games = await loadTeamGames(season, team);
+    const [games, schedule] = await Promise.all([loadTeamGames(season, team), loadSchedule(season).catch(() => [])]);
     const idx = ww ? await appearanceIndex(season, games) : undefined;
-    return { games, idx };
+    return { games, idx, rest: restForTeam(schedule, team) };
   }, [season, team, !!ww]);
   const [hover, setHover] = useState<{ player: number; bucket: number } | null>(null);
 
   const computed = useMemo(() => {
     if (data.status !== 'ok') return null;
-    const { games, idx } = data.value;
+    const { games, idx, rest } = data.value;
     const roster = rosterOf(games, team);
-    const sel = selectGames(games, season, team, filters, idx);
+    const sel = selectGames(games, season, team, filters, idx, rest);
     return { ...roster, sel, tp: teamPattern(sel), qa: quarterAverages(sel) };
   }, [data, season, team, filters]);
 

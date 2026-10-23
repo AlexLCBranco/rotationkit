@@ -1,10 +1,12 @@
 // Plain-words descriptions of a selection and of not-playing reasons.
 
 import type { Selection } from '../domain/patterns.ts';
+import { REST_WORDS } from '../domain/rest.ts';
 
 export function describeSelection(sel: Selection, names: Map<number, string>): string {
   const venue = sel.filters.venue === 'all' ? '' : `${sel.filters.venue} `;
-  const base = sel.filters.window === 'season' ? `All ${sel.season} ${venue}games` : `Last ${sel.filters.window} ${venue}games`;
+  const rest = sel.filters.rest ? ` ${REST_WORDS[sel.filters.rest]}` : '';
+  const base = (sel.filters.window === 'season' ? `All ${sel.season} ${venue}games` : `Last ${sel.filters.window} ${venue}games`) + rest;
   const ww = sel.filters.withWithout;
   if (!ww) return base;
   return `${base} ${ww.mode} ${names.get(ww.player) ?? sel.withWithout?.name ?? 'player'}`;

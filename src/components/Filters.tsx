@@ -39,6 +39,20 @@ export function Filters({ seasons, season, filters, teammates, onSeason, onFilte
           </button>
         ))}
       </div>
+      <div className="seg" role="group" aria-label="Rest">
+        {([[undefined, 'Any rest'], ['b2b', 'Back-to-back'], ['rested', 'Rested']] as const).map(([r, label]) => (
+          <button
+            key={label}
+            aria-pressed={filters.rest === r}
+            onClick={() => {
+              const { rest: _, ...rest } = filters;
+              onFilters(r ? { ...rest, rest: r } : rest);
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <label className="toggle">
         <input type="checkbox" checked={filters.blowout} onChange={(e) => onFilters({ ...filters, blowout: e.target.checked })} />
         <span>Hide blowout time</span>

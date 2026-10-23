@@ -4,6 +4,7 @@
 import { PATTERN_CONFIG, type BlowoutConfig } from './config.ts';
 import { availabilityFor, buildAppearances, type AppearanceIndex } from './availability.ts';
 import { seasonOf } from './season.ts';
+import { matchesRest, restForTeam, type RestFilter, type RestInfo } from './rest.ts';
 import { gameLength, periodEnd, periodStart, REGULATION_LEN } from './time.ts';
 import type { Game, PlayerGame } from './types.ts';
 
@@ -18,6 +19,8 @@ export interface WithWithout {
 export interface Filters {
   window: Window;
   venue: Venue;
+  /** Rest before the game (absent = all games). */
+  rest?: RestFilter;
   /** Exclude blowout time (default ON in the UI). */
   blowout: boolean;
   withWithout?: WithWithout;
@@ -71,15 +74,27 @@ export interface Selection {
 }
 
 /**
- * Choose the games for a team: season games of that team (one season only), then venue, then
- * with/without, then the last-N window. Every step's count is exposed.
+ * Choose the games for a team: season games of that team (one season only), then venue, then rest, then
+ * with/without, then the last-N window. Every step's count is exposed. Rest comes from `rest` (built from the
+ * full season schedule) or, if absent, from the given games.
  */
-export function selectGames(allGames: Game[], season: string, team: string, filters: Filters, idx?: AppearanceIndex): Selection {
+export function selectGames(
+  allGames: Game[],
+  season: string,
+  team: string,
+  filters: Filters,
+  idx?: AppearanceIndex,
+  rest?: Map<string, RestInfo>,
+): Selection {
   const seasonGames = allGames.filter((g) => seasonOf(g.id) === season);
   let games = seasonGames
     .filter((g) => g.home.tri === team || g.away.tri === team)
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   if (filters.venue !== 'all') games = games.filter((g) => (filters.venue === 'home' ? g.home.tri : g.away.tri) === team);
+  if (filters.rest) {
+    const r = rest ?? restForTeam(seasonGames.map((g) => ({ id: g.id, date: g.date, home: g.home.tri, away: g.away.tri })), team);
+    games = games.filter((g) => matchesRest(r.get(g.id)?.rest, filters.rest!));
+  }
 
   let ww: Selection['withWithout'];
   if (filters.withWithout) {

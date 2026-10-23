@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { appearanceIndex, loadTeamGames } from '../app/data.ts';
+import { appearanceIndex, loadSchedule, loadTeamGames } from '../app/data.ts';
+import { restForTeam } from '../domain/rest.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, reasonText, shortDate } from '../app/labels.ts';
 import type { Route } from '../app/route.ts';
@@ -29,17 +30,17 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
   const { team, player } = route;
   const ww = route.filters.withWithout;
   const data = useAsync(async () => {
-    const games = await loadTeamGames(season, team);
-    return { games, idx: ww ? await appearanceIndex(season, games) : undefined };
+    const [games, schedule] = await Promise.all([loadTeamGames(season, team), loadSchedule(season).catch(() => [])]);
+    return { games, idx: ww ? await appearanceIndex(season, games) : undefined, rest: restForTeam(schedule, team) };
   }, [season, team, !!ww]);
   const [hover, setHover] = useState<{ game: string; stint: Stint } | null>(null);
   const go = (patch: { season?: string; filters?: F }) => nav({ ...route, season: patch.season ?? season, filters: patch.filters ?? route.filters });
 
   const c = useMemo(() => {
     if (data.status !== 'ok') return null;
-    const { games, idx } = data.value;
+    const { games, idx, rest } = data.value;
     const roster = rosterOf(games, team);
-    const sel = selectGames(games, season, team, route.filters, idx);
+    const sel = selectGames(games, season, team, route.filters, idx, rest);
     const rows = playerGames(sel, player);
     const inBox = new Set(rows.map((r) => r.gameId));
     // Selected games he missed while with the team (inactive list), for context.
