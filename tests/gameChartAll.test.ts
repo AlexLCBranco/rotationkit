@@ -10,10 +10,18 @@ import { toEvents } from '../src/domain/pbp.ts';
 import type { Game } from '../src/domain/types.ts';
 
 const games: Game[] = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
+/** Games without data-quality notes. A game with notes has a play-by-play the NBA got wrong (e.g. a missing
+ *  substitution leaves 6 on court); it is still shown, with its warning, so the 5-on-court invariants skip it
+ *  instead of blocking the daily update for every other game. */
+const clean = games.filter((g) => !g.quality?.length);
 /** Timeline container widths used by the UI: desktop 1280px and phone 390px (minimum scale applies). */
 const WIDTHS = { desktop: 944, phone: 150 };
 
 describe(`all ${games.length} games`, () => {
+  it('flagged games stay rare (a parser bug would flag many)', () => {
+    expect(games.length - clean.length).toBeLessThanOrEqual(Math.max(10, games.length * 0.02));
+  });
+
   it('fouls: marks = PF = box score; per-quarter PF sums to PF; cumulative consistent', () => {
     const bad: string[] = [];
     for (const g of games)
@@ -30,7 +38,7 @@ describe(`all ${games.length} games`, () => {
 
   it('minutes: per-quarter minutes sum to the total; each team plays 5 × period length every period', () => {
     const bad: string[] = [];
-    for (const g of games) {
+    for (const g of clean) {
       for (const team of [g.home.tri, g.away.tri]) {
         const ps = g.players.filter((p) => p.team === team);
         for (let q = 1; q <= g.periods; q++) {
@@ -51,7 +59,7 @@ describe(`all ${games.length} games`, () => {
 
   it('lineups: 5 players per segment, durations sum to the game, +/- sums to the team margin', () => {
     const bad: string[] = [];
-    for (const g of games)
+    for (const g of clean)
       for (const team of [g.home.tri, g.away.tri]) {
         const segs = lineupSegments(g, team);
         const dur = segs.reduce((x, s) => x + s.end - s.start, 0);
@@ -64,7 +72,7 @@ describe(`all ${games.length} games`, () => {
 
   it('cursor: exactly 5 per team at every substitution clock (and just before), every 30 s, and game end', () => {
     const bad: string[] = [];
-    for (const g of games) {
+    for (const g of clean) {
       const times = new Set<number>([gameLength(g.periods)]);
       for (let t = 0; t < gameLength(g.periods); t += 30) times.add(t);
       for (const p of g.players) for (const [s, e] of p.stints) for (const x of [s, e, s - 0.1, e - 0.1]) if (x >= 0) times.add(x);
