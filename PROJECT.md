@@ -296,8 +296,11 @@ git add data && git commit -m "Update data" && git push
 ```
 - `update-data` covers the current season. `fetch-season` is incremental; failed games are listed and logged
   to `cache/fetch-errors.json` (re-run to retry). Add `-- --cdn-only` if stats.nba.com is misbehaving.
-- `validate-all` must report 0 NEW failing games before committing (known ones are listed in
-  `data/known-issues.json`); if not, look at the reported check/player. Data is never patched to pass a check.
+- A game that fails a validate-all check is still committed and shown with its warning; only a game that
+  fails to normalize stops the update. New failing games are listed as NEW in the log (known ones are in
+  `data/known-issues.json`); look at the reported check/player and add them there. Data is never patched to
+  pass a check. (Before 2026-11-04 any NEW failure blocked the whole update: 8 bad NBA box scores froze all
+  2026-27 data at Oct 23 for 12 days.)
 - Past season (one-off): `npm run fetch-season -- --season 2025-26 --cdn-only`, then `npm run normalize` and
   `npm run validate-all` (both default to every cached season; `-- --season X` for one).
 - Missing stats.nba.com cross-check data can be retried later: `npm run fetch-season -- --retry-optional`.
