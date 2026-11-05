@@ -1,9 +1,15 @@
-// Daily update logic: incremental detection, summary/commit message, gating, no commit on failure.
+// Daily update logic: incremental detection, summary/commit message, gating, the status file (success + failure paths).
 
 import { describe, expect, it } from 'vitest';
 import { runUpdate, STEPS, type Deps } from '../scripts/ci-update.ts';
 import { commitMessage, gamesToFetch, newGamesSummary, scheduleChanges, unexpectedFailures } from '../scripts/lib/data.ts';
 import { scheduleTags } from '../src/domain/scheduleTags.ts';
+import type { UpdateStatus } from '../src/domain/updateStatus.ts';
+import { readStatus, STATUS_FILE, writeStatus } from '../scripts/lib/status.ts';
+import { execSync } from 'node:child_process';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { GameIndexEntry, ScheduleEntry } from '../src/domain/types.ts';
 
 const e = (id: string, date: string): GameIndexEntry => ({ id, date, home: 'AAA', away: 'BBB', hs: 100, as: 90, hid: 1, aid: 2, periods: 4 });
@@ -62,9 +68,12 @@ describe('schedule changes', () => {
 });
 
 describe('runUpdate', () => {
-  function fake(failAt?: string, newGames = 2, schedAfter: ScheduleEntry[] = SCHED) {
+  const NOW = '2026-11-05T11:03:00.000Z';
+  function fake(failAt?: string, newGames = 2, schedAfter: ScheduleEntry[] = SCHED, prev: UpdateStatus | null = null) {
     const ran: string[] = [];
     let after = false;
+    const written: UpdateStatus[] = [];
+    let status = prev;
     const deps: Deps = {
       run: (cmd) => {
         ran.push(cmd);
@@ -74,28 +83,66 @@ describe('runUpdate', () => {
       schedules: () => (after ? schedAfter : SCHED),
       indexes: () => (after ? [e('1', '2026-10-21'), ...Array.from({ length: newGames }, (_, i) => e(`n${i}`, `2026-10-2${2 + i}`))] : [e('1', '2026-10-21')]),
       log: () => {},
+      now: () => NOW,
+      runId: () => '42',
+      readStatus: () => status,
+      writeStatus: (st) => {
+        written.push(st);
+        status = st;
+      },
     };
-    return { deps, ran };
+    return { deps, ran, written };
   }
+  const gitCmds = (ran: string[]) => ran.filter((c) => c.startsWith('git '));
+  const OK = { lastRun: NOW, result: 'ok', failingStep: null, error: null, lastSuccess: NOW, failingSince: null, runId: '42' };
 
-  it('runs all steps in order, then commits and pushes with the summary message', () => {
-    const { deps, ran } = fake();
+  it('the CDN probe is the first step (a blocked CDN is recorded like any failure)', () => {
+    expect(STEPS[0]).toBe('npx tsx scripts/probe-cdn.ts');
+  });
+
+  it('success with new games: all steps, status "ok" written, then data (incl. the status file) committed and pushed', () => {
+    const { deps, ran, written } = fake();
     expect(runUpdate(deps, { commit: true })).toEqual({ status: 'committed', message: 'data: 2 new games through 2026-10-23' });
     expect(ran).toEqual([...STEPS, "git add data ':!data/*/validation.json'", 'git commit -m "data: 2 new games through 2026-10-23"', 'git push']);
+    expect(written).toEqual([OK]);
   });
 
-  it.each(STEPS)('a failure at "%s" stops the run: no later step, no git command', (step) => {
-    const { deps, ran } = fake(step);
+  it.each(STEPS)('a failure at "%s": no later step; status "failed" written; ONLY the status file is committed', (step) => {
+    const prev = { ...OK, lastRun: '2026-11-04T11:02:00.000Z', lastSuccess: '2026-11-04T11:02:00.000Z', runId: '41' };
+    const { deps, ran, written } = fake(step, 2, SCHED, prev as UpdateStatus);
     const out = runUpdate(deps, { commit: true });
     expect(out).toMatchObject({ status: 'failed', step });
-    expect(ran.at(-1)).toBe(step);
-    expect(ran.some((c) => c.startsWith('git '))).toBe(false);
+    expect(ran.indexOf(step)).toBe(STEPS.indexOf(step));
+    expect(ran.filter((c) => !c.startsWith('git '))).toEqual(STEPS.slice(0, STEPS.indexOf(step) + 1));
+    expect(written).toEqual([
+      { lastRun: NOW, result: 'failed', failingStep: step, error: 'exit code 1', lastSuccess: '2026-11-04T11:02:00.000Z', failingSince: NOW, runId: '42' },
+    ]);
+    expect(gitCmds(ran)).toEqual([`git add ${STATUS_FILE}`, `git commit -m "data: update FAILED at ${step}" -- ${STATUS_FILE}`, 'git push']);
+    expect(gitCmds(ran).some((c) => c.includes("git add data '") || c === 'git add data')).toBe(false);
   });
 
-  it('no new games and an unchanged schedule → no commit', () => {
-    const { deps, ran } = fake(undefined, 0);
+  it('a failing streak keeps its first failure date', () => {
+    const prev = { lastRun: '2026-11-04T11:00:00.000Z', result: 'failed', failingStep: 'npm test', error: 'x', lastSuccess: '2026-10-24T11:00:00.000Z', failingSince: '2026-10-25T11:00:00.000Z', runId: '41' };
+    const { deps, written } = fake('npm test', 2, SCHED, prev as UpdateStatus);
+    runUpdate(deps, { commit: true });
+    expect(written[0]).toMatchObject({ result: 'failed', failingSince: '2026-10-25T11:00:00.000Z', lastSuccess: '2026-10-24T11:00:00.000Z' });
+  });
+
+  it('if even the status commit fails, the run still reports the original failure', () => {
+    const { deps } = fake('npm test');
+    const run = deps.run;
+    deps.run = (cmd) => {
+      if (cmd === 'git push') throw new Error('push rejected');
+      run(cmd);
+    };
+    expect(runUpdate(deps, { commit: true })).toMatchObject({ status: 'failed', step: 'npm test' });
+  });
+
+  it('no new games and an unchanged schedule → status "ok" committed alone (quiet days are not stale)', () => {
+    const { deps, ran, written } = fake(undefined, 0);
     expect(runUpdate(deps, { commit: true })).toEqual({ status: 'no-changes' });
-    expect(ran.some((c) => c.startsWith('git '))).toBe(false);
+    expect(written).toEqual([OK]);
+    expect(gitCmds(ran)).toEqual([`git add ${STATUS_FILE}`, `git commit -m "data: update status (ok, nothing new)" -- ${STATUS_FILE}`, 'git push']);
   });
 
   it('no new games but a rescheduled game → commits the schedule update', () => {
@@ -109,15 +156,61 @@ describe('runUpdate', () => {
     expect(runUpdate(deps, { commit: true })).toMatchObject({ status: 'committed', message: 'data: 2 new games through 2026-10-23' });
   });
 
-  it('dry run (branch pushes) never commits', () => {
-    const { deps, ran } = fake();
-    expect(runUpdate(deps, { commit: false })).toMatchObject({ status: 'dry-run' });
-    expect(ran.some((c) => c.startsWith('git '))).toBe(false);
-  });
-
-  it('validate-all fails on a new (unlisted) data problem → nothing committed', () => {
-    const { deps, ran } = fake('npm run validate-all');
-    expect(runUpdate(deps, { commit: true }).status).toBe('failed');
-    expect(ran).not.toContain('git push');
+  it('dry run (branch pushes) never commits and never writes the status file', () => {
+    for (const failAt of [undefined, 'npm test']) {
+      const { deps, ran, written } = fake(failAt);
+      expect(runUpdate(deps, { commit: false }).status).toBe(failAt ? 'failed' : 'dry-run');
+      expect(gitCmds(ran)).toEqual([]);
+      expect(written).toEqual([]);
+    }
   });
 });
+
+describe('status file on disk + the workflow fallback (record-failure)', () => {
+  it('writes and reads back; a broken file reads as "no status"', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rk-status-'));
+    const f = join(dir, 's.json');
+    writeStatus(OK_STATUS, f);
+    expect(readStatus(f)).toEqual(OK_STATUS);
+    writeFileSync(f, '{oops');
+    expect(readStatus(f)).toBeNull();
+    expect(readStatus(join(dir, 'missing.json'))).toBeNull();
+  });
+
+  it('record-failure.ts (plain node, no packages) records a setup failure and commits only the status file', () => {
+    // A throwaway git repo with a bare remote, so the script's commit + push really run.
+    const dir = mkdtempSync(join(tmpdir(), 'rk-fallback-'));
+    const remote = join(dir, 'remote.git');
+    const work = join(dir, 'work');
+    const sh = (cmd: string, cwd = work) => execSync(cmd, { cwd, stdio: 'pipe', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } }).toString();
+    execSync(`git init -q --bare ${remote} && git init -q -b main ${work}`);
+    mkdirSync(join(work, 'data'));
+    mkdirSync(join(work, 'scripts/lib'), { recursive: true });
+    mkdirSync(join(work, 'src/domain'), { recursive: true });
+    cpSync('scripts/record-failure.ts', join(work, 'scripts/record-failure.ts'));
+    cpSync('scripts/lib/status.ts', join(work, 'scripts/lib/status.ts'));
+    cpSync('src/domain/updateStatus.ts', join(work, 'src/domain/updateStatus.ts'));
+    writeFileSync(join(work, 'data/update-status.json'), JSON.stringify(OK_STATUS));
+    writeFileSync(join(work, 'data/other.json'), '1');
+    sh(`git add -A && git commit -qm init && git remote add origin ${remote} && git push -q -u origin main`);
+    writeFileSync(join(work, 'data/other.json'), '2'); // a half-done change that must NOT be committed
+    const run = (id: string) => sh(`node --experimental-strip-types --no-warnings scripts/record-failure.ts`, work).toString() + id;
+    process.env.GITHUB_RUN_ID = '99';
+    try {
+      run('99');
+      const st = JSON.parse(readFileSync(join(work, 'data/update-status.json'), 'utf8'));
+      expect(st).toMatchObject({ result: 'failed', failingStep: 'workflow setup', lastSuccess: OK_STATUS.lastSuccess, runId: '99' });
+      expect(sh('git show --stat --format=%s HEAD')).toContain('data: update FAILED at workflow setup');
+      expect(sh('git show --name-only --format= HEAD').trim()).toBe('data/update-status.json');
+      expect(sh('git status --porcelain')).toContain('data/other.json');
+      expect(sh('git log --oneline origin/main').split('\n').filter(Boolean)).toHaveLength(2);
+      // Same run already recorded (by ci-update) → nothing new.
+      run('99');
+      expect(sh('git log --oneline').split('\n').filter(Boolean)).toHaveLength(2);
+    } finally {
+      delete process.env.GITHUB_RUN_ID;
+    }
+  });
+});
+
+const OK_STATUS: UpdateStatus = { lastRun: '2026-11-04T11:02:00.000Z', result: 'ok', failingStep: null, error: null, lastSuccess: '2026-11-04T11:02:00.000Z', failingSince: null, runId: '7' };

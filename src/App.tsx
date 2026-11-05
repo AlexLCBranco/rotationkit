@@ -6,8 +6,18 @@ import { TeamView } from './components/TeamView.tsx';
 import { PlayerView } from './components/PlayerView.tsx';
 import { GameView } from './components/GameView.tsx';
 import { DeepLink } from './components/DeepLink.tsx';
+import { StaleBanner } from './components/StaleBanner.tsx';
 
 export function App() {
+  return (
+    <>
+      <StaleBanner />
+      <Screen />
+    </>
+  );
+}
+
+function Screen() {
   const [route, go] = useRoute();
   const seasons = useAsync(loadSeasons, []);
   if (seasons.status === 'loading') return <div className="page muted">Loading…</div>;

@@ -274,19 +274,31 @@ production; feature branches get preview deployments. Vercel connected to the re
 Workflow: `.github/workflows/data-update.yml` → `scripts/ci-update.ts`.
 - **Schedule**: every day at **11:00 UTC** (after all US games have finished). Takes effect once the workflow is on
   `main` (scheduled workflows only run from the default branch).
-- **What it does**: `fetch-season --cdn-only --strict` (Path B, cdn.nba.com only) → `normalize` → `validate-all` →
-  `npm test`. If every step passes and there are new games, it commits `data/` to `main` as
-  "data: N new games through YYYY-MM-DD" and pushes; Vercel then redeploys production. The schedule feed is
-  downloaded and `schedule.json` rewritten on every run, so with no new games but a changed schedule (postponed or
-  rescheduled game) it commits "data: schedule update (N games changed)" and the B2B / 3-in-4 tags are fixed the
-  next morning. Neither → no commit.
+- **What it does**: `probe-cdn` (is cdn.nba.com reachable from the runner) → `fetch-season --cdn-only --strict`
+  (Path B, cdn.nba.com only) → `normalize` → `validate-all` → `npm test`. If every step passes and there are new
+  games, it commits `data/` to `main` as "data: N new games through YYYY-MM-DD" and pushes; Vercel then redeploys
+  production. The schedule feed is downloaded and `schedule.json` rewritten on every run, so with no new games but a
+  changed schedule (postponed or rescheduled game) it commits "data: schedule update (N games changed)" and the
+  B2B / 3-in-4 tags are fixed the next morning.
+- **Run status, every run** (decision 2026-11-05, after the update failed silently Oct 24 – Nov 4): each run on
+  `main` writes `data/update-status.json` (`lastRun`, `result` ok/failed, `failingStep`, `error`, `lastSuccess`,
+  `failingSince` = first failure of the current streak, `runId`). Success: committed with the data, or alone as
+  "data: update status (ok, nothing new)" on quiet days (so quiet days never look stale; this means one small
+  commit and one production redeploy per day). Failure: ONLY the status file is committed ("data: update FAILED at
+  <step>"), never partial game data. A failure before the script even runs (checkout, `npm ci`) is recorded by the
+  workflow's last step, `scripts/record-failure.ts`, run with plain Node (`--experimental-strip-types`, no npm
+  packages). The probe moved from its own workflow step into the script so a blocked CDN is recorded too.
+- **Stale-data banner** (`src/components/StaleBanner.tsx`, logic in `src/domain/updateStatus.ts`): at the top of
+  every page when the last run failed ("Data last updated <date>, update failing since <date>.") or when the last
+  successful run is older than 36 h (`STALE_AFTER_HOURS`; "…, no successful update since then." — the job stopped
+  running, so there is no failure date to show). No banner when fine, or before the first run wrote the file.
 - **Incremental without a cache**: the runner has no raw cache; already-committed games are read from
   `data/<season>/index.json` and skipped. `normalize` only (re)writes games whose raw data is present and rebuilds
   the index/appearances from all committed game files. `validation.json` is not committed by CI (it holds the
   gamerotation cross-check from full local runs).
-- **Failure = nothing committed.** Any step failing (CDN unreachable or blocked, a game that fails to download,
-  normalize error, a validation problem not listed in `data/known-issues.json`, a failing test) fails the run; GitHub
-  emails the repository owner. To investigate: Actions tab → "Daily data update" → the failed run's log; the line
+- **Failure = no game data committed** (only the status file, above). Any step failing (CDN unreachable or blocked,
+  a game that fails to download, a normalize error, a failing test) fails the run; GitHub emails the repository
+  owner and the site shows the banner. A game failing a validate-all check does not fail the run (PR #3). To investigate: Actions tab → "Daily data update" → the failed run's log; the line
   `Data update FAILED at "<step>"` names the step. A new, reviewed data problem can be accepted by adding the game
   to `data/known-issues.json` (with the reason) in a normal commit.
 - **Manual run**: GitHub → Actions → "Daily data update" → "Run workflow" (branch `main`). Locally, a dry run:
