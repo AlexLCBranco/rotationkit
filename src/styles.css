@@ -498,3 +498,15 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .ck-picker-option[aria-selected='true'] { font-weight: 700; color: var(--ck-accent); }
 .ck-picker .logo { width: var(--ck-logo); height: var(--ck-logo); }
 .ck-picker .logo-fallback { font-size: 9px; padding: 1px 2px; }
+
+/* Q4 paragraph: every lineup change in words, beside the chart */
+.q4-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start; }
+.q4-story { overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 1.55; }
+.q4-story h3 { margin: 0 0 2px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.q4-story-hint { margin: 0 0 6px; font-size: 11.5px; }
+.q4-story-text { margin: 0; }
+.q4-sentence { cursor: pointer; border-radius: 3px; }
+.q4-sentence:hover, .q4-sentence.active { background: #2b3a55; color: #fff; }
+.q4-sentence.kind-start, .q4-sentence.kind-period, .q4-sentence.kind-end { color: #d6d6d6; font-weight: 600; }
+.q4-row.lit { background: rgba(78, 161, 255, 0.12); }
+.q4-row.lit .q4-name { color: #fff; }
