@@ -368,6 +368,8 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
   team page "Typical stints" view with "Rarely used" group.
 - Main screen is now a team's game (game list sidebar + chart, schedule tags B2B / 3-in-4 / rest); averages are a tab.
 - Desktop only from now on; existing phone tests are kept passing.
+- 2026-11-05: stale-data banner + run status file, Q4 tab, hoopsjunkie / calendarkit links on the score line,
+  calendarkit's team picker (branch `claude/q4-tab-links-picker`, stacked on the open hover-readout PR #2).
 - All work is on branch `claude/blissful-ride-ry8cnl`, not merged. The daily data update only commits to `main`, so
   it starts working for the live site once the branch is merged.
 
