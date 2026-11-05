@@ -301,7 +301,7 @@ function LineupCard({ g, t, pinned, lineX, y, names, onClose }: { g: Game; t: nu
   });
   const p = periodAt(c.t + 0.05);
   return (
-    <div className="gc-tip rd q4-card" ref={ref} data-testid="q4-cursor-card" data-t={c.t} style={{ visibility: 'hidden', pointerEvents: pinned ? 'auto' : 'none' }}>
+    <div className="gc-tip at-viewport rd q4-card" ref={ref} data-testid="q4-cursor-card" data-t={c.t} style={{ visibility: 'hidden', pointerEvents: pinned ? 'auto' : 'none' }}>
       <div className="rd-head">
         {c.clock} · {g.away.tri} {c.score[1]}–{c.score[0]} {g.home.tri}
         {pinned && (

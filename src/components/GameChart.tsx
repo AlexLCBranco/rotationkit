@@ -248,7 +248,7 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
         )}
         {tip && (
           <div
-            className={`gc-tip${tip.content.kind === 'player' ? ' rd' : ''}`}
+            className={`gc-tip at-viewport${tip.content.kind === 'player' ? ' rd' : ''}`}
             ref={tipRef}
             data-testid="chart-tip"
             data-t={tip.content.kind === 'player' ? tip.content.t : undefined}
