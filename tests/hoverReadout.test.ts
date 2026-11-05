@@ -11,6 +11,9 @@ import { DEFAULT_READOUT, loadReadout, saveReadout } from '../src/app/readoutSet
 import type { Game } from '../src/domain/types.ts';
 
 const games: Game[] = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
+/** Games with data-quality notes can have 6 on court (the NBA's play-by-play missed a substitution); they are shown
+ *  with their warning, so the "exactly 5" invariants skip them (same rule as tests/gameChartAll.test.ts). */
+const clean = games.filter((g) => !g.quality?.length);
 
 /** Moments to probe: every substitution clock, just before and just after it, and every 45 s. */
 function moments(g: Game): number[] {
@@ -21,11 +24,11 @@ function moments(g: Game): number[] {
   return [...ts];
 }
 
-describe(`hover readout over all ${games.length} games`, () => {
+describe(`hover readout over all ${clean.length} games without data-quality notes`, () => {
   it('lineups = the lineup cursor, exactly 5 per team, hovered team first, "me" flag, stint iff on court, fouls so far', () => {
     const bad: string[] = [];
     let checked = 0;
-    for (const g of games) {
+    for (const g of clean) {
       const segs = { [g.home.tri]: lineupSegments(g, g.home.tri), [g.away.tri]: lineupSegments(g, g.away.tri) };
       // One player per team with minutes, rotating so many different players get probed.
       const played = g.players.filter((p) => p.played && p.stints.length);
