@@ -463,3 +463,8 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .q4-card { position: fixed; z-index: 60; }
 .q4-unpin { font-size: 12px; }
 .page.q4-page { padding-bottom: 0; }
+
+/* Score-line icon links (hoopsjunkie, calendarkit) */
+.game-links { display: inline-flex; gap: 6px; margin-left: 4px; vertical-align: middle; }
+.icon-link { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; color: #9a9a9a; border: 1px solid var(--line); background: var(--panel); text-decoration: none; }
+.icon-link:hover, .icon-link:focus-visible { color: var(--text); border-color: #4a4a4a; outline: none; }

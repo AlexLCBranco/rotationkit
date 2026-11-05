@@ -156,6 +156,14 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   22 px minimum, `Q4_ROW`). Worst real games (tested at 1920×950 and 1600×1000): 0022500086, 28 players in Q4 →
   22 px at 1920×950, 23 px at 1600×1000; 0022500637 (2OT) → 30 / 32 px. A game with even more players would
   stop at 22 px and the page would then scroll.
+- **Game links** (`GameLinks.tsx`, URLs in `src/app/gameLinks.ts`; decision 2026-11-05): two small icon links
+  (no underlined text) on the score line after the game-type / garbage-time chips, in Games and Q4, opening in a
+  new tab. hoopsjunkie (basketball icon, tooltip "Open on hoopsjunkie"):
+  `https://hoopsjunkie.io/games/<ET date>/<away>-vs-<home>`, lowercase tricodes, the same rule as calendarkit's
+  `gameLinkUrl` (src/slate/links.ts, verified there on the live site). calendarkit (calendar icon, "Open in
+  calendarkit"): `https://gauntlet-home.vercel.app/calendar?view=league&layout=list&date=<ET date>&game=<gameId>`
+  (calendarkit opens on today until its own date/game change lands). The date is `Game.date`, the box score's
+  Eastern date, so a 10 pm ET tip (next day in UTC) keeps its ET date.
 - **Schedule tags** (`src/domain/scheduleTags.ts`, on US Eastern dates from `schedule.json`; preseason and the
   All-Star game don't count, scheduled future games do): "B2B 1" plays again the next day; "B2B 2" played the day
   before; "3-in-4 · 1st/2nd/3rd" = position in a set of 3 consecutive team games within 4 days (first and last at

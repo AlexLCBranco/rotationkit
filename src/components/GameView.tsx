@@ -9,6 +9,7 @@ import { GameList, type ListGame } from './GameList.tsx';
 import { ScheduleChips } from './ScheduleChips.tsx';
 import { Tabs } from './Tabs.tsx';
 import { Q4View } from './Q4View.tsx';
+import { GameLinks } from './GameLinks.tsx';
 import { ReadoutMenu } from './ReadoutMenu.tsx';
 import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { seasonOf } from '../domain/season.ts';
@@ -219,6 +220,7 @@ function GameHeader({ g, team, ours, theirs }: { g: Game; team: string; ours: Sc
           {g.periods > REG_PERIODS ? ` · Final/${g.periods === 5 ? 'OT' : `${g.periods - REG_PERIODS}OT`}` : ' · Final'}
         </span>
         <GameBadge g={g} />
+        <GameLinks g={g} />
       </h1>
       <div className="head-tags">
         {[
