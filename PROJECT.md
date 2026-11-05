@@ -281,6 +281,7 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
 - **Player view extras**: game-type badge on each game row; game log table (date, opponent, H/A, badge, starter,
   MIN, MIN and PF per quarter, PF) with an average row on top.
 - **State** lives in the URL hash (`#/team/ORL?s=2025-26&w=10&p=1630532&m=without`), so views are linkable.
+- **Logo** (decision 2026-11-05, option 1 of 5): "stint bars", four rounded bars in the chart's green / caution / foul-trouble colors on a dark rounded square. `public/favicon.svg` (browser tab), `favicon-32.png` and `apple-touch-icon.png` (rendered from the SVG), and next to "rotationkit" in the header.
 - Dark theme only (no light theme by design). Works at 390 px phone width (no sideways scroll).
 - **Desktop only from now on** (user decision, 2026-10-23): nothing new is built or polished for phones. What
   already works on phones stays, and the existing phone tests must keep passing.
