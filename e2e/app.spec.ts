@@ -272,3 +272,30 @@ test('heat map: same "Rarely used" group and the same open/closed state as the d
   await noHorizontalScroll(page);
   expect(errors).toEqual([]);
 });
+
+test('@desktop Averages tooltips sit right next to the pointer (Typical stints and Heat map)', async ({ page }) => {
+  await page.goto('/#/team/ATL?s=2025-26&w=5');
+  const near = async (x: number, y: number) => {
+    const b = (await page.getByTestId('pattern-tip').boundingBox())!;
+    const dx = x < b.x ? b.x - x : x > b.x + b.width ? x - (b.x + b.width) : 0;
+    const dy = y < b.y ? b.y - y : y > b.y + b.height ? y - (b.y + b.height) : 0;
+    expect(dx, `tooltip ${Math.round(dx)} px sideways from the pointer`).toBeLessThanOrEqual(20);
+    expect(dy, `tooltip ${Math.round(dy)} px from the pointer vertically`).toBeLessThanOrEqual(40);
+  };
+  // Typical stints: in Q1 and in Q4 (the far right, where the tooltip flips to the left of the pointer).
+  const track = page.locator('[data-testid=pattern-chart] [data-testid=player-row] .gc-track').nth(3);
+  const t = (await track.boundingBox())!;
+  for (const f of [0.1, 0.9]) {
+    const [x, y] = [t.x + f * t.width, t.y + t.height / 2];
+    await page.mouse.move(x, y);
+    await expect(page.getByTestId('pattern-tip')).toBeVisible();
+    await near(x, y);
+  }
+  // Heat map.
+  await page.getByRole('button', { name: 'Heat map' }).click();
+  const strip = page.locator('svg.heat').nth(13);
+  const s = (await strip.boundingBox())!;
+  await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
+  await expect(page.getByTestId('pattern-tip')).toBeVisible();
+  await near(s.x + s.width / 2, s.y + s.height / 2);
+});
