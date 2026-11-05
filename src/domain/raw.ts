@@ -53,6 +53,8 @@ export interface RawAction {
   personId?: number;
   /** All players involved (actor, assist, fouled, …). */
   personIdsFilter?: number[];
+  /** "Made" / "Missed" on shots and free throws. */
+  shotResult?: string;
   scoreHome: string;
   scoreAway: string;
 }

@@ -191,6 +191,19 @@ export function normalizeGame(raw: RawGame): Game {
     stintsBy.set(id, kept.length ? kept : list.slice(0, 1));
   }
 
+  // Points per period from the play-by-play's made shots and free throws (box score has game totals only).
+  const POINTS: Record<string, number> = { '2pt': 2, '3pt': 3, freethrow: 1 };
+  const ptsBy = new Map<number, number[]>();
+  for (const e of evs) {
+    const a = e.a;
+    const pts = POINTS[a.actionType];
+    if (!pts || a.shotResult !== 'Made' || !a.personId || !box.has(a.personId)) continue;
+    if (!ptsBy.has(a.personId)) ptsBy.set(a.personId, new Array<number>(bg.period).fill(0));
+    const row = ptsBy.get(a.personId)!;
+    while (row.length < e.period) row.push(0);
+    row[e.period - 1]! += pts;
+  }
+
   const players: PlayerGame[] = [...box.values()].map(({ side, p }) => {
     return {
       id: p.personId,
@@ -208,6 +221,7 @@ export function normalizeGame(raw: RawGame): Game {
       ...reasonOf(p),
       stints: stintsBy.get(p.personId) ?? [],
       ...(foulsBy.has(p.personId) ? { fouls: foulsBy.get(p.personId)! } : {}),
+      ...(ptsBy.has(p.personId) ? { ptsQ: ptsBy.get(p.personId)! } : {}),
     };
   });
 
