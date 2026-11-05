@@ -2,6 +2,7 @@
 //   #/team/ORL?s=2025-26&w=10&v=home&b=0&p=1630532&m=without
 //   #/player/ORL/1630532?…same filters
 //   #/game/0022500093?t=ORL&s=2025-26…  main screen: a team's game (t = whose games the picker lists)
+//   #/q4/0022500093?t=ORL…               same game, Q4 tab (4th quarter + OT only)
 //   #/ (empty) → the main screen with the remembered team's latest game
 
 import { useEffect, useState } from 'react';
@@ -10,7 +11,7 @@ import type { Filters, Venue, Window } from '../domain/patterns.ts';
 export type Route =
   | { view: 'team'; team: string | null; season: string | null; filters: Filters; vs?: string | null }
   | { view: 'player'; team: string; player: number; season: string | null; filters: Filters }
-  | { view: 'game'; game: string; team: string | null; season: string | null; filters: Filters };
+  | { view: 'game'; game: string; team: string | null; season: string | null; filters: Filters; tab?: 'games' | 'q4' };
 
 export function parse(hash: string): Route {
   const [path = '', query = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -34,6 +35,7 @@ export function parse(hash: string): Route {
   const parts = path.split('/').filter(Boolean);
   if (parts[0] === 'player' && parts[1] && Number(parts[2])) return { view: 'player', team: parts[1], player: Number(parts[2]), season, filters };
   if (parts[0] === 'game' && parts[1]) return { view: 'game', game: parts[1], team: t, season, filters };
+  if (parts[0] === 'q4') return { view: 'game', game: parts[1] ?? 'latest', team: t, season, filters, tab: 'q4' };
   if (parts[0] === 'team') return { view: 'team', team: parts[1] ?? null, season, filters, vs: q.get('vs') };
   return { view: 'game', game: 'latest', team: t, season, filters };
 }
@@ -53,7 +55,7 @@ export function format(r: Route): string {
   if (r.view === 'team' && r.vs) q.set('vs', r.vs);
   const qs = q.toString() ? `?${q}` : '';
   if (r.view === 'player') return `#/player/${r.team}/${r.player}${qs}`;
-  if (r.view === 'game') return `#/game/${r.game}${qs}`;
+  if (r.view === 'game') return `#/${r.tab === 'q4' ? 'q4' : 'game'}/${r.game}${qs}`;
   return `#/team/${r.team ?? ''}${qs}`;
 }
 

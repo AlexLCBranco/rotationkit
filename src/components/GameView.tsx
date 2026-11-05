@@ -8,6 +8,7 @@ import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
 import { GameList, type ListGame } from './GameList.tsx';
 import { ScheduleChips } from './ScheduleChips.tsx';
 import { Tabs } from './Tabs.tsx';
+import { Q4View } from './Q4View.tsx';
 import { ReadoutMenu } from './ReadoutMenu.tsx';
 import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { seasonOf } from '../domain/season.ts';
@@ -44,6 +45,7 @@ const plays = (e: { home: string; away: string }, t: string) => e.home === t || 
 
 export function GameView({ seasons, season, route, nav, rememberedTeam }: Props) {
   const gameSeason = route.game === 'latest' ? season : seasonOf(route.game);
+  const tab = route.tab ?? 'games';
   const meta = useAsync(() => Promise.all([loadIndex(gameSeason), loadSchedule(gameSeason).catch(() => null)]), [gameSeason]);
   // `latest` = the team's most recent finished game in the season.
   const id =
@@ -127,11 +129,12 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   );
 
   return (
-    <div className="page main-screen">
+    <div className={`page main-screen${tab === 'q4' ? ' q4-page' : ''}`}>
       <Header>
         <Tabs
-          active="games"
-          onGames={() => undefined}
+          active={tab}
+          onGames={() => nav({ ...route, game: current ?? route.game, team, season: gameSeason, tab: 'games' })}
+          onQ4={() => nav({ ...route, game: current ?? route.game, team, season: gameSeason, tab: 'q4' })}
           onAverages={() => nav({ view: 'team', team: team ?? null, season: gameSeason, filters: route.filters })}
         />
         <label className="field team-pick">
@@ -195,7 +198,8 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
           {g && picker && team && (g.home.tri === team || g.away.tri === team) && (
             <GameHeader g={g} team={team} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
           )}
-          {g && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
+          {g && tab === 'games' && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
+          {g && tab === 'q4' && <Q4View g={g} trouble={trouble} setTrouble={setTrouble} />}
         </div>
       </div>
     </div>

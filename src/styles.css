@@ -433,3 +433,33 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 /* Stale-data warning (daily update failed / too old) */
 .stale-banner { background: #3a1f12; border-bottom: 1px solid #7c3a1a; color: #ffd8b5; padding: 9px 16px; font-size: 14px; text-align: center; }
 .stale-banner .muted { color: #e0b48e; }
+
+/* Q4 tab: 4th quarter + OT, both teams on one shared axis, sized to fit the window */
+.q4-controls { margin: 0 0 4px; }
+.q4-box { position: relative; overflow: hidden; }
+.q4-content { position: relative; }
+.q4-row { display: flex; align-items: stretch; border-bottom: 1px solid #262626; }
+.q4-axis { border-bottom: 1px solid var(--line); }
+.q4-axis .q4-track { height: 100%; }
+.q4-left { flex: none; width: 292px; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 4px; font-size: 13px; }
+.q4-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #6fb2ff; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+.q4-colhead { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
+.q4-colhead .q4-name { color: var(--muted); font-weight: 600; }
+.q4-num { flex: none; width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
+.q4-min { font-weight: 700; color: var(--text); }
+.q4-pf { color: var(--muted); font-weight: 600; }
+.q4-pf.lvl-text-caution { color: #eab308; }
+.q4-pf.lvl-text-trouble { color: #ef4444; }
+.q4-closer { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex: none; }
+.q4-track { position: relative; flex: none; }
+.q4-track > i, .q4-track > div, .q4-track > span > i { position: absolute; }
+.q4-team-head { display: flex; align-items: center; gap: 8px; padding-left: 4px; font-size: 13px; border-bottom: 1px solid var(--line); background: #1c1c1c; }
+.q4-team-head .logo { width: 20px; height: 20px; }
+.q4-team + .q4-team .q4-team-head { border-top: 2px solid #3a3a3a; }
+.q4-label { line-height: 1; display: flex; align-items: center; justify-content: center; }
+.q4-foul-n { font-size: 10px; }
+.q4-cursor { position: absolute; bottom: 0; width: 1px; background: rgba(255, 255, 255, 0.85); z-index: 8; pointer-events: none; }
+.q4-cursor .gc-cursor-handle { position: absolute; top: -21px; left: 0; pointer-events: none; }
+.q4-card { position: fixed; z-index: 60; }
+.q4-unpin { font-size: 12px; }
+.page.q4-page { padding-bottom: 0; }

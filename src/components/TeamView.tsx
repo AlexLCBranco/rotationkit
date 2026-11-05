@@ -106,7 +106,12 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
     <div className="page">
       <HeatDefs />
       <Header>
-        <Tabs active="averages" onGames={() => nav({ view: 'game', game: 'latest', team, season, filters: route.filters })} onAverages={() => undefined} />
+        <Tabs
+          active="averages"
+          onGames={() => nav({ view: 'game', game: 'latest', team, season, filters: route.filters })}
+          onQ4={() => nav({ view: 'game', game: 'latest', team, season, filters: route.filters, tab: 'q4' })}
+          onAverages={() => undefined}
+        />
         {teamSelect(team, (t) => go({ team: t }), 'Team')}
         <span className="muted">vs</span>
         {teamSelect(vs ?? '', (t) => go({ vs: t || null }), 'Matchup opponent', <option value="">(no matchup)</option>)}

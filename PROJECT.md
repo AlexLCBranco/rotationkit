@@ -143,6 +143,19 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   moves next to the arrows). Right: ◀ ▶ + "Game N of M", game header (matchup, date, final, badge, schedule chips
   of this team AND the opponent), then the chart. The chart keeps `CHART.minPxPerMinute`; when the window is too
   narrow for list + chart it scrolls inside its box. `?game=<id>` deep links still work.
+- **Q4 tab** (`Q4View.tsx`, route `#/q4/<id>?t=ORL`; decision 2026-11-05): Games | Q4 | Averages. Same team, game
+  list, arrows and selected game as Games (switching tabs keeps the game; the list and arrows keep the tab). Shows
+  only the 4th quarter plus any overtime right after it (OT = 5 min) on ONE shared axis: away team on top, home
+  below, so a moment lines up vertically. Rows: players on court at some point in Q4/OT (`q4Rows` in
+  `src/domain/q4.ts`), closers (on court at the final buzzer, green dot) first, then by Q4+OT minutes. Columns: MIN
+  (Q4+OT), "PF in" = fouls entering Q4 (colored like foul trouble at the start of Q4), "Q4 PF" = fouls in Q4/OT.
+  Bars, duration labels, foul ticks (cumulative numbers) and foul-trouble colors come from the same `layoutRow` as
+  Games, called with `from` = start of Q4 (default 0 keeps Games unchanged). Garbage time is shaded the same way.
+  Hover: one line across both teams + a card with both 5-man lineups and fouls at that moment (`cursorInfo`);
+  click pins it (Close unpins). **No scrolling**: the row height shrinks to fit the window (34 px down to a
+  22 px minimum, `Q4_ROW`). Worst real games (tested at 1920×950 and 1600×1000): 0022500086, 28 players in Q4 →
+  22 px at 1920×950, 23 px at 1600×1000; 0022500637 (2OT) → 30 / 32 px. A game with even more players would
+  stop at 22 px and the page would then scroll.
 - **Schedule tags** (`src/domain/scheduleTags.ts`, on US Eastern dates from `schedule.json`; preseason and the
   All-Star game don't count, scheduled future games do): "B2B 1" plays again the next day; "B2B 2" played the day
   before; "3-in-4 · 1st/2nd/3rd" = position in a set of 3 consecutive team games within 4 days (first and last at
