@@ -15,6 +15,7 @@ import { HeatDefs, HeatStrip } from './HeatStrip.tsx';
 import { Headshot, TeamLogo } from './Headshot.tsx';
 import { PatternChart, RareToggle } from './PatternChart.tsx';
 import { Tabs } from './Tabs.tsx';
+import { tabRoute } from '../app/tabs.ts';
 import { TeamPicker } from './TeamPicker.tsx';
 
 interface Props {
@@ -107,12 +108,7 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
     <div className="page">
       <HeatDefs />
       <Header>
-        <Tabs
-          active="averages"
-          onGames={() => nav({ view: 'game', game: 'latest', team, season, filters: route.filters })}
-          onQ4={() => nav({ view: 'game', game: 'latest', team, season, filters: route.filters, tab: 'q4' })}
-          onAverages={() => undefined}
-        />
+        <Tabs active="averages" go={(x) => nav(tabRoute(x, { team, season, filters: route.filters }))} />
         <TeamPicker team={team} onChange={(t) => go({ team: t })} />
         <span className="muted">vs</span>
         {teamSelect(vs ?? '', (t) => go({ vs: t || null }), 'Matchup opponent', <option value="">(no matchup)</option>)}

@@ -8,6 +8,7 @@ import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
 import { GameList, type ListGame } from './GameList.tsx';
 import { ScheduleChips } from './ScheduleChips.tsx';
 import { Tabs } from './Tabs.tsx';
+import { tabRoute } from '../app/tabs.ts';
 import { Q4View } from './Q4View.tsx';
 import { GameLinks } from './GameLinks.tsx';
 import { TeamPicker } from './TeamPicker.tsx';
@@ -133,12 +134,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   return (
     <div className={`page main-screen${tab === 'q4' ? ' q4-page' : ''}`}>
       <Header>
-        <Tabs
-          active={tab}
-          onGames={() => nav({ ...route, game: current ?? route.game, team, season: gameSeason, tab: 'games' })}
-          onQ4={() => nav({ ...route, game: current ?? route.game, team, season: gameSeason, tab: 'q4' })}
-          onAverages={() => nav({ view: 'team', team: team ?? null, season: gameSeason, filters: route.filters })}
-        />
+        <Tabs active={tab} go={(x) => nav(tabRoute(x, { team: team ?? null, season: gameSeason, filters: route.filters, game: current ?? route.game }))} />
         <TeamPicker team={team} onChange={pickTeam} />
       </Header>
       <div className={`gv-layout${collapsed ? ' collapsed' : ''}`}>

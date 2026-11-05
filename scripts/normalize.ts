@@ -1,5 +1,5 @@
 // Normalize fetched games into data/<season>/games/<id>.json, then rebuild data/<season>/index.json,
-// appearances.json, schedule.json and data/seasons.json from ALL committed game files.
+// appearances.json, quarters.json, schedule.json and data/seasons.json from ALL committed game files.
 // Incremental: games whose raw responses are not in the cache (e.g. on a CI runner) keep their committed file.
 // A game that cannot be normalized is reported, and the run fails.
 // Usage: npm run normalize -- [--season 2025-26]
@@ -11,6 +11,7 @@ import { DATA_DIR, dataSeasons, indexEntry } from './lib/data.ts';
 import { normalizeGame } from '../src/domain/normalize.ts';
 import { validateGame } from '../src/domain/validate.ts';
 import { qualityNotes } from '../src/domain/quality.ts';
+import { buildQuartersFile } from '../src/domain/leaders.ts';
 import { parseSchedule } from '../src/shared/nba-schedule/parse.ts';
 import { CACHE_DIR } from './lib/cache.ts';
 import type { Game, GameIndexEntry, ScheduleEntry } from '../src/domain/types.ts';
@@ -67,11 +68,13 @@ for (const season of seasons) {
   const index: GameIndexEntry[] = [];
   const apps: Record<number, [string, string][]> = {};
   let bytes = 0;
+  const all: Game[] = [];
   for (const f of readdirSync(join(dir, 'games')).filter((x) => x.endsWith('.json'))) {
     const text = readFileSync(join(dir, 'games', f), 'utf8');
     bytes += text.length;
     const g = JSON.parse(text) as Game;
     index.push(indexEntry(g));
+    all.push(g);
     // Appearances for the with/without rule in the browser: playerId → [gameId, team][] (box-score listings).
     for (const p of g.players) (apps[p.id] ??= []).push([g.id, p.team]);
   }
@@ -79,6 +82,8 @@ for (const season of seasons) {
   for (const list of Object.values(apps)) list.sort((a, b) => a[0].localeCompare(b[0]));
   writeFileSync(join(dir, 'index.json'), JSON.stringify(index));
   writeFileSync(join(dir, 'appearances.json'), JSON.stringify(apps));
+  // Minutes + points per period of every player in every game, for the Leaders tab (one small file per season).
+  writeFileSync(join(dir, 'quarters.json'), JSON.stringify(buildQuartersFile(all)));
   writeSchedule(season, dir, index);
   console.log(`${season}: ${written} normalized from raw this run, ${index.length} games in data/ (${(bytes / 1024 / Math.max(1, index.length)).toFixed(1)} KB/game)`);
   console.log(`  ${index.filter((g) => g.flagged).length} game(s) carry data-quality notes`);
