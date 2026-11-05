@@ -2,7 +2,10 @@
 // otherwise the committed normalized file), compare Path B stints with gamerotation where it was fetched, and
 // compare the official roster list with the appearance rule.
 // Writes data/<season>/validation.json. Reports problems only; never changes data.
-// Exit code 1 if any game fails a check and is not listed in data/known-issues.json, or fails to normalize.
+// Exit code 1 only if a game fails to normalize (it could not be shown at all).
+// A game that fails a check is still committed and shown: normalize writes its quality notes and the UI shows a
+// warning on it. One bad NBA box score must never stop every other game from loading (it blocked all updates
+// from 2026-10-24 to 2026-11-04). New failures are listed in the log so they can be added to known-issues.json.
 // Usage: npm run validate-all -- [--season 2025-26]
 
 import { writeFileSync } from 'node:fs';
@@ -89,6 +92,6 @@ for (const season of argSeason ? [argSeason] : dataSeasons()) {
     join('data', season, 'validation.json'),
     JSON.stringify({ season, games: ids.length, failed: [...failedGames], issues, errors, stintNotes: notes.map((g) => ({ game: g.id, notes: g.stintNotes })), rotation, roster }),
   );
-  if (unexpected.length || errors.length) bad = true;
+  if (errors.length) bad = true;
 }
 if (bad) process.exitCode = 1;
