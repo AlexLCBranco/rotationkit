@@ -81,3 +81,18 @@ test('@desktop picking with the keyboard: ↓ opens, arrows / letter jump move, 
   await expect(list(page).locator('.ck-picker-active')).toHaveAttribute('data-tri', PICKER_ORDER[0]!.tricode);
   await page.keyboard.press('Escape');
 });
+
+test('@desktop Averages "vs" uses the same picker; "No matchup" clears it', async ({ page }) => {
+  await page.goto('/#/team/PHI?s=2025-26');
+  await expect(page.locator('select[aria-label="Matchup opponent"]')).toHaveCount(0);
+  await expect(page.getByTestId('vs-picker')).toContainText('No matchup');
+  await page.getByTestId('vs-picker').click();
+  await page.locator('[data-testid=vs-picker-list] [data-tri=BOS]').click();
+  await expect(page).toHaveURL(/vs=BOS/);
+  await expect(page.getByTestId('team-block')).toHaveCount(2);
+  await expect(page.getByTestId('vs-picker')).toContainText('Boston Celtics');
+  await page.getByTestId('vs-clear').click();
+  await expect(page).not.toHaveURL(/vs=/);
+  await expect(page.getByTestId('team-block')).toHaveCount(1);
+  await expect(page.getByTestId('vs-picker')).toContainText('No matchup');
+});

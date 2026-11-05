@@ -5,7 +5,7 @@ import { useAsync } from '../app/hooks.ts';
 import { basedOn, describeSelection, formatMin } from '../app/labels.ts';
 import { shortNames } from '../app/names.ts';
 import type { Route } from '../app/route.ts';
-import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
+import { teamName } from '../app/teams.ts';
 import { describeSit, isRarelyUsed, quarterAverages, selectGames, sitPattern, teamPattern, type Filters as F, type PlayerPattern, type QuarterAverages, type Selection } from '../domain/patterns.ts';
 import { formatClock, periodAt, periodEnd } from '../domain/time.ts';
 import type { Game } from '../domain/types.ts';
@@ -91,19 +91,6 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
       filters: patch.filters ?? route.filters,
       vs: patch.vs === undefined ? vs : patch.vs,
     });
-  const teamSelect = (value: string, onChange: (t: string) => void, label: string, extra?: React.ReactNode) => (
-    <label className="field team-pick">
-      <span className="swatch" style={{ background: teamColor(value || team) }} />
-      <select value={value} aria-label={label} onChange={(e) => onChange(e.target.value)}>
-        {extra}
-        {TEAM_CODES.map((t) => (
-          <option key={t} value={t}>
-            {teamName(t)}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
   return (
     <div className="page">
       <HeatDefs />
@@ -111,7 +98,12 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
         <Tabs active="averages" go={(x) => nav(tabRoute(x, { team, season, filters: route.filters }))} />
         <TeamPicker team={team} onChange={(t) => go({ team: t })} />
         <span className="muted">vs</span>
-        {teamSelect(vs ?? '', (t) => go({ vs: t || null }), 'Matchup opponent', <option value="">(no matchup)</option>)}
+        <TeamPicker team={vs} onChange={(t) => go({ vs: t })} placeholder="No matchup" label="Matchup opponent" testId="vs-picker" />
+        {vs && (
+          <button className="back" onClick={() => go({ vs: null })} title="Remove the matchup" data-testid="vs-clear">
+            ✕ No matchup
+          </button>
+        )}
       </Header>
       <Filters
         seasons={seasons}

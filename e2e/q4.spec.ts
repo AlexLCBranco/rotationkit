@@ -224,3 +224,12 @@ test('@desktop paragraph: every change in words (no clock times); hovering a sen
   }
   expect(errors).toEqual([]);
 });
+
+test('@desktop a game with a data note shows the same warning on the Q4 tab as on Games', async ({ page }) => {
+  await page.goto('/#/q4/0022500093?t=DET');
+  await expect(page.getByTestId('q4-chart')).toBeVisible();
+  await expect(page.getByTestId('quality-warning')).toContainText('Kevin Durant — minutes: play-by-play 36:48 vs box score 28:08');
+  await page.goto('/#/q4/0022600085?t=ORL');
+  await expect(page.getByTestId('q4-chart')).toBeVisible();
+  await expect(page.getByTestId('quality-warning')).toHaveCount(0);
+});

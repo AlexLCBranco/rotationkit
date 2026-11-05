@@ -200,7 +200,12 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
             <GameHeader g={g} team={team} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
           )}
           {g && tab === 'games' && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
-          {g && tab === 'q4' && <Q4View g={g} trouble={trouble} setTrouble={setTrouble} />}
+          {g && tab === 'q4' && (
+            <>
+              <QualityWarning g={g} />
+              <Q4View g={g} trouble={trouble} setTrouble={setTrouble} />
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -255,16 +260,7 @@ function GameBody({
   const [readout, setReadout] = useState(loadReadout);
   return (
     <>
-      {g.quality && (
-        <div className="warn box" data-testid="quality-warning">
-          <strong>⚠ Data note.</strong> Stints and minutes below come from play-by-play and are used in patterns. The box score disagrees for:
-          <ul>
-            {g.quality.map((q, i) => (
-              <li key={i}>{qualityLine(g, q)}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <QualityWarning g={g} />
       <div className="gc-controls">
         <label className="toggle">
           <input type="checkbox" checked={trouble} onChange={(e) => setTrouble(e.target.checked)} />
@@ -293,5 +289,20 @@ function GameBody({
         </section>
       ))}
     </>
+  );
+}
+
+/** "⚠ Data note" box for a game with data-quality notes (Games and Q4 tabs). */
+function QualityWarning({ g }: { g: Game }) {
+  if (!g.quality) return null;
+  return (
+    <div className="warn box" data-testid="quality-warning">
+      <strong>⚠ Data note.</strong> Stints and minutes below come from play-by-play and are used in patterns. The box score disagrees for:
+      <ul>
+        {g.quality.map((q, i) => (
+          <li key={i}>{qualityLine(g, q)}</li>
+        ))}
+      </ul>
+    </div>
   );
 }

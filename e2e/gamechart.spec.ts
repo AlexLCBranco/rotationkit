@@ -197,7 +197,8 @@ test('team pattern: minutes & fouls per game table respects filters; matchup mod
   await page.goto('/#/team/PHI?s=2025-26&w=10&v=home');
   await expect(page.getByTestId('averages-table')).toBeVisible();
   await expect(page.locator('.avg-table summary')).toContainText('based on 10 games');
-  await page.getByLabel('Matchup opponent').selectOption('BOS');
+  await page.getByTestId('vs-picker').click();
+  await page.locator('[data-testid=vs-picker-list] [data-tri=BOS]').click();
   const blocks = page.getByTestId('team-block');
   await expect(blocks).toHaveCount(2);
   await expect(blocks.nth(0).getByTestId('selection-label')).toHaveText('Last 10 home games · based on 10 games');
