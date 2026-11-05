@@ -3,7 +3,7 @@
 //   #/player/ORL/1630532?…same filters
 //   #/game/0022500093?t=ORL&s=2025-26…  main screen: a team's game (t = whose games the picker lists)
 //   #/q4/0022500093?t=ORL…               same game, Q4 tab (4th quarter + OT only)
-//   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts&lt=ORL   Leaders tab (lt = team filter)
+//   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts&lt=ORL&gt=1   Leaders tab (lt = team filter, gt=1 keeps garbage time)
 //   #/ (empty) → the main screen with the remembered team's latest game
 
 import { useEffect, useState } from 'react';
@@ -15,7 +15,7 @@ export type Route =
   | { view: 'game'; game: string; team: string | null; season: string | null; filters: Filters; tab?: 'games' | 'q4' }
   | { view: 'leaders'; team: string | null; season: string | null; filters: Filters; leaders: LeadersQuery };
 
-export const DEFAULT_LEADERS: LeadersQuery = { part: 'q4', ot: false, sort: 'min', only: null };
+export const DEFAULT_LEADERS: LeadersQuery = { part: 'q4', ot: false, sort: 'min', only: null, noGarbage: true };
 
 /** Leaders tab settings (window comes from filters.window). */
 export interface LeadersQuery {
@@ -24,6 +24,8 @@ export interface LeadersQuery {
   sort: 'min' | 'pts';
   /** Only this team's players; null = all teams. */
   only: string | null;
+  /** Leave out garbage time (default on; `gt=1` in the URL keeps it). */
+  noGarbage: boolean;
 }
 
 export function parse(hash: string): Route {
@@ -55,7 +57,7 @@ export function parse(hash: string): Route {
       team: t,
       season,
       filters,
-      leaders: { part: q.get('part') === 'h2' ? 'h2' : 'q4', ot: q.get('ot') === '1', sort: q.get('sort') === 'pts' ? 'pts' : 'min', only: q.get('lt') },
+      leaders: { part: q.get('part') === 'h2' ? 'h2' : 'q4', ot: q.get('ot') === '1', sort: q.get('sort') === 'pts' ? 'pts' : 'min', only: q.get('lt'), noGarbage: q.get('gt') !== '1' },
     };
   if (parts[0] === 'team') return { view: 'team', team: parts[1] ?? null, season, filters, vs: q.get('vs') };
   return { view: 'game', game: 'latest', team: t, season, filters };
@@ -80,6 +82,7 @@ export function format(r: Route): string {
     if (r.leaders.ot) q.set('ot', '1');
     if (r.leaders.sort === 'pts') q.set('sort', 'pts');
     if (r.leaders.only) q.set('lt', r.leaders.only);
+    if (!r.leaders.noGarbage) q.set('gt', '1');
   }
   const qs = q.toString() ? `?${q}` : '';
   if (r.view === 'player') return `#/player/${r.team}/${r.player}${qs}`;

@@ -6,6 +6,7 @@ import { toEvents, type Ev, type RawStint } from './pbp.ts';
 import { stintsFromPbp, type PlayerRef } from './stintsPbp.ts';
 import type { Game, InactivePlayer, PlayerFoul, PlayerGame, Stint, TeamInfo } from './types.ts';
 import { parseIsoDuration, periodAt, periodEnd, r1 } from './time.ts';
+import { blowoutIntervals } from './patterns.ts';
 
 /** Foul subTypes that count toward a player's personal fouls (PF). Technicals do not. */
 export const PF_FOUL_SUBTYPES = new Set(['personal', 'offensive']);
@@ -194,6 +195,7 @@ export function normalizeGame(raw: RawGame): Game {
   // Points per period from the play-by-play's made shots and free throws (box score has game totals only).
   const POINTS: Record<string, number> = { '2pt': 2, '3pt': 3, freethrow: 1 };
   const ptsBy = new Map<number, number[]>();
+  const scoring: { id: number; t: number; period: number; pts: number }[] = [];
   for (const e of evs) {
     const a = e.a;
     const pts = POINTS[a.actionType];
@@ -202,6 +204,7 @@ export function normalizeGame(raw: RawGame): Game {
     const row = ptsBy.get(a.personId)!;
     while (row.length < e.period) row.push(0);
     row[e.period - 1]! += pts;
+    scoring.push({ id: a.personId, t: e.t, period: e.period, pts });
   }
 
   const players: PlayerGame[] = [...box.values()].map(({ side, p }) => {
@@ -260,7 +263,7 @@ export function normalizeGame(raw: RawGame): Game {
     else score.push([e.t, e.home, e.away]);
   }
 
-  return {
+  const g: Game = {
     id: bg.gameId,
     date: bg.gameEt.slice(0, 10),
     home,
@@ -274,5 +277,18 @@ export function normalizeGame(raw: RawGame): Game {
     score,
     orphanFouls,
   };
+
+  // Points scored in garbage time (blowout rule), per period. A basket at the moment the margin reaches the
+  // threshold is not garbage (it made the blowout); later ones while it holds are (interval (a, b]).
+  const gt = blowoutIntervals(g);
+  if (gt.length) {
+    for (const x of scoring) {
+      if (!gt.some(([a, b]) => x.t > a && x.t <= b)) continue;
+      const p = players.find((pl) => pl.id === x.id)!;
+      p.ptsGT ??= new Array<number>(bg.period).fill(0);
+      p.ptsGT[x.period - 1]! += x.pts;
+    }
+  }
+  return g;
 }
 
