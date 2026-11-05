@@ -37,6 +37,8 @@ export interface PlayerGame {
   stints: Stint[];
   /** Personal fouls in order: [t, period, description from play-by-play]. Absent when PF = 0. */
   fouls?: PlayerFoul[];
+  /** Points per period (Q1, Q2, Q3, Q4, OT…) from the play-by-play's made shots and free throws. Absent = 0 points. */
+  ptsQ?: number[];
 }
 
 /** Player with the team but inactive for the game (official list). */

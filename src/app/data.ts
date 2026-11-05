@@ -25,6 +25,7 @@ function get<T>(path: string): Promise<T> {
 export const loadSeasons = () => get<SeasonInfo[]>('seasons.json');
 export const loadIndex = (season: string) => get<GameIndexEntry[]>(`${season}/index.json`);
 /** Schedule of a season incl. unplayed games (only for seasons the feed was cached for). */
+export const loadQuarters = (season: string) => get<import('../domain/leaders.ts').QuartersFile>(`${season}/quarters.json`);
 export const loadSchedule = (season: string) => get<ScheduleEntry[]>(`${season}/schedule.json`);
 export const loadGame = (season: string, id: string) => get<Game>(`${season}/games/${id}.json`);
 

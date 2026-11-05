@@ -3,6 +3,7 @@
 //   #/player/ORL/1630532?…same filters
 //   #/game/0022500093?t=ORL&s=2025-26…  main screen: a team's game (t = whose games the picker lists)
 //   #/q4/0022500093?t=ORL…               same game, Q4 tab (4th quarter + OT only)
+//   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts&lt=ORL   Leaders tab (lt = team filter)
 //   #/ (empty) → the main screen with the remembered team's latest game
 
 import { useEffect, useState } from 'react';
@@ -11,7 +12,19 @@ import type { Filters, Venue, Window } from '../domain/patterns.ts';
 export type Route =
   | { view: 'team'; team: string | null; season: string | null; filters: Filters; vs?: string | null }
   | { view: 'player'; team: string; player: number; season: string | null; filters: Filters }
-  | { view: 'game'; game: string; team: string | null; season: string | null; filters: Filters; tab?: 'games' | 'q4' };
+  | { view: 'game'; game: string; team: string | null; season: string | null; filters: Filters; tab?: 'games' | 'q4' }
+  | { view: 'leaders'; team: string | null; season: string | null; filters: Filters; leaders: LeadersQuery };
+
+export const DEFAULT_LEADERS: LeadersQuery = { part: 'q4', ot: false, sort: 'min', only: null };
+
+/** Leaders tab settings (window comes from filters.window). */
+export interface LeadersQuery {
+  part: 'q4' | 'h2';
+  ot: boolean;
+  sort: 'min' | 'pts';
+  /** Only this team's players; null = all teams. */
+  only: string | null;
+}
 
 export function parse(hash: string): Route {
   const [path = '', query = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -36,6 +49,14 @@ export function parse(hash: string): Route {
   if (parts[0] === 'player' && parts[1] && Number(parts[2])) return { view: 'player', team: parts[1], player: Number(parts[2]), season, filters };
   if (parts[0] === 'game' && parts[1]) return { view: 'game', game: parts[1], team: t, season, filters };
   if (parts[0] === 'q4') return { view: 'game', game: parts[1] ?? 'latest', team: t, season, filters, tab: 'q4' };
+  if (parts[0] === 'leaders')
+    return {
+      view: 'leaders',
+      team: t,
+      season,
+      filters,
+      leaders: { part: q.get('part') === 'h2' ? 'h2' : 'q4', ot: q.get('ot') === '1', sort: q.get('sort') === 'pts' ? 'pts' : 'min', only: q.get('lt') },
+    };
   if (parts[0] === 'team') return { view: 'team', team: parts[1] ?? null, season, filters, vs: q.get('vs') };
   return { view: 'game', game: 'latest', team: t, season, filters };
 }
@@ -53,8 +74,16 @@ export function format(r: Route): string {
   }
   if (r.view === 'game' && r.team) q.set('t', r.team);
   if (r.view === 'team' && r.vs) q.set('vs', r.vs);
+  if (r.view === 'leaders') {
+    if (r.team) q.set('t', r.team);
+    if (r.leaders.part === 'h2') q.set('part', 'h2');
+    if (r.leaders.ot) q.set('ot', '1');
+    if (r.leaders.sort === 'pts') q.set('sort', 'pts');
+    if (r.leaders.only) q.set('lt', r.leaders.only);
+  }
   const qs = q.toString() ? `?${q}` : '';
   if (r.view === 'player') return `#/player/${r.team}/${r.player}${qs}`;
+  if (r.view === 'leaders') return `#/leaders${qs}`;
   if (r.view === 'game') return `#/${r.tab === 'q4' ? 'q4' : 'game'}/${r.game}${qs}`;
   return `#/team/${r.team ?? ''}${qs}`;
 }

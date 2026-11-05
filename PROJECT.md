@@ -165,6 +165,22 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   trouble level), "first minutes of the game". No guessed reasons (rest, injury). The panel sits beside the chart so
   the no-scroll fit still holds (it scrolls inside itself if long). Tested by replaying the paragraph's changes from
   the opening lineups over every game: it reproduces the real lineup after every change and the closers.
+- **Leaders tab** (`LeadersView.tsx`, logic in `src/domain/leaders.ts`, route `#/leaders?s=&w=&part=&ot=&sort=&lt=`;
+  decision 2026-11-05): who averages the most 4th-quarter (or second-half) minutes and points. Choices: 4th quarter /
+  second half, include overtime (off by default), last 5 / last 10 / season, all teams or one team, rank by minutes
+  or points. Averages are per game played (a game he sat out that part counts as 0). Last 5 / 10 = the last N games
+  of the team he played for in his latest game (a traded player counts only his current team's games); season = all
+  his games. Ranked only with 3 of the last 5, 5 of the last 10, or 40% of the team's season games (`LEADER_MIN_GAMES`;
+  a team with fewer games than that lowers the bar to its game count). Garbage time is included (points have no
+  timestamp in our data, so they can't be cut to the blowout rule). Display: a scatter (minutes × points per game,
+  dashed median lines, corners "plays it and scores" / "plays it, scores less" / "scores in short minutes", top 12
+  named, greedy label placement without overlaps) beside a ranked table (GP, MIN, PTS, PTS per 12 minutes); hovering
+  a row lights its dot; click opens the player's page.
+- **Points per period** (`PlayerGame.ptsQ`, decision 2026-11-05): the box score only has game totals, so normalize adds
+  each player's points per period from the play-by-play's made 2s, 3s and free throws. All 1,337 games were
+  re-normalized from raw; the only change to the files was this field, and every player's periods add up to his
+  box-score points (tested). `data/<season>/quarters.json` (built by normalize from the game files: per player per
+  game, minutes and points per period; ~1.1 MB, ~360 KB gzipped) feeds the Leaders tab.
 - **Game links** (`GameLinks.tsx`, URLs in `src/app/gameLinks.ts`; decision 2026-11-05): two small icon links
   (no underlined text) on the score line after the game-type / garbage-time chips, in Games and Q4, opening in a
   new tab. hoopsjunkie (basketball icon, tooltip "Open on hoopsjunkie"):
