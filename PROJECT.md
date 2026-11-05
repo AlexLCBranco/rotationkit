@@ -164,6 +164,15 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   calendarkit"): `https://gauntlet-home.vercel.app/calendar?view=league&layout=list&date=<ET date>&game=<gameId>`
   (calendarkit opens on today until its own date/game change lands). The date is `Game.date`, the box score's
   Eastern date, so a 10 pm ET tip (next day in UTC) keeps its ET date.
+- **Team picker** (`TeamPicker.tsx`, data in `src/data/teams.ts`; decision 2026-11-05): replaces the team dropdown
+  in the Games/Q4 and Averages headers. PORTED from calendarkit (`src/components/TeamPicker.tsx`, its team/division
+  table and `team-picker.css`): a button with logo + full name opening a grid grouped East Atlantic / Central /
+  Southeast, West Northwest / Pacific / Southwest, current team highlighted. Keyboard as in calendarkit: Enter /
+  Space / ↓ open, arrows move (← → a division), Home / End, a letter jumps to the next team whose city or name starts
+  with it, Enter picks, Escape closes (focus back on the button). Port differences: teams passed as tricodes (the
+  app's URL key), rotationkit's own `TeamLogo` (NBA CDN logos), no compact phone mode, `--ck-*` colors mapped to
+  this palette. Picking does exactly what the dropdown did (same URL, same game list). The Averages "vs" matchup
+  dropdown is unchanged (it is not the team picker). Team ids are checked against our game data in a test.
 - **Schedule tags** (`src/domain/scheduleTags.ts`, on US Eastern dates from `schedule.json`; preseason and the
   All-Star game don't count, scheduled future games do): "B2B 1" plays again the next day; "B2B 2" played the day
   before; "3-in-4 · 1st/2nd/3rd" = position in a set of 3 consecutive team games within 4 days (first and last at

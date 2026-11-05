@@ -3,13 +3,14 @@ import { loadGame, loadIndex, loadSchedule } from '../app/data.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, shortDate, signed } from '../app/labels.ts';
 import { parse, type Nav, type Route } from '../app/route.ts';
-import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
+import { teamName } from '../app/teams.ts';
 import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
 import { GameList, type ListGame } from './GameList.tsx';
 import { ScheduleChips } from './ScheduleChips.tsx';
 import { Tabs } from './Tabs.tsx';
 import { Q4View } from './Q4View.tsx';
 import { GameLinks } from './GameLinks.tsx';
+import { TeamPicker } from './TeamPicker.tsx';
 import { ReadoutMenu } from './ReadoutMenu.tsx';
 import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { seasonOf } from '../domain/season.ts';
@@ -138,17 +139,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
           onQ4={() => nav({ ...route, game: current ?? route.game, team, season: gameSeason, tab: 'q4' })}
           onAverages={() => nav({ view: 'team', team: team ?? null, season: gameSeason, filters: route.filters })}
         />
-        <label className="field team-pick">
-          <span className="swatch" style={{ background: teamColor(team ?? '') }} />
-          <select value={team ?? ''} aria-label="Team" onChange={(e) => pickTeam(e.target.value)}>
-            {!team && <option value="">Team…</option>}
-            {TEAM_CODES.map((t) => (
-              <option key={t} value={t}>
-                {teamName(t)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <TeamPicker team={team} onChange={pickTeam} />
       </Header>
       <div className={`gv-layout${collapsed ? ' collapsed' : ''}`}>
         {!collapsed && picker && (

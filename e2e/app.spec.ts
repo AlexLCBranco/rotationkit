@@ -68,7 +68,7 @@ test('team pattern view renders for all 30 teams in both seasons', async ({ page
     for (const t of TEAMS) {
       await page.goto(`/#/team/${t}?s=${season}`);
       const n = teamGames(season, t);
-      await expect(page.getByLabel('Team')).toHaveValue(t);
+      await expect(page.getByTestId('team-picker')).toHaveAttribute('data-team', t);
       await expect(label(page)).toContainText(`based on ${n} game${n === 1 ? '' : 's'}`);
       if (n === 0) {
         // Teams that haven't played yet this season: explicit empty state + switch to the previous season.
@@ -125,7 +125,7 @@ test('few games in the current season: note + one-click switch to 2025-26 keeps 
   await shot(page, 'low-sample', info.project.name);
   await page.getByRole('button', { name: 'Show the same view for 2025-26' }).click();
   await expect(page.getByLabel('Season')).toHaveValue('2025-26');
-  await expect(page.getByLabel('Team')).toHaveValue('ORL');
+  await expect(page.getByTestId('team-picker')).toHaveAttribute('data-team', 'ORL');
   await expect(label(page)).toContainText('with F. Wagner');
   const q = new URLSearchParams(new URL(page.url()).hash.split('?')[1]);
   expect([q.get('s'), q.get('v'), q.get('rest'), q.get('w'), q.get('p'), q.get('m')]).toEqual(['2025-26', sel.venue, sel.rest ?? null, '10', '1630532', 'with']);

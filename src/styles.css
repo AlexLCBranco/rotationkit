@@ -468,3 +468,33 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .game-links { display: inline-flex; gap: 6px; margin-left: 4px; vertical-align: middle; }
 .icon-link { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; color: #9a9a9a; border: 1px solid var(--line); background: var(--panel); text-decoration: none; }
 .icon-link:hover, .icon-link:focus-visible { color: var(--text); border-color: #4a4a4a; outline: none; }
+
+/* Team picker (ported from calendarkit src/components/styles/team-picker.css; --ck-* mapped to this palette) */
+.ck-picker {
+  position: relative;
+  --ck-surface: var(--panel);
+  --ck-surface-2: #2a2a2a;
+  --ck-bg: #1b1b1b;
+  --ck-text: var(--text);
+  --ck-muted: var(--muted);
+  --ck-border: var(--line);
+  --ck-accent: var(--accent);
+}
+.ck-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ck-caret { margin-left: 6px; color: var(--ck-muted); font-size: 11px; }
+.ck-picker-button {
+  display: inline-flex; align-items: center; gap: 8px; --ck-logo: 22px; background: var(--ck-surface); color: var(--ck-text);
+  border: 1px solid var(--ck-border); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 16px; font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.ck-picker-button[aria-expanded='true'] { border-color: var(--ck-accent); }
+.ck-picker-list {
+  position: fixed; z-index: 70; display: grid; grid-template-columns: repeat(3, 200px); gap: 10px 14px; padding: 10px;
+  background: var(--ck-bg); border: 1px solid var(--ck-border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  max-height: calc(100vh - 80px); overflow-y: auto; outline: none; --ck-logo: 18px; color: var(--ck-text); font-size: 14px;
+}
+.ck-picker-head { font-size: 11px; color: var(--ck-muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px 4px; }
+.ck-picker-option { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.ck-picker-active { background: var(--ck-surface-2); outline: 1px solid var(--ck-accent); }
+.ck-picker-option[aria-selected='true'] { font-weight: 700; color: var(--ck-accent); }
+.ck-picker .logo { width: var(--ck-logo); height: var(--ck-logo); }
+.ck-picker .logo-fallback { font-size: 9px; padding: 1px 2px; }
