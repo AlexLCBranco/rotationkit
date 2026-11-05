@@ -15,7 +15,7 @@ const clampX = (x: number, w: number) => Math.max(8, Math.min(x, document.docume
  * Keyboard: Enter/Space/↓ open; arrows move (←/→ jump a division), Home/End, a letter jumps to the next team
  * starting with it, Enter selects, Escape closes; focus returns to the button.
  */
-export function TeamPicker({ team: tri, onChange }: { team: string | null; onChange: (tri: string) => void }) {
+export function TeamPicker({ team: tri, onChange, placeholder = 'Pick a team', label = 'Team', testId = 'team-picker' }: { team: string | null; onChange: (tri: string) => void; placeholder?: string; label?: string; testId?: string }) {
   const teamId = tri ? TEAM_BY_TRI.get(tri)?.id : undefined;
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(teamId ?? PICKER_ORDER[0]!.id);
@@ -85,7 +85,7 @@ export function TeamPicker({ team: tri, onChange }: { team: string | null; onCha
   return (
     <div className="ck-picker">
       <span id={`${id}-label`} className="ck-sr">
-        Team
+        {label}
       </span>
       <button
         ref={btn}
@@ -95,7 +95,7 @@ export function TeamPicker({ team: tri, onChange }: { team: string | null; onCha
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-labelledby={`${id}-label ${id}-button`}
-        data-testid="team-picker"
+        data-testid={testId}
         data-team={tri ?? ''}
         onClick={() => (open ? close() : openList())}
         onKeyDown={(e) => {
@@ -106,7 +106,7 @@ export function TeamPicker({ team: tri, onChange }: { team: string | null; onCha
         }}
       >
         {team && <TeamLogo teamId={team.id} tri={team.tricode} />}
-        <span className="ck-picker-name">{!team ? 'Pick a team' : fullName(team)}</span>
+        <span className="ck-picker-name">{!team ? placeholder : fullName(team)}</span>
         <span className="ck-caret" aria-hidden="true">
           ▾
         </span>
@@ -121,7 +121,7 @@ export function TeamPicker({ team: tri, onChange }: { team: string | null; onCha
           aria-activedescendant={`${id}-${active}`}
           onKeyDown={onListKey}
           style={{ top: pos.top }}
-          data-testid="team-picker-list"
+          data-testid={`${testId}-list`}
         >
           {DIVISIONS.map(({ conference, division }) => (
             <div key={division} role="group" aria-labelledby={`${id}-${division}`} className="ck-picker-group">

@@ -156,7 +156,8 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   Bars, duration labels, foul ticks (cumulative numbers) and foul-trouble colors come from the same `layoutRow` as
   Games, called with `from` = start of Q4 (default 0 keeps Games unchanged). Garbage time is shaded the same way.
   Hover: one line across both teams + a card with both 5-man lineups and fouls at that moment (`cursorInfo`);
-  click pins it (Close unpins). **No scrolling**: the row height shrinks to fit the window (34 px down to a
+  click pins it (Close unpins). A game with data-quality notes shows the same "⚠ Data note" box as on Games.
+  **No scrolling**: the row height shrinks to fit the window (34 px down to a
   22 px minimum, `Q4_ROW`). Worst real games (tested at 1920×950 and 1600×1000): 0022500086, 28 players in Q4 →
   22 px at 1920×950, 23 px at 1600×1000; 0022500637 (2OT) → 30 / 32 px. A game with even more players would
   stop at 22 px and the page would then scroll.
@@ -205,7 +206,8 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   with it, Enter picks, Escape closes (focus back on the button). Port differences: teams passed as tricodes (the
   app's URL key), rotationkit's own `TeamLogo` (NBA CDN logos), no compact phone mode, `--ck-*` colors mapped to
   this palette. Picking does exactly what the dropdown did (same URL, same game list). The Averages "vs" matchup
-  dropdown is unchanged (it is not the team picker). Team ids are checked against our game data in a test.
+  dropdown now uses the same picker too ("No matchup" when empty, a "✕ No matchup" button clears it; 2026-11-05).
+  Team ids are checked against our game data in a test.
 - **Schedule tags** (`src/domain/scheduleTags.ts`, on US Eastern dates from `schedule.json`; preseason and the
   All-Star game don't count, scheduled future games do): "B2B 1" plays again the next day; "B2B 2" played the day
   before; "3-in-4 · 1st/2nd/3rd" = position in a set of 3 consecutive team games within 4 days (first and last at
