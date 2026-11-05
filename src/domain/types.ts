@@ -39,6 +39,8 @@ export interface PlayerGame {
   fouls?: PlayerFoul[];
   /** Points per period (Q1, Q2, Q3, Q4, OT…) from the play-by-play's made shots and free throws. Absent = 0 points. */
   ptsQ?: number[];
+  /** Of those, points scored in garbage time (blowout rule, `blowoutIntervals`), per period. Absent = none. */
+  ptsGT?: number[];
 }
 
 /** Player with the team but inactive for the game (official list). */

@@ -11,6 +11,7 @@ import { tabRoute } from '../app/tabs.ts';
 import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
 import { LEADER_MIN_GAMES, leaders, type LeaderRow, type LeaderWindow } from '../domain/leaders.ts';
 import type { Window } from '../domain/patterns.ts';
+import { PATTERN_CONFIG } from '../domain/config.ts';
 import { Header } from './Header.tsx';
 import { Headshot } from './Headshot.tsx';
 import { Tabs } from './Tabs.tsx';
@@ -24,6 +25,9 @@ interface Props {
 }
 
 const TOP_LABELS = 12;
+const B = PATTERN_CONFIG.blowout;
+/** The blowout rule in words, from its settings. */
+export const GARBAGE_RULE = `In the 4th quarter and overtime, with under ${B.underSecondsLeft / 60}:00 left in the period, while the margin is ${B.margin}+ (its minutes and the points scored in it). The 3rd quarter never counts as garbage time.`;
 const TABLE_ROWS = 50;
 
 export function LeadersView({ seasons, season, team, route, nav }: Props) {
@@ -33,8 +37,8 @@ export function LeadersView({ seasons, season, team, route, nav }: Props) {
   const set = (patch: Partial<LeadersQuery>, w?: Window, s?: string) =>
     nav({ ...route, season: s ?? season, filters: { ...route.filters, window: w ?? route.filters.window }, leaders: { ...q, ...patch } });
   const rows = useMemo(
-    () => (file.status === 'ok' ? leaders(file.value, { part: q.part, ot: q.ot, window, team: q.only, sort: q.sort }) : []),
-    [file, q.part, q.ot, window, q.only, q.sort],
+    () => (file.status === 'ok' ? leaders(file.value, { part: q.part, ot: q.ot, window, team: q.only, sort: q.sort, noGarbage: q.noGarbage }) : []),
+    [file, q.part, q.ot, window, q.only, q.sort, q.noGarbage],
   );
   const [hover, setHover] = useState<number | null>(null);
   const partName = q.part === 'q4' ? '4th quarter' : 'Second half';
@@ -70,7 +74,11 @@ export function LeadersView({ seasons, season, team, route, nav }: Props) {
           <input type="checkbox" checked={q.ot} onChange={(e) => set({ ot: e.target.checked })} />
           <span>Include overtime</span>
         </label>
-        {seg('Games', window as Window, [[5, 'Last 5'], [10, 'Last 10'], ['season', 'Season']], (v) => set({}, v))}
+        <label className="toggle" title={GARBAGE_RULE}>
+          <input type="checkbox" checked={q.noGarbage} onChange={(e) => set({ noGarbage: e.target.checked })} />
+          <span>Hide garbage time</span>
+        </label>
+                {seg('Games', window as Window, [[5, 'Last 5'], [10, 'Last 10'], ['season', 'Season']], (v) => set({}, v))}
         <label className="field">
           <span>Team</span>
           <select value={q.only ?? ''} aria-label="Only this team" onChange={(e) => set({ only: e.target.value || null })}>
@@ -87,7 +95,14 @@ export function LeadersView({ seasons, season, team, route, nav }: Props) {
       <p className="muted ld-note" data-testid="leaders-note">
         {partName}
         {q.ot ? ' + overtime' : ''} · per game played · {window === 'season' ? `the ${season} season` : `each team's last ${window} games`} · players with at least {need} ·{' '}
-        {rows.length} players. Garbage time included.
+        {rows.length} players.{' '}
+        {q.noGarbage ? (
+          <span data-testid="garbage-note">
+            Garbage time left out: {GARBAGE_RULE.charAt(0).toLowerCase() + GARBAGE_RULE.slice(1)}
+          </span>
+        ) : (
+          <span data-testid="garbage-note">Garbage time included.</span>
+        )}
       </p>
       {file.status === 'loading' && <p className="muted">Loading…</p>}
       {file.status === 'error' && <p className="error">Could not load: {file.error}</p>}

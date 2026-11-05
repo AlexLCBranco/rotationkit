@@ -3,11 +3,16 @@
 // browser does not load every game file.
 
 import { quarterStats } from './gameChart.ts';
-import { REG_PERIODS } from './time.ts';
+import { blowoutIntervals } from './patterns.ts';
+import { periodEnd, periodStart, REG_PERIODS } from './time.ts';
 import type { Game } from './types.ts';
 
-/** One game in quarters.json: [id, date, home, away, players]. Player: [id, team 0 = home / 1 = away, min per period (s), pts per period]. */
-export type QGame = [id: string, date: string, home: string, away: string, players: [id: number, side: 0 | 1, min: number[], pts: number[]][]];
+/**
+ * One game in quarters.json: [id, date, home, away, players]. Player: [id, team 0 = home / 1 = away, min per period (s),
+ * pts per period, and only when he had any: garbage-time min per period, garbage-time pts per period].
+ */
+export type QPlayer = [id: number, side: 0 | 1, min: number[], pts: number[], gtMin?: number[], gtPts?: number[]];
+export type QGame = [id: string, date: string, home: string, away: string, players: QPlayer[]];
 export interface QuartersFile {
   /** id → [name, short name "F. Wagner"]. */
   names: Record<number, [string, string]>;
@@ -22,12 +27,20 @@ export function buildQuartersFile(games: Game[]): QuartersFile {
   const out: QGame[] = [];
   for (const g of [...games].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))) {
     const ps: QGame[4] = [];
+    const gt = blowoutIntervals(g);
     for (const p of g.players) {
       if (!p.played || !p.stints.length) continue;
       names[p.id] = [p.name, p.nameI ?? p.name];
       const min = quarterStats(p, g.periods).map((q) => r1(q.min));
       const pts = Array.from({ length: g.periods }, (_, i) => p.ptsQ?.[i] ?? 0);
-      ps.push([p.id, p.team === g.home.tri ? 0 : 1, min, pts]);
+      const row: QPlayer = [p.id, p.team === g.home.tri ? 0 : 1, min, pts];
+      // Garbage time (blowout rule): minutes on court inside the intervals, points from ptsGT.
+      const gtMin = Array.from({ length: g.periods }, (_, i) => {
+        const [q0, q1] = [periodStart(i + 1), periodEnd(i + 1)];
+        return r1(gt.reduce((x, [a, b]) => x + p.stints.reduce((y, [s0, e0]) => y + Math.max(0, Math.min(e0, b, q1) - Math.max(s0, a, q0)), 0), 0));
+      });
+      if (gtMin.some((x) => x > 0) || p.ptsGT) row.push(gtMin, Array.from({ length: g.periods }, (_, i) => p.ptsGT?.[i] ?? 0));
+      ps.push(row);
     }
     out.push([g.id, g.date, g.home.tri, g.away.tri, ps]);
   }
@@ -44,6 +57,8 @@ export interface LeaderOpts {
   /** Only this team's players (tricode), or all. */
   team?: string | null;
   sort: 'min' | 'pts';
+  /** Leave out garbage time (blowout rule): its minutes and the points scored in it. */
+  noGarbage?: boolean;
 }
 
 /** Minimum games played in the window to be ranked: 3 of the last 5, 5 of the last 10, 40% of the season. */
@@ -98,8 +113,8 @@ export function leaders(file: QuartersFile, o: LeaderOpts): LeaderRow[] {
       if (inWindow && !inWindow.has(g[0])) continue;
       gp++;
       for (const q of partPeriods(o.part, o.ot, p[2].length)) {
-        min += p[2][q - 1] ?? 0;
-        pts += p[3][q - 1] ?? 0;
+        min += (p[2][q - 1] ?? 0) - (o.noGarbage ? (p[4]?.[q - 1] ?? 0) : 0);
+        pts += (p[3][q - 1] ?? 0) - (o.noGarbage ? (p[5]?.[q - 1] ?? 0) : 0);
       }
     }
     const of = o.window === 'season' ? teamGames.length : Math.min(o.window, teamGames.length);

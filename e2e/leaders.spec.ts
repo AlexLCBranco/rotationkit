@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { leaders, type LeaderOpts, type QuartersFile } from '../src/domain/leaders.ts';
 
 const file = (s: string) => JSON.parse(readFileSync(`data/${s}/quarters.json`, 'utf8')) as QuartersFile;
-const want = (s: string, o: LeaderOpts) => leaders(file(s), o);
+const want = (s: string, o: LeaderOpts) => leaders(file(s), { noGarbage: true, ...o }); // the tab hides garbage time by default
 const rows = (page: Page) =>
   page.getByTestId('leaders-row').evaluateAll((els) => els.map((e) => ({ id: Number(e.getAttribute('data-player')), min: Number(e.getAttribute('data-min')), pts: Number(e.getAttribute('data-pts')) })));
 function trackErrors(page: Page) {
@@ -49,6 +49,7 @@ test('@desktop filters update the URL and the table; team filter; clicking a pla
   await page.getByLabel('Only this team').selectOption('ORL');
   await expect(page).toHaveURL(/lt=ORL/);
   const exp = want('2025-26', { part: 'h2', ot: true, window: 10, sort: 'pts', team: 'ORL' });
+  await expect(page.getByTestId('leaders-row')).toHaveCount(exp.length);
   expect((await rows(page)).map((r) => r.id)).toEqual(exp.map((r) => r.id));
   // Sorting by clicking the MIN header.
   await page.locator('[data-testid=leaders-table] th.sortable button', { hasText: 'MIN' }).click();
@@ -57,6 +58,7 @@ test('@desktop filters update the URL and the table; team filter; clicking a pla
   await page.reload();
   await expect(page.getByLabel('Only this team')).toHaveValue('ORL');
   await expect(page.getByRole('button', { name: 'Second half' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('leaders-row').first()).toBeVisible();
   const first = (await rows(page))[0]!;
   await page.locator(`[data-testid=leaders-row][data-player="${first.id}"] .ld-player .link`).click();
   await expect(page).toHaveURL(new RegExp(`#/player/ORL/${first.id}`));
@@ -75,4 +77,30 @@ test('@desktop scatter: top 12 named without overlapping; hovering a row highlig
   await page.locator(`[data-testid=leaders-row][data-player="${id}"]`).hover();
   await expect(page.locator(`[data-testid=leaders-dot][data-player="${id}"]`)).toHaveClass(/hover/);
   await expect(page.getByTestId('leaders-tip')).toBeVisible();
+});
+
+test('@desktop "Hide garbage time" is on by default and says the rule; switching it off changes the numbers', async ({ page }) => {
+  await page.goto('/#/leaders?s=2025-26');
+  const box = page.getByRole('checkbox', { name: 'Hide garbage time' });
+  await expect(box).toBeChecked();
+  await expect(page.getByTestId('garbage-note')).toContainText('in the 4th quarter and overtime, with under 6:00 left in the period, while the margin is 20+');
+  await expect(page.getByTestId('garbage-note')).toContainText('The 3rd quarter never counts');
+  await expect(page.getByTestId('leaders-row')).toHaveCount(50);
+  const hidden = await rows(page);
+  expect(hidden).toHaveLength(50);
+  await box.uncheck();
+  await expect(page).toHaveURL(/gt=1/);
+  await expect(page.getByTestId('garbage-note')).toHaveText('Garbage time included.');
+  await expect(page.getByTestId('leaders-row').first()).toHaveAttribute('data-player', String(leaders(file('2025-26'), { part: 'q4', ot: false, window: 'season', sort: 'min', noGarbage: false })[0]!.id));
+  const kept = await rows(page);
+  const exp = leaders(file('2025-26'), { part: 'q4', ot: false, window: 'season', sort: 'min', noGarbage: false });
+  expect(kept.map((r) => r.id)).toEqual(exp.slice(0, 50).map((r) => r.id));
+  kept.forEach((r, i) => expect(r.min).toBeCloseTo(exp[i]!.min, 6));
+  // With it hidden, the numbers are the garbage-free ones, and lower for players who played garbage minutes.
+  const noGt = leaders(file('2025-26'), { part: 'q4', ot: false, window: 'season', sort: 'min', noGarbage: true });
+  hidden.forEach((r, i) => expect(r.min).toBeCloseTo(noGt[i]!.min, 6));
+  const byId = new Map(kept.map((r) => [r.id, r]));
+  expect(hidden.some((r) => byId.has(r.id) && r.min < byId.get(r.id)!.min)).toBe(true);
+  await page.reload();
+  await expect(page.getByRole('checkbox', { name: 'Hide garbage time' })).not.toBeChecked();
 });

@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest';
 import { loadSeason } from './data.ts';
 import { buildQuartersFile, leaders, partPeriods, type QGame, type QuartersFile } from '../src/domain/leaders.ts';
 import { quarterStats } from '../src/domain/gameChart.ts';
+import { blowoutIntervals } from '../src/domain/patterns.ts';
+import { toEvents } from '../src/domain/pbp.ts';
+import { fixtureIds, loadFixtureGame, loadRawFixture } from './fixtures.ts';
 import type { Game } from '../src/domain/types.ts';
 
 const games: Game[] = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
@@ -105,5 +108,72 @@ describe('leaders on real data', () => {
       expect(r.every((x) => x.gp <= w && x.of === w)).toBe(true);
       for (let i = 1; i < r.length; i++) expect(r[i - 1]!.pts).toBeGreaterThanOrEqual(r[i]!.pts);
     }
+  });
+});
+
+describe('garbage time (blowout rule) in the Leaders numbers', () => {
+  it('ptsGT: only in Q4/OT, never more than his points in that period, only in games with garbage time', () => {
+    const bad: string[] = [];
+    for (const g of games) {
+      const gt = blowoutIntervals(g);
+      for (const p of g.players) {
+        if (!p.ptsGT) continue;
+        if (!gt.length) bad.push(`${g.id} ${p.name} ptsGT without garbage time`);
+        p.ptsGT.forEach((x, i) => {
+          if (x > (p.ptsQ?.[i] ?? 0)) bad.push(`${g.id} ${p.name} gt > pts`);
+          if (x && i + 1 < 4) bad.push(`${g.id} ${p.name} garbage before Q4`);
+        });
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it.each(fixtureIds)('%s: garbage points = made shots in the raw play-by-play inside (start, end] of a blowout interval', (id) => {
+    const g = loadFixtureGame(id);
+    const gt = blowoutIntervals(g);
+    const want = new Map<number, number>();
+    for (const e of toEvents(loadRawFixture(id).playbyplay.game.actions)) {
+      const pts = ({ '2pt': 2, '3pt': 3, freethrow: 1 } as Record<string, number>)[e.a.actionType];
+      if (!pts || (e.a as { shotResult?: string }).shotResult !== 'Made' || !e.a.personId) continue;
+      if (gt.some(([a, b]) => e.t > a && e.t <= b)) want.set(e.a.personId, (want.get(e.a.personId) ?? 0) + pts);
+    }
+    const got = new Map(g.players.filter((p) => p.ptsGT).map((p) => [p.id, p.ptsGT!.reduce((a, b) => a + b, 0)]));
+    expect(got).toEqual(new Map([...want].filter(([pid]) => g.players.some((p) => p.id === pid))));
+  });
+
+  it('hand-made: hiding garbage time subtracts its minutes and points', () => {
+    const P = (id: number, min: number[], pts: number[], gtMin?: number[], gtPts?: number[]) =>
+      [id, 0, min, pts, ...(gtMin ? [gtMin, gtPts!] : [])] as QGame[4][number];
+    const f: QuartersFile = {
+      names: { 1: ['Al One', 'A. One'] },
+      games: Array.from({ length: 3 }, (_, i) => [`g${i}`, `2026-01-0${i + 1}`, 'AAA', 'BBB', [i === 0 ? P(1, [0, 0, 600, 720], [0, 0, 4, 10], [0, 0, 0, 300], [0, 0, 0, 6]) : P(1, [0, 0, 600, 720], [0, 0, 4, 10])]] as QGame),
+    };
+    const q4 = (noGarbage: boolean) => leaders(f, { part: 'q4', ot: false, window: 'season', sort: 'min', noGarbage })[0]!;
+    expect([q4(false).min, q4(false).pts]).toEqual([720, 10]);
+    expect(q4(true).min).toBeCloseTo((720 * 3 - 300) / 3, 6);
+    expect(q4(true).pts).toBeCloseTo((30 - 6) / 3, 6);
+    const h2 = leaders(f, { part: 'h2', ot: false, window: 'season', sort: 'min', noGarbage: true })[0]!;
+    expect(h2.min).toBeCloseTo((1320 * 3 - 300) / 3, 6); // Q3 is never garbage time
+  });
+
+  it('real data: the season Q4 leader without garbage time = his Q4 minutes minus his time inside the blowout intervals', () => {
+    const file = JSON.parse(readFileSync('data/2025-26/quarters.json', 'utf8')) as QuartersFile;
+    const top = leaders(file, { part: 'q4', ot: false, window: 'season', sort: 'min', noGarbage: true })[0]!;
+    const mine = loadSeason('2025-26').filter((g) => g.players.some((p) => p.id === top.id && p.played && p.stints.length));
+    let min = 0;
+    let pts = 0;
+    for (const g of mine) {
+      const p = g.players.find((x) => x.id === top.id)!;
+      const gt = blowoutIntervals(g);
+      for (const [s, e] of p.stints) {
+        const a = Math.max(s, 2160);
+        const b = Math.min(e, 2880);
+        if (b <= a) continue;
+        min += b - a - gt.reduce((x, [g0, g1]) => x + Math.max(0, Math.min(b, g1) - Math.max(a, g0)), 0);
+      }
+      pts += (p.ptsQ?.[3] ?? 0) - (p.ptsGT?.[3] ?? 0);
+    }
+    expect(top.min).toBeCloseTo(min / mine.length, 0);
+    expect(top.pts).toBeCloseTo(pts / mine.length, 6);
   });
 });

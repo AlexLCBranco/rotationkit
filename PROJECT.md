@@ -171,15 +171,19 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   or points. Averages are per game played (a game he sat out that part counts as 0). Last 5 / 10 = the last N games
   of the team he played for in his latest game (a traded player counts only his current team's games); season = all
   his games. Ranked only with 3 of the last 5, 5 of the last 10, or 40% of the team's season games (`LEADER_MIN_GAMES`;
-  a team with fewer games than that lowers the bar to its game count). Garbage time is included (points have no
-  timestamp in our data, so they can't be cut to the blowout rule). Display: a scatter (minutes × points per game,
+  a team with fewer games than that lowers the bar to its game count). **"Hide garbage time"** (on by default, `gt=1`
+  in the URL keeps it; decision 2026-11-05) leaves out the blowout rule's time: in the 4th quarter and overtime,
+  with under 6:00 left in the period, while the margin is 20+ (`PATTERN_CONFIG.blowout`; the 3rd quarter is never
+  garbage time, also for "Second half"). Its minutes come from the stints; its points from `ptsGT` (below). Display: a scatter (minutes × points per game,
   dashed median lines, corners "plays it and scores" / "plays it, scores less" / "scores in short minutes", top 12
   named, greedy label placement without overlaps) beside a ranked table (GP, MIN, PTS, PTS per 12 minutes); hovering
   a row lights its dot; click opens the player's page.
 - **Points per period** (`PlayerGame.ptsQ`, decision 2026-11-05): the box score only has game totals, so normalize adds
   each player's points per period from the play-by-play's made 2s, 3s and free throws. All 1,337 games were
   re-normalized from raw; the only change to the files was this field, and every player's periods add up to his
-  box-score points (tested). `data/<season>/quarters.json` (built by normalize from the game files: per player per
+  box-score points (tested). `ptsGT` = the points of those scored in garbage time, per period: made shots inside a
+  blowout interval (a, b] (the basket that makes the margin 20 is not garbage; later ones while it holds are; tested
+  against the raw play-by-play on the fixture games). `data/<season>/quarters.json` (built by normalize from the game files: per player per
   game, minutes and points per period; ~1.1 MB, ~360 KB gzipped) feeds the Leaders tab.
 - **Game links** (`GameLinks.tsx`, URLs in `src/app/gameLinks.ts`; decision 2026-11-05): two small icon links
   (no underlined text) on the score line after the game-type / garbage-time chips, in Games and Q4, opening in a
