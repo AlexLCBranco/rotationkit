@@ -143,6 +143,36 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   moves next to the arrows). Right: ◀ ▶ + "Game N of M", game header (matchup, date, final, badge, schedule chips
   of this team AND the opponent), then the chart. The chart keeps `CHART.minPxPerMinute`; when the window is too
   narrow for list + chart it scrolls inside its box. `?game=<id>` deep links still work.
+- **Q4 tab** (`Q4View.tsx`, route `#/q4/<id>?t=ORL`; decision 2026-11-05): Games | Q4 | Averages. Same team, game
+  list, arrows and selected game as Games (switching tabs keeps the game; the list and arrows keep the tab). Shows
+  only the 4th quarter plus any overtime right after it (OT = 5 min) on ONE shared axis: away team on top, home
+  below, so a moment lines up vertically. Rows: players on court at some point in Q4/OT (`q4Rows` in
+  `src/domain/q4.ts`), closers (on court at the final buzzer, green dot) first, then by Q4+OT minutes. Columns: MIN
+  (Q4+OT), "PF in" = fouls entering Q4 (colored like foul trouble at the start of Q4), "Q4 PF" = fouls in Q4/OT.
+  Bars, duration labels, foul ticks (cumulative numbers) and foul-trouble colors come from the same `layoutRow` as
+  Games, called with `from` = start of Q4 (default 0 keeps Games unchanged). Garbage time is shaded the same way.
+  Hover: one line across both teams + a card with both 5-man lineups and fouls at that moment (`cursorInfo`);
+  click pins it (Close unpins). **No scrolling**: the row height shrinks to fit the window (34 px down to a
+  22 px minimum, `Q4_ROW`). Worst real games (tested at 1920×950 and 1600×1000): 0022500086, 28 players in Q4 →
+  22 px at 1920×950, 23 px at 1600×1000; 0022500637 (2OT) → 30 / 32 px. A game with even more players would
+  stop at 22 px and the page would then scroll.
+- **Game links** (`GameLinks.tsx`, URLs in `src/app/gameLinks.ts`; decision 2026-11-05): two small icon links
+  (no underlined text) on the score line after the game-type / garbage-time chips, in Games and Q4, opening in a
+  new tab. hoopsjunkie (basketball icon, tooltip "Open on hoopsjunkie"):
+  `https://hoopsjunkie.io/games/<ET date>/<away>-vs-<home>`, lowercase tricodes, the same rule as calendarkit's
+  `gameLinkUrl` (src/slate/links.ts, verified there on the live site). calendarkit (calendar icon, "Open in
+  calendarkit"): `https://gauntlet-home.vercel.app/calendar?view=league&layout=list&date=<ET date>&game=<gameId>`
+  (calendarkit opens on today until its own date/game change lands). The date is `Game.date`, the box score's
+  Eastern date, so a 10 pm ET tip (next day in UTC) keeps its ET date.
+- **Team picker** (`TeamPicker.tsx`, data in `src/data/teams.ts`; decision 2026-11-05): replaces the team dropdown
+  in the Games/Q4 and Averages headers. PORTED from calendarkit (`src/components/TeamPicker.tsx`, its team/division
+  table and `team-picker.css`): a button with logo + full name opening a grid grouped East Atlantic / Central /
+  Southeast, West Northwest / Pacific / Southwest, current team highlighted. Keyboard as in calendarkit: Enter /
+  Space / ↓ open, arrows move (← → a division), Home / End, a letter jumps to the next team whose city or name starts
+  with it, Enter picks, Escape closes (focus back on the button). Port differences: teams passed as tricodes (the
+  app's URL key), rotationkit's own `TeamLogo` (NBA CDN logos), no compact phone mode, `--ck-*` colors mapped to
+  this palette. Picking does exactly what the dropdown did (same URL, same game list). The Averages "vs" matchup
+  dropdown is unchanged (it is not the team picker). Team ids are checked against our game data in a test.
 - **Schedule tags** (`src/domain/scheduleTags.ts`, on US Eastern dates from `schedule.json`; preseason and the
   All-Star game don't count, scheduled future games do): "B2B 1" plays again the next day; "B2B 2" played the day
   before; "3-in-4 · 1st/2nd/3rd" = position in a set of 3 consecutive team games within 4 days (first and last at
@@ -176,8 +206,16 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   PLAYER | MIN | Q1–Q4 (+OT) | PF, then one compact row per player: headshot (cdn.nba.com, falls back to initials) |
   name (blue) | MIN (bold) | stints on a dark track, **one bar per quarter** like the reference | PF. Starters by
   minutes, dashed divider, bench by minutes, DNP/inactive rows with a DNP badge (reason on hover/tap).
-  Hover (desktop) / tap (phone) shows a floating tooltip next to the pointer. Minutes and durations are truncated
-  to the second like NBA box scores (22:07.8 → 22:07).
+  Minutes and durations are truncated to the second like NBA box scores (22:07.8 → 22:07).
+  - **Hover readout** on a player's row (on a bar or an empty part of it): header "Q1 8:30 · PHI 12–10 BOS" (his
+    team first), then both lineups at that moment (his team, then the opponent slightly muted; short names, the
+    hovered player highlighted, fouls so far as a small yellow number when > 0), then his stint line, smaller:
+    "Maxey: in Q1 12:00 → out Q1 6:12 · 5:48 · +/- +4", or "Maxey (off court)". Data: `hoverReadout` in
+    `gameChart.ts`, built on `cursorInfo` / `onCourtAt` (the lineup cursor's logic; `stintAt` is the one "on court
+    at t" rule, in at s ≤ t < out at e). Foul ticks and DNP badges keep their own text. "⚙ Readout" in the chart
+    toolbar: lineups both teams / hovered player's team only / off, stint details, foul counts (default all on;
+    localStorage `rk.readout`, read and written inside try/catch). The card is placed beside the pointer, above the
+    hovered row (below it if there is no room), always inside the window.
   - Every stint shows its duration: inside the bar when ≥ 2:00 (12 px, dark on color), otherwise beside the bar,
     in the lane above, or (rarely) a lane below — never dropped, never overlapping (`layoutRow` in
     `src/domain/gameChart.ts`). Bar width stays proportional to time; the timeline never goes below 18 px/min
@@ -266,19 +304,31 @@ production; feature branches get preview deployments. Vercel connected to the re
 Workflow: `.github/workflows/data-update.yml` → `scripts/ci-update.ts`.
 - **Schedule**: every day at **11:00 UTC** (after all US games have finished). Takes effect once the workflow is on
   `main` (scheduled workflows only run from the default branch).
-- **What it does**: `fetch-season --cdn-only --strict` (Path B, cdn.nba.com only) → `normalize` → `validate-all` →
-  `npm test`. If every step passes and there are new games, it commits `data/` to `main` as
-  "data: N new games through YYYY-MM-DD" and pushes; Vercel then redeploys production. The schedule feed is
-  downloaded and `schedule.json` rewritten on every run, so with no new games but a changed schedule (postponed or
-  rescheduled game) it commits "data: schedule update (N games changed)" and the B2B / 3-in-4 tags are fixed the
-  next morning. Neither → no commit.
+- **What it does**: `probe-cdn` (is cdn.nba.com reachable from the runner) → `fetch-season --cdn-only --strict`
+  (Path B, cdn.nba.com only) → `normalize` → `validate-all` → `npm test`. If every step passes and there are new
+  games, it commits `data/` to `main` as "data: N new games through YYYY-MM-DD" and pushes; Vercel then redeploys
+  production. The schedule feed is downloaded and `schedule.json` rewritten on every run, so with no new games but a
+  changed schedule (postponed or rescheduled game) it commits "data: schedule update (N games changed)" and the
+  B2B / 3-in-4 tags are fixed the next morning.
+- **Run status, every run** (decision 2026-11-05, after the update failed silently Oct 24 – Nov 4): each run on
+  `main` writes `data/update-status.json` (`lastRun`, `result` ok/failed, `failingStep`, `error`, `lastSuccess`,
+  `failingSince` = first failure of the current streak, `runId`). Success: committed with the data, or alone as
+  "data: update status (ok, nothing new)" on quiet days (so quiet days never look stale; this means one small
+  commit and one production redeploy per day). Failure: ONLY the status file is committed ("data: update FAILED at
+  <step>"), never partial game data. A failure before the script even runs (checkout, `npm ci`) is recorded by the
+  workflow's last step, `scripts/record-failure.ts`, run with plain Node (`--experimental-strip-types`, no npm
+  packages). The probe moved from its own workflow step into the script so a blocked CDN is recorded too.
+- **Stale-data banner** (`src/components/StaleBanner.tsx`, logic in `src/domain/updateStatus.ts`): at the top of
+  every page when the last run failed ("Data last updated <date>, update failing since <date>.") or when the last
+  successful run is older than 36 h (`STALE_AFTER_HOURS`; "…, no successful update since then." — the job stopped
+  running, so there is no failure date to show). No banner when fine, or before the first run wrote the file.
 - **Incremental without a cache**: the runner has no raw cache; already-committed games are read from
   `data/<season>/index.json` and skipped. `normalize` only (re)writes games whose raw data is present and rebuilds
   the index/appearances from all committed game files. `validation.json` is not committed by CI (it holds the
   gamerotation cross-check from full local runs).
-- **Failure = nothing committed.** Any step failing (CDN unreachable or blocked, a game that fails to download,
-  normalize error, a validation problem not listed in `data/known-issues.json`, a failing test) fails the run; GitHub
-  emails the repository owner. To investigate: Actions tab → "Daily data update" → the failed run's log; the line
+- **Failure = no game data committed** (only the status file, above). Any step failing (CDN unreachable or blocked,
+  a game that fails to download, a normalize error, a failing test) fails the run; GitHub emails the repository
+  owner and the site shows the banner. A game failing a validate-all check does not fail the run (PR #3). To investigate: Actions tab → "Daily data update" → the failed run's log; the line
   `Data update FAILED at "<step>"` names the step. A new, reviewed data problem can be accepted by adding the game
   to `data/known-issues.json` (with the reason) in a normal commit.
 - **Manual run**: GitHub → Actions → "Daily data update" → "Run workflow" (branch `main`). Locally, a dry run:
@@ -318,6 +368,8 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
   team page "Typical stints" view with "Rarely used" group.
 - Main screen is now a team's game (game list sidebar + chart, schedule tags B2B / 3-in-4 / rest); averages are a tab.
 - Desktop only from now on; existing phone tests are kept passing.
+- 2026-11-05: stale-data banner + run status file, Q4 tab, hoopsjunkie / calendarkit links on the score line,
+  calendarkit's team picker (branch `claude/q4-tab-links-picker`, stacked on the open hover-readout PR #2).
 - All work is on branch `claude/blissful-ride-ry8cnl`, not merged. The daily data update only commits to `main`, so
   it starts working for the live site once the branch is merged.
 

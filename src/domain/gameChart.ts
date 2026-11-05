@@ -121,9 +121,14 @@ export function scoreAt(g: Game, t: number): [number, number] {
 }
 
 /** Players on court at elapsed t (stints are [start, end) ; zero-length stints are never "on court"). */
+/** The player's stint covering moment t (in at s ≤ t < out at e; zero-length stints never count). */
+export function stintAt(p: PlayerGame, t: number, periods: number): Stint | undefined {
+  const tt = Math.min(t, gameLength(periods) - 1e-6);
+  return p.stints.find(([s, e]) => e > s && s <= tt && tt < e);
+}
+
 export function onCourtAt(g: Game, team: string, t: number): PlayerGame[] {
-  const tt = Math.min(t, gameLength(g.periods) - 1e-6);
-  return g.players.filter((p) => p.team === team && p.stints.some(([s, e]) => e > s && s <= tt && tt < e));
+  return g.players.filter((p) => p.team === team && stintAt(p, t, g.periods) !== undefined);
 }
 
 export interface LineupSegment {
@@ -185,6 +190,36 @@ export function cursorInfo(g: Game, t: number, segments?: Record<string, LineupS
           .sort((a, b) => b.p.min - a.p.min),
       };
     }),
+  };
+}
+
+/**
+ * Hover readout on a player's row at moment t: clock + score (his team first), both lineups at that moment (from
+ * cursorInfo, i.e. the lineup cursor's own on-court logic) with fouls so far, and his stint at t (null = off court).
+ */
+export interface HoverReadout {
+  t: number;
+  clock: string;
+  player: PlayerGame;
+  /** [his team, opponent]. */
+  teams: { team: string; score: number; players: { p: PlayerGame; fouls: number; me: boolean }[] }[];
+  stint: Stint | null;
+}
+
+export function hoverReadout(g: Game, playerId: number, t: number, segments?: Record<string, LineupSegment[]>): HoverReadout {
+  const player = g.players.find((p) => p.id === playerId)!;
+  const c = cursorInfo(g, t, segments);
+  const order = player.team === g.home.tri ? [g.home.tri, g.away.tri] : [g.away.tri, g.home.tri];
+  return {
+    t: c.t,
+    clock: c.clock,
+    player,
+    teams: order.map((team) => ({
+      team,
+      score: team === g.home.tri ? c.score[0] : c.score[1],
+      players: c.teams.find((x) => x.team === team)!.players.map((x) => ({ ...x, me: x.p.id === playerId })),
+    })),
+    stint: stintAt(player, c.t, g.periods) ?? null,
   };
 }
 
@@ -255,22 +290,29 @@ function nearestFree(desired: number, w: number, occ: Occ, min: number, max: num
   return cands.reduce((best, x) => (Math.abs(x - desired) < Math.abs(best - desired) ? x : best));
 }
 
-export function layoutRow(p: PlayerGame, periods: number, width: number, opts: { trouble?: boolean } = {}): RowLayout {
-  const total = gameLength(periods);
+/**
+ * Row layout. `from` (default 0 = whole game) starts the timeline at that elapsed time, at a period start (the Q4
+ * view uses from = start of Q4): x is measured from there and only stints, fouls and PF badges from that period on are
+ * laid out. Foul numbers stay cumulative over the whole game.
+ */
+export function layoutRow(p: PlayerGame, periods: number, width: number, opts: { trouble?: boolean; from?: number } = {}): RowLayout {
+  const from = opts.from ?? 0;
+  const firstPeriod = periodAt(from + 0.05);
+  const total = gameLength(periods) - from;
   const k = width / total;
   const occ: Record<Lane, Occ> = { top: [], bar: [], bottom: [] };
   // One bar per stint as stored: stints never cross a quarter, so bars split at quarter lines like the reference chart.
-  const display = p.stints;
-  const marks = foulMarks(p);
+  const display = from ? p.stints.filter((st) => st[0] >= from) : p.stints;
+  const marks = from ? foulMarks(p).filter((m) => m.period >= firstPeriod) : foulMarks(p);
 
   // Bars (fixed geometry, proportional to time).
   const bars: BarLayout[] = display.map((st) => {
-    const x = st[0] * k;
+    const x = (st[0] - from) * k;
     const w = Math.max(2, (st[1] - st[0]) * k);
     occ.bar.push([x, x + w]);
     const segments = (opts.trouble === false ? [{ a: st[0], b: st[1], level: 'ok' as Trouble }] : barSegments(st, p)).map((s) => ({
       ...s,
-      x: s.a * k,
+      x: (s.a - from) * k,
       w: Math.max(st[1] === st[0] ? 2 : 0, (s.b - s.a) * k),
     }));
     return { st, x, w, segments, label: { text: durationText(st[1] - st[0]), x: 0, w: 0, lane: 'bar', inside: false } };
@@ -279,8 +321,8 @@ export function layoutRow(p: PlayerGame, periods: number, width: number, opts: {
   // Per-quarter PF badges, right-aligned at the end of the quarter, in the top lane.
   const badges: BadgeLayout[] = [];
   for (const q of quarterStats(p, periods)) {
-    if (!q.pf) continue;
-    const x = periodEnd(q.period) * k - BADGE_W - 1;
+    if (!q.pf || q.period < firstPeriod) continue;
+    const x = (periodEnd(q.period) - from) * k - BADGE_W - 1;
     badges.push({ period: q.period, n: q.pf, box: { x, w: BADGE_W, lane: 'top' } });
     occ.top.push([x, x + BADGE_W]);
   }
@@ -288,7 +330,7 @@ export function layoutRow(p: PlayerGame, periods: number, width: number, opts: {
   // Foul tick numbers, as close to the tick as possible. Tick lines also occupy the top lane.
   const ticks: TickLayout[] = [];
   for (const m of marks) {
-    const x = m.t * k;
+    const x = (m.t - from) * k;
     const w = tickWidth(m.n);
     const lx = nearestFree(x - w / 2, w, occ.top, 0, width) ?? x - w / 2;
     occ.top.push([lx, lx + w]);

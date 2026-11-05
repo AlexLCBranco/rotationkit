@@ -237,7 +237,8 @@ test('@desktop minute labels keep their size with the sidebar open; the chart sc
 
 test('@desktop team picker and season picker → that team\'s latest game; the opponent\'s view lists its own games', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
-  await page.getByLabel('Team').selectOption('BOS');
+  await page.getByTestId('team-picker').click();
+  await page.locator('[data-testid=team-picker-list] [data-tri=BOS]').click();
   const bos = index('2025-26').filter((e) => e.home === 'BOS' || e.away === 'BOS');
   await expect(page).toHaveURL(new RegExp(`#/game/${bos.at(-1)!.id}\\?.*t=BOS`));
   await expect(rows(page)).toHaveCount(bos.length);
