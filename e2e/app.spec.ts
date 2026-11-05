@@ -2,10 +2,35 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEFAULT_FILTERS, selectGames, type Filters } from '../src/domain/patterns.ts';
+import { restForTeam } from '../src/domain/rest.ts';
+import type { Game } from '../src/domain/types.ts';
 
 const TEAMS = ['ATL', 'BKN', 'BOS', 'CHA', 'CHI', 'CLE', 'DAL', 'DEN', 'DET', 'GSW', 'HOU', 'IND', 'LAC', 'LAL', 'MEM', 'MIA', 'MIL', 'MIN', 'NOP', 'NYK', 'OKC', 'ORL', 'PHI', 'PHX', 'POR', 'SAC', 'SAS', 'TOR', 'UTA', 'WAS'];
 const index = (s: string) => JSON.parse(readFileSync(`data/${s}/index.json`, 'utf8')) as { home: string; away: string }[];
 const teamGames = (s: string, t: string) => index(s).filter((g) => g.home === t || g.away === t).length;
+
+/**
+ * A team + filters whose selection has a number of games matching `want` (searched in the data, newest season first),
+ * so tests that need "one game" or "under 5 games" keep working as the season fills up.
+ */
+function findSelection(want: (n: number) => boolean, teams = TEAMS) {
+  for (const season of ['2026-27', '2025-26']) {
+    const sched = JSON.parse(readFileSync(`data/${season}/schedule.json`, 'utf8'));
+    const ids = index(season) as unknown as { id: string; home: string; away: string }[];
+    for (const team of teams) {
+      const games = ids.filter((e) => e.home === team || e.away === team).map((e) => JSON.parse(readFileSync(`data/${season}/games/${e.id}.json`, 'utf8')) as Game);
+      const rest = restForTeam(sched, team);
+      for (const venue of ['home', 'away'] as const)
+        for (const r of [undefined, 'b2b', 'rested'] as const) {
+          const f: Filters = { ...DEFAULT_FILTERS, venue, ...(r ? { rest: r } : {}) };
+          const sel = selectGames(games, season, team, f, undefined, rest);
+          if (want(sel.games.length)) return { season, team, venue, rest: r, games: sel.games, query: `s=${season}&v=${venue}${r ? `&rest=${r}` : ''}` };
+        }
+    }
+  }
+  throw new Error('no team/filter combination in data/ matches');
+}
 
 function trackErrors(page: Page) {
   const errors: string[] = [];
@@ -90,16 +115,20 @@ test('filters change the "based on N games" count and the plain-words label', as
   expect(errors).toEqual([]);
 });
 
-test('few games in 2026-27: note + one-click switch to 2025-26 keeps team, player and with/without', async ({ page }, info) => {
+test('few games in the current season: note + one-click switch to 2025-26 keeps team, player, filters and with/without', async ({ page }, info) => {
   const errors = trackErrors(page);
-  await page.goto('/#/team/ORL?s=2026-27&w=10&p=1630532&m=with');
+  // ORL in 2026-27 with a filter that leaves under 5 games (the with/without filter can only lower the count).
+  const sel = findSelection((n) => n > 0 && n < 5, ['ORL']);
+  expect(sel.season).toBe('2026-27');
+  await page.goto(`/#/team/ORL?${sel.query}&w=10&p=1630532&m=with`);
   await expect(page.getByTestId('low-sample')).toBeVisible();
   await shot(page, 'low-sample', info.project.name);
   await page.getByRole('button', { name: 'Show the same view for 2025-26' }).click();
   await expect(page.getByLabel('Season')).toHaveValue('2025-26');
   await expect(page.getByLabel('Team')).toHaveValue('ORL');
-  await expect(label(page)).toHaveText('Last 10 games with F. Wagner · based on 10 games');
-  await expect(page.getByTestId('low-sample')).toHaveCount(0);
+  await expect(label(page)).toContainText('with F. Wagner');
+  const q = new URLSearchParams(new URL(page.url()).hash.split('?')[1]);
+  expect([q.get('s'), q.get('v'), q.get('rest'), q.get('w'), q.get('p'), q.get('m')]).toEqual(['2025-26', sel.venue, sel.rest ?? null, '10', '1630532', 'with']);
   expect(errors).toEqual([]);
 });
 
@@ -150,28 +179,31 @@ test('single-game chart: 2OT game axis, blowout shading, DNP rows with reasons',
 
 test('team page with one game shows exactly that game\'s stints, numbers inside', async ({ page }, info) => {
   const errors = trackErrors(page);
-  const g = index('2026-27').find((x) => x.home === 'DET' || x.away === 'DET') as unknown as { id: string };
-  const game = JSON.parse(readFileSync(`data/2026-27/games/${g.id}.json`, 'utf8')) as {
-    players: { id: number; name: string; team: string; played: boolean; stints: [number, number, number][] }[];
-  };
-  await page.goto('/#/team/DET?s=2026-27');
+  const sel = findSelection((n) => n === 1);
+  const game = sel.games[0]!;
+  await page.goto(`/#/team/${sel.team}?${sel.query}`);
   await expect(label(page)).toContainText('based on 1 game');
   await expect(page.getByTestId('pattern-chart')).toBeVisible();
-  const played = game.players.filter((p) => p.team === 'DET' && p.played && p.stints.some(([s, e]) => e > s));
+  const played = game.players.filter((p) => p.team === sel.team && p.played && p.stints.some(([s, e]) => e > s));
   await expect(page.getByTestId('rare-toggle')).toHaveCount(0); // 1 of 1 game is never rare
   expect(played.length).toBeGreaterThan(5);
+  let short = 0;
   for (const p of played) {
-    const row = page.locator(`[data-testid=player-row][data-player="${p.id}"]`);
+    const row = page.locator(`[data-testid=pattern-chart] [data-testid=player-row][data-player="${p.id}"]`);
     const bars = await row.getByTestId('typical-stint').evaluateAll((els) => els.map((e) => [Number(e.dataset.start), Number(e.dataset.end)]));
     const want = p.stints.filter(([s, e]) => e > s && s < 2880).map(([s, e]) => [s, Math.min(e, 2880)] as [number, number]);
     expect(bars, `player ${p.id}`).toEqual(want);
+    // One game: every real stint is drawn, short ones (under 1:00 too) labelled beside the bar, as in the game chart.
+    const labels = await row.getByTestId('stint-label').evaluateAll((els) => els.map((e) => e.getAttribute('data-inside')));
+    expect(labels).toHaveLength(want.length);
+    want.forEach(([s, e], i) => {
+      if (e - s < 120) expect(labels[i], `player ${p.id} stint ${i}`).toBe('false');
+      if (e - s < 60) short++;
+    });
   }
   expect(await page.locator('[data-testid=pattern-chart] [data-testid=stint-label][data-inside=true]').count()).toBeGreaterThan(10);
-  // One game: every real stint is drawn, short ones labelled beside the bar (as in the game chart).
-  const joe = game.players.find((p) => p.name === 'Isaiah Joe')!;
-  const joeRow = page.locator(`[data-testid=player-row][data-player="${joe.id}"]`);
-  await expect(joeRow.locator('[data-testid=stint-label][data-inside=false]', { hasText: /^0:35$/ })).toHaveCount(1);
   await expect(page.getByTestId('typical-legend')).not.toContainText('not drawn');
+  test.info().annotations.push({ type: 'selection', description: `${sel.team} ${sel.query} → ${game.id}, ${short} stint(s) under 1:00` });
   // Hover readout.
   await page.locator('[data-testid=pattern-chart] .gc-track').nth(1).click({ position: { x: 5, y: 20 } });
   await expect(page.getByTestId('pattern-tip')).toContainText(/Q1 1[12]:\d\d · on court in [01] of 1 game\b/);
