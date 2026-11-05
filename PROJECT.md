@@ -143,6 +143,10 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   moves next to the arrows). Right: ◀ ▶ + "Game N of M", game header (matchup, date, final, badge, schedule chips
   of this team AND the opponent), then the chart. The chart keeps `CHART.minPxPerMinute`; when the window is too
   narrow for list + chart it scrolls inside its box. `?game=<id>` deep links still work.
+  - **Upcoming games** (decision 2026-11-05): under the played games, the team's next 3 scheduled games
+    (`UPCOMING_GAMES`, from `schedule.json`, regular season / Cup / playoffs, not preseason or All-Star), dimmed,
+    "upcoming" (or "live") instead of a result, with their schedule chips and rest days. Not openable (no data yet):
+    clicks, ↑/↓ and ◀ ▶ skip them. With the latest game selected the list scrolls so they are in view.
 - **Q4 tab** (`Q4View.tsx`, route `#/q4/<id>?t=ORL`; decision 2026-11-05): Games | Q4 | Averages. Same team, game
   list, arrows and selected game as Games (switching tabs keeps the game; the list and arrows keep the tab). Shows
   only the 4th quarter plus any overtime right after it (OT = 5 min) on ONE shared axis: away team on top, home

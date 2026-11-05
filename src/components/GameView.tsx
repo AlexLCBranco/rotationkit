@@ -5,7 +5,8 @@ import { formatMin, shortDate, signed } from '../app/labels.ts';
 import { parse, type Nav, type Route } from '../app/route.ts';
 import { teamName } from '../app/teams.ts';
 import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
-import { GameList, type ListGame } from './GameList.tsx';
+import { GameList, UPCOMING_GAMES, type ListGame, type UpcomingGame } from './GameList.tsx';
+import { TEAM_BY_TRI } from '../data/teams.ts';
 import { ScheduleChips } from './ScheduleChips.tsx';
 import { Tabs } from './Tabs.tsx';
 import { tabRoute } from '../app/tabs.ts';
@@ -106,7 +107,18 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
         };
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)); // oldest first
-    return { games, sched, ours };
+    // The next few games on the schedule (not played yet): shown under the list, not openable.
+    const played = new Set(index.map((e) => e.id));
+    const upcoming: UpcomingGame[] = (schedule ?? [])
+      .filter((e) => plays(e, team) && e.status !== 'final' && !played.has(e.id) && !e.id.startsWith('001') && !e.id.startsWith('003'))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+      .slice(0, UPCOMING_GAMES)
+      .map((e) => {
+        const home = e.home === team;
+        const opp = home ? e.away : e.home;
+        return { id: e.id, date: e.date, team, teamId: TEAM_BY_TRI.get(team)?.id ?? 0, opp, oppId: TEAM_BY_TRI.get(opp)?.id ?? 0, home, status: e.status, label: e.label, tags: ours.get(e.id) };
+      });
+    return { games, sched, ours, upcoming };
   }, [meta, team]);
   // The game being opened (not the one still on screen while it loads), so quick ↑/↓ or ◀ ▶ never skip or repeat.
   const current = id ?? g?.id ?? null;
@@ -141,6 +153,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
         {!collapsed && picker && (
           <GameList
             games={picker.games}
+            upcoming={picker.upcoming}
             selected={current}
             onSelect={open}
             seasons={seasons}

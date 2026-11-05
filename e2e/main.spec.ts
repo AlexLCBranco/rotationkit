@@ -290,3 +290,40 @@ test('@desktop Averages is a secondary tab; Games goes back to the latest game',
   await page.getByTestId('tab-games').click();
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?.*t=ORL`));
 });
+
+test('@desktop the list ends with the next 3 scheduled games: dimmed, with tags, not openable', async ({ page }) => {
+  type S = { id: string; date: string; home: string; away: string; status: string };
+  const sched = JSON.parse(readFileSync('data/2026-27/schedule.json', 'utf8')) as S[];
+  const played = new Set(index('2026-27').map((e) => e.id));
+  const next = sched
+    .filter((e) => (e.home === 'ORL' || e.away === 'ORL') && e.status !== 'final' && !played.has(e.id) && !e.id.startsWith('001') && !e.id.startsWith('003'))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+    .slice(0, 3);
+  expect(next.length).toBeGreaterThan(0);
+  await page.goto('/#/game/latest?t=ORL&s=2026-27');
+  const up = page.getByTestId('upcoming-row');
+  await expect(up).toHaveCount(next.length);
+  expect(await up.evaluateAll((els) => els.map((e) => e.getAttribute('data-id')))).toEqual(next.map((e) => e.id));
+  const first = next[0]!;
+  const cells = (await up.first().locator('td').allTextContents()).map((c) => c.trim());
+  expect(cells.slice(0, 5)).toEqual([usDate(first.date), 'ORL', first.home === 'ORL' ? 'vs' : '@', first.home === 'ORL' ? first.away : first.home, 'upcoming']);
+  expect(Number(await up.first().evaluate((e) => getComputedStyle(e).opacity))).toBeLessThan(1);
+  // They come after every played game, the latest stays selected, and they are in view on load.
+  const latest27 = index('2026-27').filter((e) => e.home === 'ORL' || e.away === 'ORL').at(-1)!;
+  await expect(page).toHaveURL(new RegExp(`#/game/${latest27.id}\\?`));
+  expect(await inView(page, latest27.id)).toBe(true);
+  const box = await page.getByTestId('game-list-rows').boundingBox();
+  const lastUp = await up.last().boundingBox();
+  expect(lastUp!.y + lastUp!.height).toBeLessThanOrEqual(box!.y + box!.height + 1);
+  // Not openable: clicking does nothing; ↓ from the latest game stays on it.
+  await up.first().click();
+  await expect(page).toHaveURL(new RegExp(`#/game/${latest27.id}\\?`));
+  await page.getByTestId('game-list-rows').focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page).toHaveURL(new RegExp(`#/game/${latest27.id}\\?`));
+  await expect(page.getByTestId('next-game')).toBeDisabled();
+  // A finished season has no upcoming games.
+  await page.goto('/#/game/latest?t=ORL&s=2025-26');
+  await expect(page.getByTestId('list-row').first()).toBeVisible();
+  await expect(page.getByTestId('upcoming-row')).toHaveCount(0);
+});
