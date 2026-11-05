@@ -156,6 +156,15 @@ and pre-trade CLE games in neither group); 5-on-court invariant across buckets f
   22 px minimum, `Q4_ROW`). Worst real games (tested at 1920×950 and 1600×1000): 0022500086, 28 players in Q4 →
   22 px at 1920×950, 23 px at 1600×1000; 0022500637 (2OT) → 30 / 32 px. A game with even more players would
   stop at 22 px and the page would then scroll.
+- **Q4 paragraph** ("Every change", right of the Q4 chart; `src/domain/q4Story.ts`; decision 2026-11-05): every
+  lineup change of Q4 + OT in words, one paragraph: the Q4 opening lineups and score, each change ("ORL took out da
+  Silva for Bane, ATL up 108–107"), each overtime's opening lineups, the closers and the result. NO clock times in
+  the text: each sentence is linked to its moment instead — hovering it moves the chart's line there, shows both
+  lineups and lights up the players it names; click pins. Only facts from the data are added in brackets: "had just
+  picked up his 5th foul" (a foul at that very moment), "sat with N fouls" / "came back carrying N fouls" (foul
+  trouble level), "first minutes of the game". No guessed reasons (rest, injury). The panel sits beside the chart so
+  the no-scroll fit still holds (it scrolls inside itself if long). Tested by replaying the paragraph's changes from
+  the opening lineups over every game: it reproduces the real lineup after every change and the closers.
 - **Game links** (`GameLinks.tsx`, URLs in `src/app/gameLinks.ts`; decision 2026-11-05): two small icon links
   (no underlined text) on the score line after the game-type / garbage-time chips, in Games and Q4, opening in a
   new tab. hoopsjunkie (basketball icon, tooltip "Open on hoopsjunkie"):

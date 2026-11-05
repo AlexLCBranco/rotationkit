@@ -11,6 +11,7 @@ import { blowoutIntervals } from '../domain/patterns.ts';
 import { Q4_START, q4Geometry, q4RowHeight, q4Rows, type Q4Row } from '../domain/q4.ts';
 import { gameLength, periodAt, periodEnd, periodStart } from '../domain/time.ts';
 import type { Game } from '../domain/types.ts';
+import { q4Story } from '../domain/q4Story.ts';
 import { useGameNames } from './GamePanels.tsx';
 import { TeamLogo } from './Headshot.tsx';
 
@@ -70,6 +71,10 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
 
   const [cursor, setCursor] = useState<Cursor | null>(null);
   useEffect(() => setCursor(null), [g.id]);
+  const story = useMemo(() => q4Story(g, names), [g, names]);
+  // Hovering a sentence shows its moment on the chart and lights up the players it names.
+  const [focus, setFocus] = useState<number | null>(null);
+  const lit = useMemo(() => new Set(focus === null ? [] : story[focus]!.players), [focus, story]);
   const contentRef = useRef<HTMLDivElement>(null);
   const tAt = (clientX: number) => {
     const r = contentRef.current!.getBoundingClientRect();
@@ -88,6 +93,7 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
           4th quarter{g.periods > 4 ? ' + overtime' : ''} only · closers first · hover for both lineups, click to pin
         </span>
       </div>
+      <div className="q4-wrap">
       <div
         className="q4-box"
         ref={boxRef}
@@ -145,7 +151,7 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
                 <span className="muted">{ti === 0 ? 'away' : 'home'}</span>
               </div>
               {rows[ti]!.map((r, i) => (
-                <Row key={r.p.id} r={r} l={layouts[ti]![i]!} name={names.get(r.p.id) ?? r.p.name} W={W} x={x} geo={geo} ticks={ticks} blowout={blowout} trouble={trouble} />
+                <Row key={r.p.id} r={r} l={layouts[ti]![i]!} name={names.get(r.p.id) ?? r.p.name} W={W} x={x} geo={geo} ticks={ticks} blowout={blowout} trouble={trouble} lit={lit.has(r.p.id)} />
               ))}
             </section>
           ))}
@@ -156,6 +162,34 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
           )}
         </div>
         {cursor && <LineupCard g={g} t={cursor.t} pinned={cursor.pinned} lineX={LEFT + x(cursor.t)} y={cursor.y} names={names} onClose={() => setCursor(null)} />}
+      </div>
+      <aside className="q4-story" data-testid="q4-story" aria-label="Every lineup change, in words" style={{ maxHeight: Math.max(240, box.vh - box.top - BOTTOM_MARGIN) }}>
+        <h3>Every change</h3>
+        <p className="muted q4-story-hint">Hover a sentence to see the moment on the chart; click to pin it.</p>
+        <p className="q4-story-text">
+          {story.map((x, i) => (
+            <span
+              key={i}
+              className={`q4-sentence kind-${x.kind}${focus === i ? ' active' : ''}`}
+              data-testid="q4-sentence"
+              data-t={x.t}
+              data-kind={x.kind}
+              data-players={x.players.join(' ')}
+              onPointerEnter={(e) => {
+                setFocus(i);
+                if (!cursor?.pinned) setCursor({ t: x.t, pinned: false, y: e.clientY });
+              }}
+              onPointerLeave={() => {
+                setFocus(null);
+                if (!cursor?.pinned) setCursor(null);
+              }}
+              onClick={(e) => setCursor({ t: x.t, pinned: true, y: e.clientY })}
+            >
+              {x.text}{' '}
+            </span>
+          ))}
+        </p>
+      </aside>
       </div>
     </>
   );
@@ -171,6 +205,7 @@ function Row({
   ticks,
   blowout,
   trouble,
+  lit,
 }: {
   r: Q4Row;
   l: RowLayout;
@@ -181,12 +216,13 @@ function Row({
   ticks: { t: number; period: number }[];
   blowout: [number, number][];
   trouble: boolean;
+  lit: boolean;
 }) {
   const h = geo.row + (l.usesBottom ? geo.bottom : 0);
   const y = { top: 0, bar: geo.top, bottom: geo.top + geo.bar };
   const level = (pf: number, period: number) => troubleLevel(period, pf);
   return (
-    <div className="q4-row" style={{ height: h }} data-testid="q4-row" data-player={r.p.id} data-closer={r.closer} data-min={r.min}>
+    <div className={`q4-row${lit ? ' lit' : ''}`} style={{ height: h }} data-testid="q4-row" data-player={r.p.id} data-closer={r.closer} data-min={r.min}>
       <div className="q4-left">
         <span className="q4-name" title={r.p.name}>
           {r.closer && <i className="q4-closer" title="On court at the final buzzer" />}

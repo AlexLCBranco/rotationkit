@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { cursorInfo } from '../src/domain/gameChart.ts';
 import { blowoutIntervals } from '../src/domain/patterns.ts';
 import { Q4_START, q4Rows } from '../src/domain/q4.ts';
+import { q4Story } from '../src/domain/q4Story.ts';
 import type { Game } from '../src/domain/types.ts';
 
 const load = (id: string) => JSON.parse(readFileSync(`data/${id.startsWith('00226') ? '2026-27' : '2025-26'}/games/${id}.json`, 'utf8')) as Game;
@@ -183,4 +184,43 @@ test('@desktop the tab is in the URL; Games ↔ Q4 keep the same game; the list 
   await page.getByTestId('tab-averages').click();
   await page.getByTestId('tab-q4').click();
   await expect(page).toHaveURL(new RegExp(`#/q4/${orl.at(-1)!.id}\\?`));
+});
+
+test('@desktop paragraph: every change in words (no clock times); hovering a sentence shows its moment and players', async ({ page }) => {
+  const errors = trackErrors(page);
+  for (const id of ['0022600085', LONGEST_OT]) {
+    const g = await openQ4(page, id);
+    const story = q4Story(g, new Map());
+    const sentences = page.getByTestId('q4-sentence');
+    await expect(sentences).toHaveCount(story.length);
+    expect(await sentences.evaluateAll((els) => els.map((e) => Number(e.getAttribute('data-t'))))).toEqual(story.map((x) => x.t));
+    expect(await page.getByTestId('q4-story').textContent()).not.toMatch(/\b\d{1,2}:\d{2}\b/);
+    for (const i of [1, Math.floor(story.length / 2), story.length - 2]) {
+      const x = story[i]!;
+      await sentences.nth(i).hover();
+      await expect(page.getByTestId('q4-cursor-line')).toHaveAttribute('data-t', String(x.t));
+      const want = cursorInfo(g, x.t);
+      const got = await page.getByTestId('q4-lineup').evaluateAll((els) => els.map((e) => [...e.querySelectorAll('[data-testid=q4-lineup-player]')].map((p) => Number(p.getAttribute('data-player')))));
+      expect(got).toEqual(want.teams.map((t) => t.players.map((p) => p.p.id)));
+      const lit = await page.locator('[data-testid=q4-row].lit').evaluateAll((els) => els.map((e) => Number(e.getAttribute('data-player'))).sort());
+      expect(lit).toEqual([...x.players].filter((p) => q4Rows(g, g.home.tri).concat(q4Rows(g, g.away.tri)).some((r) => r.p.id === p)).sort());
+    }
+    // Click pins the moment; leaving the sentence keeps it.
+    await sentences.nth(1).click();
+    await page.mouse.move(5, 5);
+    await expect(page.getByTestId('q4-cursor-line')).toHaveAttribute('data-t', String(story[1]!.t));
+    await expect(page.getByTestId('q4-cursor-card')).toContainText('pinned');
+    await page.getByRole('button', { name: 'Close' }).click();
+  }
+  // Still no page scroll with the paragraph beside the chart.
+  for (const [w, h] of [[1920, 950], [1600, 1000]] as const) {
+    await page.setViewportSize({ width: w, height: h });
+    await openQ4(page, MOST_ROWS);
+    const [sh, vh, sw, vw] = await page.evaluate(() => [document.documentElement.scrollHeight, innerHeight, document.documentElement.scrollWidth, innerWidth]);
+    expect(sh).toBeLessThanOrEqual(vh);
+    expect(sw).toBeLessThanOrEqual(vw);
+    const story = (await page.getByTestId('q4-story').boundingBox())!;
+    expect(story.y + story.height).toBeLessThanOrEqual(vh);
+  }
+  expect(errors).toEqual([]);
 });
