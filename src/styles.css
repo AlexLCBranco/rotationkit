@@ -537,3 +537,10 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .ld-table th.sortable .link { color: inherit; font: inherit; }
 .ld-table th.sorted { color: var(--text); }
 .ld-leader { stroke: #8a8a8a; stroke-width: 1; }
+
+/* Game list: next scheduled games (not played yet) */
+.gl-table tbody tr.gl-upcoming { cursor: default; opacity: 0.55; }
+.gl-table tbody tr.gl-upcoming:hover { background: none; }
+.gl-table tbody tr.gl-upcoming.first td { border-top: 1px dashed #3a3a3a; }
+.gl-date-future { color: var(--muted); }
+.gl-result-future { color: var(--muted); font-style: italic; font-size: 12px; }
