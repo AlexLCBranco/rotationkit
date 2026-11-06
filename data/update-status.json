@@ -1,9 +1,9 @@
 {
-  "lastRun": "2026-11-05T18:27:19.219Z",
-  "result": "ok",
-  "failingStep": null,
-  "error": null,
+  "lastRun": "2026-11-06T17:48:08.474Z",
+  "result": "failed",
+  "failingStep": "npm test",
+  "error": "exit code 1",
   "lastSuccess": "2026-11-05T18:27:19.219Z",
-  "failingSince": null,
-  "runId": "42084257440"
+  "failingSince": "2026-11-06T17:48:08.474Z",
+  "runId": "42264790054"
 }
