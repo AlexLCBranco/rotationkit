@@ -2,7 +2,7 @@
 // stint at that moment; checked over every game and against raw play-by-play substitutions.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadSeason } from './data.ts';
+import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
 import { fixtureIds, loadFixtureGame, loadRawFixture } from './fixtures.ts';
 import { cursorInfo, hoverReadout, lineupSegments, periodName } from '../src/domain/gameChart.ts';
 import { gameLength, periodAt, periodStart } from '../src/domain/time.ts';
@@ -24,7 +24,7 @@ function moments(g: Game): number[] {
   return [...ts];
 }
 
-describe(`hover readout over all ${clean.length} games without data-quality notes`, () => {
+describe(`hover readout over all ${clean.length} games without data-quality notes`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
   it('lineups = the lineup cursor, exactly 5 per team, hovered team first, "me" flag, stint iff on court, fouls so far', () => {
     const bad: string[] = [];
     let checked = 0;

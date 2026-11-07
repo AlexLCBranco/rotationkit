@@ -1,7 +1,7 @@
 // The Q4 paragraph: every lineup change of Q4/OT exactly once, in words, no clock times, only facts from the data.
 
 import { describe, expect, it } from 'vitest';
-import { loadSeason } from './data.ts';
+import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
 import { onCourtAt } from '../src/domain/gameChart.ts';
 import { Q4_START } from '../src/domain/q4.ts';
 import { q4Story, scoreWords } from '../src/domain/q4Story.ts';
@@ -17,7 +17,7 @@ const names = (g: Game) => {
 };
 const onAt = (g: Game, team: string, t: number) => new Set(onCourtAt(g, team, t).map((p) => p.id));
 
-describe(`Q4 paragraph over all ${games.length} games`, () => {
+describe(`Q4 paragraph over all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
   it('replaying its changes from the Q4 opener gives the real lineup after every change and the closers at the end', () => {
     const bad: string[] = [];
     for (const g of games) {
