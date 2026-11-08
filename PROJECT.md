@@ -367,6 +367,15 @@ Workflow: `.github/workflows/data-update.yml` → `scripts/ci-update.ts`.
   owner and the site shows the banner. A game failing a validate-all check does not fail the run (PR #3). To investigate: Actions tab → "Daily data update" → the failed run's log; the line
   `Data update FAILED at "<step>"` names the step. A new, reviewed data problem can be accepted by adding the game
   to `data/known-issues.json` (with the reason) in a normal commit.
+- **Incident 2026-11-06/07 (fixed 2026-11-07)**: the update failed twice at `npm test` with no assertion failing:
+  `gameChartAll` "cursor info…" hit Vitest's 5 s default timeout on the runner (2.6 s on Nov 5, 5.8 s / 5.4 s on
+  Nov 6 / 7). The new games were fine (each normalized and validated; none is slow). Cause: `cursorInfo(g, t)` without
+  precomputed segments rebuilt every lineup segment (with +/-) of both teams on every call just to read "on since"
+  (also on every hover move on the Q4 tab and per sentence of the Q4 paragraph). Now `lineupSince` computes only that
+  (~11× faster; identical results, tested against the segments path). Guards: a cost-ratio test (one `cursorInfo` call
+  must cost less than one `lineupSegments` build; the old code was ≥ 2 by construction, so this cannot pass again with
+  it, on any machine), and the suites that sweep every game have an explicit `WHOLE_DATA_TIMEOUT` (60 s, `tests/data.ts`)
+  because their run time grows with the season (the hover-readout sweep was at 4.9 s of 5 s on the runner).
 - **Manual run**: GitHub → Actions → "Daily data update" → "Run workflow" (branch `main`). Locally, a dry run:
   `npx tsx scripts/ci-update.ts` (add `--commit` to commit and push).
 - **Commit author**: `github-actions[bot]` by default; set repository variables `DATA_COMMIT_NAME` /

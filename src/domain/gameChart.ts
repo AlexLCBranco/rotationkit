@@ -140,11 +140,35 @@ export interface LineupSegment {
   pm: number;
 }
 
-export function lineupSegments(g: Game, team: string): LineupSegment[] {
+/** The team's lineup boundaries: 0, game end and every non-empty stint start/end, sorted. */
+function lineupBoundaries(g: Game, team: string): number[] {
   const end = gameLength(g.periods);
   const pts = new Set<number>([0, end]);
   for (const p of g.players) if (p.team === team) for (const [s, e] of p.stints) if (e > s) (pts.add(s), pts.add(e));
-  const xs = [...pts].filter((x) => x >= 0 && x <= end).sort((a, b) => a - b);
+  return [...pts].filter((x) => x >= 0 && x <= end).sort((a, b) => a - b);
+}
+
+const lineupKey = (g: Game, team: string, t: number) => onCourtAt(g, team, t).map((p) => p.id).sort((x, y) => x - y).join();
+
+/**
+ * Start of the lineup segment containing tt (0 ≤ tt ≤ game end) — the same value as
+ * `lineupSegments(g, team).find(covers tt).start`, without building every segment and its +/-. cursorInfo used to
+ * rebuild all segments of both teams on every call (the Q4 hover card, the Q4 paragraph and a whole-season test call
+ * it many times per game); that made a test time out in the daily update (Nov 6, 2026).
+ */
+export function lineupSince(g: Game, team: string, tt: number): number {
+  const xs = lineupBoundaries(g, team);
+  // Interval [xs[i], xs[i+1]) containing tt; the game-end moment belongs to the last interval.
+  let i = xs.length - 2;
+  while (i > 0 && xs[i]! > tt) i--;
+  const key = lineupKey(g, team, xs[i]!);
+  // Consecutive intervals with the same five are one segment (as in lineupSegments).
+  while (i > 0 && lineupKey(g, team, xs[i - 1]!) === key) i--;
+  return xs[i]!;
+}
+
+export function lineupSegments(g: Game, team: string): LineupSegment[] {
+  const xs = lineupBoundaries(g, team);
   const sign = g.home.tri === team ? 1 : -1;
   // Points logged at 12:00 of Q1 (before the clock ran) belong to the starting lineup: start from 0–0.
   const margin = (t: number) => {
@@ -179,12 +203,14 @@ export function cursorInfo(g: Game, t: number, segments?: Record<string, LineupS
     clock: clockLabel(tt, tt < end),
     score: scoreAt(g, tt),
     teams: [g.away.tri, g.home.tri].map((team) => {
-      const segs = segments?.[team] ?? lineupSegments(g, team);
-      const seg = segs.find((s) => s.start <= tt && (tt < s.end || (tt === end && s.end === end))) ?? segs[segs.length - 1]!;
+      const segs = segments?.[team];
+      const since = segs
+        ? (segs.find((s) => s.start <= tt && (tt < s.end || (tt === end && s.end === end))) ?? segs[segs.length - 1]!).start
+        : lineupSince(g, team, tt);
       return {
         team,
-        since: seg.start,
-        sinceClock: clockLabel(seg.start, true),
+        since,
+        sinceClock: clockLabel(since, true),
         players: onCourtAt(g, team, tt)
           .map((p) => ({ p, fouls: foulsAt(p, tt) }))
           .sort((a, b) => b.p.min - a.p.min),

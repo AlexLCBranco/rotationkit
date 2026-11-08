@@ -2,9 +2,9 @@
 // spot-check of foul numbering on the raw fixtures.
 
 import { describe, expect, it } from 'vitest';
-import { loadSeason } from './data.ts';
+import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
 import { fixtureIds, loadFixtureGame, loadRawFixture } from './fixtures.ts';
-import { cursorInfo, foulMarks, foulsAt, layoutRow, lineupSegments, onCourtAt, quarterStats, rowBoxes, timelineWidth } from '../src/domain/gameChart.ts';
+import { cursorInfo, foulMarks, foulsAt, layoutRow, lineupSegments, lineupSince, onCourtAt, quarterStats, rowBoxes, timelineWidth } from '../src/domain/gameChart.ts';
 import { gameLength, periodLength } from '../src/domain/time.ts';
 import { toEvents } from '../src/domain/pbp.ts';
 import type { Game } from '../src/domain/types.ts';
@@ -17,7 +17,7 @@ const clean = games.filter((g) => !g.quality?.length);
 /** Timeline container widths used by the UI: desktop 1280px and phone 390px (minimum scale applies). */
 const WIDTHS = { desktop: 944, phone: 150 };
 
-describe(`all ${games.length} games`, () => {
+describe(`all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
   it('flagged games stay rare (a parser bug would flag many)', () => {
     expect(games.length - clean.length).toBeLessThanOrEqual(Math.max(10, games.length * 0.02));
   });
@@ -95,6 +95,53 @@ describe(`all ${games.length} games`, () => {
       if (end.score[0] !== g.home.score || end.score[1] !== g.away.score) bad.push(`${g.id} final score`);
     }
     expect(bad).toEqual([]);
+  });
+
+  // Regression (daily update failed Nov 6–7, 2026): the test above timed out at 5 s on the CI runner because
+  // cursorInfo(g, t) rebuilt every lineup segment (with +/-) of both teams on each call just to read "on since".
+  it('cursor info without precomputed segments = with them ("on since" included), at every lineup boundary', () => {
+    const bad: string[] = [];
+    // Every 5th game (all would take ~8 s): each probed at every stint boundary, just before it, and game end.
+    for (const g of clean.filter((_, i) => i % 5 === 0)) {
+      const segs = { [g.home.tri]: lineupSegments(g, g.home.tri), [g.away.tri]: lineupSegments(g, g.away.tri) };
+      const end = gameLength(g.periods);
+      const times = new Set<number>([0, end]);
+      for (const p of g.players) for (const [s, e] of p.stints) for (const x of [s, e, e - 0.1]) if (x >= 0 && x <= end) times.add(x);
+      for (const t of times) {
+        const [a, b] = [cursorInfo(g, t), cursorInfo(g, t, segs)];
+        for (let k = 0; k < 2; k++) {
+          const [x, y] = [a.teams[k]!, b.teams[k]!];
+          if (x.since !== y.since || x.sinceClock !== y.sinceClock) bad.push(`${g.id} ${x.team} t=${t} since ${x.since} vs ${y.since}`);
+          if (x.players.map((q) => q.p.id).join() !== y.players.map((q) => q.p.id).join()) bad.push(`${g.id} ${x.team} t=${t} players`);
+          if (lineupSince(g, x.team, t) !== y.since) bad.push(`${g.id} ${x.team} t=${t} lineupSince`);
+        }
+      }
+    }
+    expect(bad.slice(0, 10)).toEqual([]);
+  });
+
+  it('cursor info costs less than one lineupSegments build per call (machine-independent cost guard)', () => {
+    // The old cursorInfo built lineupSegments twice per call (ratio ≥ 2); now ≈ 0.2. Comparing against
+    // lineupSegments on the same machine keeps this independent of runner speed and of how many games exist.
+    const sample = games.filter((_, i) => i % 7 === 0);
+    const time = (f: () => void) => {
+      const t0 = performance.now();
+      f();
+      return performance.now() - t0;
+    };
+    const ratios: number[] = [];
+    for (let rep = 0; rep < 3; rep++) {
+      let calls = 0;
+      let builds = 0;
+      const c = time(() => {
+        for (const g of sample) for (let t = 0; t <= gameLength(g.periods); t += 60) (cursorInfo(g, t), calls++);
+      });
+      const s = time(() => {
+        for (const g of sample) for (const tm of [g.home.tri, g.away.tri]) (lineupSegments(g, tm), builds++);
+      });
+      ratios.push(c / calls / (s / builds));
+    }
+    expect(Math.min(...ratios)).toBeLessThan(1);
   });
 
   for (const [name, container] of Object.entries(WIDTHS)) {

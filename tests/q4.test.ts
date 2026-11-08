@@ -1,7 +1,7 @@
 // Q4 tab: row filter, sort, fouls entering Q4 (vs play-by-play), OT, row-height fit.
 
 import { describe, expect, it } from 'vitest';
-import { loadSeason } from './data.ts';
+import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
 import { fixtureIds, loadFixtureGame, loadRawFixture } from './fixtures.ts';
 import { onCourtAt } from '../src/domain/gameChart.ts';
 import { Q4_ROW, Q4_START, q4RowHeight, q4Rows, q4Stints } from '../src/domain/q4.ts';
@@ -47,7 +47,7 @@ describe('q4Rows on hand-made games', () => {
   });
 });
 
-describe(`q4Rows on all ${games.length} games`, () => {
+describe(`q4Rows on all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
   it('rows = exactly the players with Q4/OT time; sorted closers first then minutes; minutes add up', () => {
     const bad: string[] = [];
     for (const g of games)
