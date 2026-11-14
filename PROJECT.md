@@ -43,22 +43,19 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
 - **With/without**: "with" = played; "without" = inactive or DNP while with the team; neither when not with the team.
 - **Buckets** of 30 s (`onCourt` share, `onAtMid`), `typicalStints` (stretches on court in ≥ 50% of eligible games;
   regulation only), `teamPatternRows` (rows + "Rarely used" under 1/3 of games), `sitPattern` (median first sub-out
-  / entry per quarter, shown when seen in ≥ 3 games).
-- **Rest** (`src/domain/rest.ts`): back-to-back / rested from `schedule.json`.
+  / entry per quarter, shown when seen in ≥ 3 games). **Rest** (`src/domain/rest.ts`): B2B / rested from `schedule.json`.
 
 ## App (`src/App.tsx`, `src/components/`, `src/app/`)
 State lives in the URL hash (`src/app/route.ts`), so every view is linkable and the back button works.
-- **Header** (every tab): logo, tabs Games | Q4 | Averages | Leaders | Full Q4, team picker (`TeamPicker.tsx`, grouped by
-  division, full keyboard support), **player search** (`PlayerSearch.tsx`): "/" or Ctrl+K focuses it (not while
-  typing in another field); case/accent-insensitive, any part of the name, initials ("sga"); up to 8 results
-  (headshot, name, most recent team), selected season first; ↑/↓, Enter, Esc, mouse; empty = last 5 players opened
-  (localStorage `rk.recent`). A result opens his page for that season with his most recent team, filters kept.
-- **Name links** (`Links.tsx`: `PlayerLink`, `TeamLink`; targets in `src/app/links.ts`): every player or team name
-  is a real `<a href="#/…">` (player → his page, team → its Averages view; that season, current filters, a
-  with/without filter only kept for its own team). Plain text until hovered; a click on one never reaches the row
-  under it. **Every new table, list or chart that prints a player or team name must use them.** Not linked: the
-  Q4 "Every change" sentences, tooltips, `<select>` options, the deep-link "not available" page. A stale-data banner (`StaleBanner.tsx`) shows when the last update failed or the
-  last success is older than 36 h.
+- **Header** (every tab): logo, tabs Games | Q4 | Averages | Leaders | Full Q4, team picker (`TeamPicker.tsx`, by
+  division, full keyboard support), **player search** (`PlayerSearch.tsx`): "/" or Ctrl+K (not while typing elsewhere);
+  case/accent-insensitive, any part of the name, initials ("sga"); up to 8 results (headshot, name, latest team),
+  selected season first; ↑/↓, Enter, Esc, mouse; empty = last 5 opened (`rk.recent`); opens his page, filters kept.
+- **Name links** (`Links.tsx`: `PlayerLink`, `TeamLink`; `src/app/links.ts`): every player / team name is a real
+  `<a href="#/…">` (his page / its Averages; that season, current filters, with/without only for its own team); plain
+  until hovered; a click never reaches the row under it. **Every new table, list or chart that prints a name must use
+  them.** Not linked: Q4 "Every change" sentences, tooltips, `<select>` options, the deep-link "not available" page.
+- **Stale banner** (`StaleBanner.tsx`): when the last update failed or the last success is older than 36 h.
 - **Games** (`#/game/<id>?t=ORL&s=2026-27`; `#/` = remembered team's latest game): left, the game list
   (`GameList.tsx`): every finished game of the team, oldest first, date | team | @/vs | opponent | W/L | schedule chips
   (B2B 1/2, 3-in-4, rest days; `scheduleTags.ts`) | ⚠ on flagged games; opponent filter; collapsible (remembered);
@@ -66,8 +63,13 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. Right: ◀ ▶, game header (score, game-type badge, TV / CUP tags (also in the list and player rows),
   garbage-time chip, hoopsjunkie / calendarkit icon links, both teams' schedule chips) and the **game chart**
   (`GameChart.tsx`, layout in `src/domain/gameChart.ts`):
+  - team order: the selected team (`t=`, else the remembered team, when it played) first, home or away; none →
+    away first and no `t=` in the URL. Each team header has a HOME / AWAY tag and the score (Q4 tab: same order/tags);
   - per team: one row per player (starters, divider, bench, then DNP/inactive rows with reasons), headshot, name,
     MIN, stints on a quarter timeline (≥ `CHART.minPxPerMinute`, scrolls inside its box), PF;
+  - **Compact (both teams)** toggle (localStorage `rk.compact`): `CHART_COMPACT` rows (no bottom label lane; a label
+    with no room is left out), one shared axis, no legend, DNP rows folded into one clickable line per team; both
+    teams fit 1920×1080 (e2e on the game with the most players);
   - every stint labelled with its duration (inside when ≥ 2:00, else beside / in another lane, never overlapping);
     numbered foul ticks with type and clock; per-quarter PF badges; foul-trouble colors (`FOUL_TROUBLE`, toggle);
     garbage time shaded;
@@ -100,9 +102,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   games he played the full 4th; "Full Q4s: X of Y games" over the selection's games he played), minutes trend,
   "when he sits", game log, games missed with reasons. Click a game → that game. A player with several teams in
   the season (season-wide `appearances.json`, `teamsOf`) gets a switch between them in the title.
-- **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 or second-half
-  minutes and points per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table;
-  minimum games `LEADER_MIN_GAMES`.
+- **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 / second-half min and
+  pts per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table; `LEADER_MIN_GAMES`.
 - **Full Q4** (`#/fullq4?s=&d=YYYY-MM-DD&th=11&nb=1`, `FullQ4View.tsx`, `src/domain/fullQ4.ts` on `quarters.json`, no
   pipeline output): players on court for the whole regulation 4th (Q4 minutes = 12:00; back-to-back stints count; OT
   never counts). Date (default latest day with games, ◀ ▶ = previous / next day with games), grouped by game with logos,
@@ -117,8 +118,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   **whole-season sweeps** over every committed game (suites with `WHOLE_DATA_TIMEOUT`, `tests/data.ts`). Setting
   `RK_TEST_GAMES=id,id` limits the sweeps to those games (used by the daily update).
 - `npm run build && npm run e2e` — Playwright against the production build (`vite preview`), **desktop only**
-  (1280 × 900; phone tests were removed 2026-11-14): no console errors, all 30 teams × both seasons, filters and
-  labels, game chart DOM checks, readout, Q4 fit, Leaders, Full Q4, team picker, banner, deep links. Screenshots →
+  (1280 × 900, compact at 1920 × 1080; no phone tests): no console errors, all 30 teams × both seasons, filters,
+  labels, game chart DOM, readout, compact fit, team order, Q4 fit, Leaders, Full Q4, picker, banner, deep links. Screenshots →
   `screenshots/` (gitignored). `E2E_ALL_GAMES=1` runs the chart label checks on every game.
 - **PR checks** (`.github/workflows/pr.yml`): every pull request to `main` runs `npm ci`, `npm test`,
   `npm run build`, `npm run e2e`. A PR is merged only when this workflow is green.
