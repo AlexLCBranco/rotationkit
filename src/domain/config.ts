@@ -51,3 +51,10 @@ export const CHART = {
   barPx: 20,
   laneBottomPx: 13,
 } as const;
+
+/** "Usual" overlay on the Games chart: typical stints over the team's previous `games` games (this one excluded). */
+export const USUAL = {
+  games: 10,
+  /** No outline for a player who played fewer of those games than this. */
+  minGames: 3,
+} as const;

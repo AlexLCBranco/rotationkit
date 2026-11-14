@@ -567,3 +567,22 @@ a.plain-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 1
 .team-switch a { padding: 1px 8px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); text-decoration: none; }
 .team-switch a[aria-current=page] { color: var(--text); border-color: var(--accent); }
 .team-switch a:hover { border-color: var(--accent); }
+
+/* Score margin strip (MarginStrip.tsx), above the Games and Q4 timelines. Away lead above, home lead below. */
+.gc-margin-row { border-bottom: 1px solid var(--line); }
+.gc-margin-row .gc-track { height: 34px; }
+.q4-margin-row .q4-track { height: 24px; }
+.q4-margin-row .margin-key { flex-direction: row; gap: 6px; }
+.margin-svg { display: block; }
+.margin-away { fill: #7fb2ff; opacity: 0.75; }
+.margin-home { fill: #ffb36b; opacity: 0.75; }
+.margin-zero { stroke: rgba(255, 255, 255, 0.45); stroke-width: 1; }
+.margin-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; font-size: 12px; }
+.margin-key { display: flex; flex-direction: column; line-height: 1.1; }
+.margin-away-text { color: #7fb2ff; }
+.margin-home-text { color: #ffb36b; }
+.margin-final { font-weight: 600; white-space: nowrap; }
+
+/* "Usual" overlay (Games chart): faint outline of the player's usual stints, behind the bars; no pointer events. */
+.gc-track > i.gc-usual { border: 1px dashed rgba(190, 215, 255, 0.45); border-radius: 5px; background: rgba(160, 200, 255, 0.05); }
+.rd-usual { font-size: 11.5px; color: #b9d3ff; padding-top: 3px; }

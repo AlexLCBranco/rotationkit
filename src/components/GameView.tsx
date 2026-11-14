@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadGame, loadIndex, loadSchedule } from '../app/data.ts';
+import { loadGame, loadIndex, loadSchedule, loadTeamGames } from '../app/data.ts';
+import { usualFor, usualSelection, type Usual } from '../domain/usual.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, shortDate, signed } from '../app/labels.ts';
 import { parse, type Nav, type Route } from '../app/route.ts';
@@ -281,6 +282,24 @@ function GameBody({
   const segments = useMemo(() => segmentsByTeam(g), [g]);
   const names = useGameNames(g);
   const [readout, setReadout] = useState(loadReadout);
+  // "Usual" overlay: each team's previous 10 games of the season (this game excluded).
+  const [showUsual, setShowUsual] = useState(() => remember('rk.usual') !== '0');
+  useEffect(() => void remember('rk.usual', showUsual ? '1' : '0'), [showUsual]);
+  const season = seasonOf(g.id);
+  const teamGames = useAsync(() => Promise.all([loadTeamGames(season, g.away.tri), loadTeamGames(season, g.home.tri)]), [season, g.away.tri, g.home.tri]);
+  const usual = useMemo(() => {
+    const m = new Map<number, Usual>();
+    if (teamGames.status !== 'ok') return m;
+    [g.away.tri, g.home.tri].forEach((tri, i) => {
+      const sel = usualSelection(teamGames.value[i]!, g, tri);
+      for (const p of g.players) {
+        if (p.team !== tri) continue;
+        const u = usualFor(sel, p.id);
+        if (u) m.set(p.id, u);
+      }
+    });
+    return m;
+  }, [teamGames, g]);
   return (
     <>
       <QualityWarning g={g} />
@@ -288,6 +307,10 @@ function GameBody({
         <label className="toggle">
           <input type="checkbox" checked={trouble} onChange={(e) => setTrouble(e.target.checked)} />
           <span>Foul trouble colors</span>
+        </label>
+        <label className="toggle" title="Faint outline of each player's usual stints over his team's previous 10 games (this one excluded)">
+          <input type="checkbox" checked={showUsual} onChange={(e) => setShowUsual(e.target.checked)} data-testid="usual-toggle" />
+          <span>Usual</span>
         </label>
         <ReadoutMenu
           value={readout}
@@ -303,7 +326,7 @@ function GameBody({
           <CursorPanel g={g} cursor={cursor} segments={segments} names={names} onClose={() => setCursor(null)} />
         </div>
       )}
-      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} names={names} segments={segments} readout={readout} />
+      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} names={names} segments={segments} readout={readout} usual={showUsual ? usual : null} />
       {[g.away, g.home].map((t) => (
         <section key={t.tri} className="team-extras">
           <h2>

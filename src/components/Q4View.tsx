@@ -15,6 +15,7 @@ import { q4Story } from '../domain/q4Story.ts';
 import { useGameNames } from './GamePanels.tsx';
 import { TeamLogo } from './Headshot.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
+import { Q4_MARGIN_STRIP_PX, MarginLabel, MarginSvg } from './MarginStrip.tsx';
 import { seasonOf } from '../domain/season.ts';
 
 /** Left columns: player | Q4 MIN | fouls entering Q4 | fouls in Q4/OT. */
@@ -64,7 +65,8 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
   );
   const n = rows[0]!.length + rows[1]!.length;
   const bottomRows = layouts.flat().filter((l) => l.usesBottom).length;
-  const fixed = AXIS_PX + 2 * TEAM_HEAD_PX + n; // + 1 px border per row
+  // Rows are border-box: their 1 px border is inside the row height (measured), so it is not added here.
+  const fixed = Q4_MARGIN_STRIP_PX + 1 + AXIS_PX + 2 * TEAM_HEAD_PX;
   const fit = q4RowHeight(n, bottomRows, box.vh - box.top - BOTTOM_MARGIN, fixed);
   const geo = q4Geometry(fit.rowPx);
   const ticks = useMemo(() => axisTicks(g.periods).filter((x) => x.t >= Q4_START), [g.periods]);
@@ -119,6 +121,14 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
             setCursor(cursor?.pinned ? { t, pinned: false, y: e.clientY } : { t, pinned: true, y: e.clientY });
           }}
         >
+          <div className="q4-row q4-margin-row" style={{ height: Q4_MARGIN_STRIP_PX + 1 }} data-testid="margin-row">
+            <div className="q4-left">
+              <MarginLabel g={g} />
+            </div>
+            <div className="q4-track" style={{ width: W }}>
+              <MarginSvg g={g} from={Q4_START} width={W} height={Q4_MARGIN_STRIP_PX} />
+            </div>
+          </div>
           <div className="q4-row q4-axis" style={{ height: AXIS_PX }}>
             <div className="q4-left q4-colhead">
               <span className="q4-name">Player</span>
@@ -162,7 +172,7 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
             </section>
           ))}
           {cursor && (
-            <div className="q4-cursor" style={{ left: LEFT + x(cursor.t), top: AXIS_PX }} data-testid="q4-cursor-line" data-t={cursor.t}>
+            <div className="q4-cursor" style={{ left: LEFT + x(cursor.t), top: 0 }} data-testid="q4-cursor-line" data-t={cursor.t}>
               <span className="gc-cursor-handle">{clockLabel(cursor.t, cursor.t < end)}</span>
             </div>
           )}
