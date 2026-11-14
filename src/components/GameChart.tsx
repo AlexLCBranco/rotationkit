@@ -9,7 +9,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatMin, reasonText, signed } from '../app/labels.ts';
 import { shortNames } from '../app/names.ts';
 import { teamName } from '../app/teams.ts';
-import { CHART } from '../domain/config.ts';
+import { CHART, CHART_COMPACT, type ChartGeo } from '../domain/config.ts';
 import type { ReadoutSettings } from '../app/readoutSettings.ts';
 import {
   axisTicks, clockLabel, foulReadout, hoverReadout, layoutRow, periodName, scoreAt, timelineWidth, type HoverReadout, type LineupSegment, type RowLayout,
@@ -133,9 +133,13 @@ interface Props {
   readout: ReadoutSettings;
   /** "Usual" outlines per player (null = toggle off). */
   usual?: Map<number, Usual> | null;
+  /** Compact (both teams): thinner rows, one shared time axis, DNP rows folded into one line per team. */
+  compact?: boolean;
+  /** This team's rows first (the selected team); null = away first, as before. */
+  first?: string | null;
 }
 
-export function GameChart({ g, trouble, cursor, setCursor, names, segments, readout, usual = null }: Props) {
+export function GameChart({ g, trouble, cursor, setCursor, names, segments, readout, usual = null, compact = false, first = null }: Props) {
   const phone = usePhone();
   const cols = phone ? COLS.phone : COLS.desktop;
   const [boxRef, boxW] = useWidth<HTMLDivElement>();
@@ -207,7 +211,7 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
   });
 
   return (
-    <div className="gc-box" ref={boxRef} data-testid="game-chart">
+    <div className={`gc-box${compact ? ' gc-compact' : ''}`} ref={boxRef} data-testid="game-chart" data-compact={compact}>
       <div
         className="gc-content"
         ref={contentRef}
@@ -243,13 +247,16 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
             <MarginLabel g={g} />
           </div>
           <div className="gc-track" style={{ width: W }}>
-            <MarginSvg g={g} width={W} />
+            <MarginSvg g={g} width={W} {...(compact ? { height: 18 } : {})} />
           </div>
           <div className="gc-pf gc-sticky-r" />
         </div>
-        {[g.away, g.home].map((team) => (
+        {(first === g.home.tri ? [g.home, g.away] : [g.away, g.home]).map((team, i) => (
           <TeamRows
             key={team.tri}
+            side={team.tri === g.home.tri ? 'home' : 'away'}
+            compact={compact}
+            axis={!compact || i === 0}
             g={g}
             team={team}
             W={W}
@@ -313,6 +320,9 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
 function TeamRows({
   g,
   team,
+  side,
+  compact,
+  axis,
   W,
   k,
   blowout,
@@ -325,6 +335,10 @@ function TeamRows({
 }: {
   g: Game;
   team: TeamInfo;
+  side: 'home' | 'away';
+  compact: boolean;
+  /** Show the clock axis row (compact: only above the first team, shared by both). */
+  axis: boolean;
   W: number;
   k: number;
   blowout: [number, number][];
@@ -336,6 +350,8 @@ function TeamRows({
   leave: () => void;
   usual: Map<number, Usual> | null;
 }) {
+  const geo: ChartGeo = compact ? CHART_COMPACT : CHART;
+  const [dnpOpen, setDnpOpen] = useState(false);
   const players = g.players.filter((p) => p.team === team.tri);
   const inactive = (g.inactive ?? []).filter((p) => p.team === team.tri);
   const names = useMemo(() => shortNames([...players, ...inactive]), [g, team.tri]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -348,16 +364,16 @@ function TeamRows({
   ];
   const band = (
     <>
-      <i className="gc-band" style={{ top: CHART.laneTopPx, height: CHART.barPx }} />
+      <i className="gc-band" style={{ top: geo.laneTopPx, height: geo.barPx }} />
       {ticks.map((x) =>
         x.t === periodStart(x.period) ? (
-          x.period > 1 && <i key={x.t} className="gc-divider" style={{ left: x.t * k, top: CHART.laneTopPx, height: CHART.barPx }} />
+          x.period > 1 && <i key={x.t} className="gc-divider" style={{ left: x.t * k, top: geo.laneTopPx, height: geo.barPx }} />
         ) : (
-          <i key={x.t} className="gc-grid" style={{ left: x.t * k, top: CHART.laneTopPx, height: CHART.barPx }} />
+          <i key={x.t} className="gc-grid" style={{ left: x.t * k, top: geo.laneTopPx, height: geo.barPx }} />
         ),
       )}
       {blowout.map(([a, b]) => (
-        <i key={`b${a}`} className="gc-blowout" style={{ left: a * k, width: (b - a) * k, top: CHART.laneTopPx, height: CHART.barPx }} />
+        <i key={`b${a}`} className="gc-blowout" style={{ left: a * k, width: (b - a) * k, top: geo.laneTopPx, height: geo.barPx }} />
       ))}
     </>
   );
@@ -384,9 +400,13 @@ function TeamRows({
               {teamName(team.tri)}
             </TeamLink>
           </strong>
+          <span className={`ha-tag ${side}`} data-testid="home-away-tag" title={side === 'home' ? 'Home team' : 'Away team'}>
+            {side === 'home' ? 'HOME' : 'AWAY'}
+          </span>
+          <span className="gc-team-score">{team.score}</span>
         </div>
       </div>
-      <div className="gc-legend-row">
+      {!compact && <div className="gc-legend-row">
         <div className="gc-sticky gc-legend" data-testid="trouble-legend">
           {trouble ? (
             <>
@@ -406,8 +426,8 @@ function TeamRows({
             <span className="muted">Foul-trouble colors off</span>
           )}
         </div>
-      </div>
-      <div className="gc-row gc-axis">
+      </div>}
+      {axis && <div className="gc-row gc-axis">
         <div className="gc-left gc-sticky gc-colhead">
           <span className="gc-name">Player</span>
           <span className="gc-min">MIN</span>
@@ -425,15 +445,20 @@ function TeamRows({
           ))}
         </div>
         <div className="gc-pf gc-sticky-r gc-colhead">PF</div>
-      </div>
+      </div>}
       {starters.map((p) => (
-        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} points={points} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
+        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} points={points} compact={compact} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
       ))}
       {bench.length > 0 && <div className="gc-bench-divider" aria-hidden />}
       {bench.map((p) => (
-        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} points={points} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
+        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} points={points} compact={compact} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
       ))}
-      {dnp.map((p) => (
+      {compact && dnp.length > 0 && (
+        <button type="button" className="gc-dnp-fold" aria-expanded={dnpOpen} onClick={(e) => (e.stopPropagation(), setDnpOpen(!dnpOpen))} data-testid="dnp-fold">
+          {dnpOpen ? '▾' : '▸'} Did not play: {dnp.length} <span className="muted">{dnpOpen ? '' : `· ${dnp.map((p) => names.get(p.id) ?? p.name).join(', ')}`}</span>
+        </button>
+      )}
+      {(!compact || dnpOpen) && dnp.map((p) => (
         <div className="gc-row gc-dnp" key={p.id} data-testid="dnp-row">
           <div className="gc-left gc-sticky">
             <Headshot id={p.id} name={p.name} />
@@ -441,7 +466,7 @@ function TeamRows({
             <span className="gc-min muted">—</span>
           </div>
           <div className="gc-track" style={{ width: W }}>
-            <i className="gc-band" style={{ top: 7, height: CHART.barPx }} />
+            <i className="gc-band" style={{ top: 7, height: geo.barPx }} />
           </div>
           <div className="gc-pf gc-sticky-r">
             <button
@@ -471,6 +496,7 @@ function PlayerRow({
   usual,
   trouble,
   points,
+  compact,
   band,
   show,
   leave,
@@ -483,13 +509,15 @@ function PlayerRow({
   usual: Usual | null;
   trouble: boolean;
   points: boolean;
+  compact: boolean;
   band: React.ReactNode;
   show: (text: string) => (e: React.PointerEvent | React.MouseEvent) => void;
   leave: () => void;
   name: React.ReactNode;
 }) {
-  const r: RowLayout = useMemo(() => layoutRow(p, g.periods, W, { trouble, points }), [p, g.periods, W, trouble, points]);
-  const y = { top: 0, bar: CHART.laneTopPx, bottom: CHART.laneTopPx + CHART.barPx };
+  const geo: ChartGeo = compact ? CHART_COMPACT : CHART;
+  const r: RowLayout = useMemo(() => layoutRow(p, g.periods, W, { trouble, points, compact }), [p, g.periods, W, trouble, points, compact]);
+  const y = { top: 0, bar: geo.laneTopPx, bottom: geo.laneTopPx + geo.barPx };
   return (
     <div className="gc-row" data-testid="gc-player-row" data-player={p.id}>
       <div className="gc-left gc-sticky">
@@ -506,7 +534,7 @@ function PlayerRow({
           <i
             key={`u${u.start}`}
             className="gc-usual"
-            style={{ left: u.start * k, width: (u.end - u.start) * k, top: CHART.laneTopPx - 2, height: CHART.barPx + 4 }}
+            style={{ left: u.start * k, width: (u.end - u.start) * k, top: geo.laneTopPx - 2, height: geo.barPx + 4 }}
             data-testid="usual-stint"
             data-start={u.start}
             data-end={u.end}
@@ -516,7 +544,7 @@ function PlayerRow({
           <div
             key={i}
             className="gc-bar"
-            style={{ left: b.x, width: b.w, top: y.bar, height: CHART.barPx }}
+            style={{ left: b.x, width: b.w, top: y.bar, height: geo.barPx }}
             data-testid="stint"
             data-start={b.st[0]}
             data-end={b.st[1]}
@@ -531,7 +559,7 @@ function PlayerRow({
           <span
             key={`l${i}`}
             className={`gc-label${b.label.inside ? ' in' : ` out lane-${b.label.lane}`}`}
-            style={{ left: b.label.x, width: b.label.w, top: y[b.label.lane], height: b.label.lane === 'bar' ? CHART.barPx : CHART.laneTopPx }}
+            style={{ left: b.label.x, width: b.label.w, top: y[b.label.lane], height: b.label.lane === 'bar' ? geo.barPx : geo.laneTopPx }}
             data-testid="stint-label"
             data-inside={b.label.inside}
             data-lane={b.label.lane}
@@ -543,11 +571,11 @@ function PlayerRow({
           const text = foulReadout(p.name, t);
           return (
             <span key={`t${t.n}`}>
-              <i className="gc-foul-arrow" style={{ left: t.x, top: CHART.laneTopPx - 5 }} />
+              <i className="gc-foul-arrow" style={{ left: t.x, top: geo.laneTopPx - 5 }} />
               <button
                 type="button"
                 className="gc-foul-n"
-                style={{ left: t.label.x, width: t.label.w, height: CHART.laneTopPx - 4 }}
+                style={{ left: t.label.x, width: t.label.w, height: geo.laneTopPx - 4 }}
                 data-testid="foul-tick"
                 data-n={t.n}
                 data-t={t.t}
@@ -572,7 +600,7 @@ function PlayerRow({
           <span
             key={`q${b.period}`}
             className="gc-pfq"
-            style={{ left: b.box.x, width: b.box.w, height: CHART.laneTopPx - 3 }}
+            style={{ left: b.box.x, width: b.box.w, height: geo.laneTopPx - 3 }}
             data-testid="pf-badge"
             title={`${b.n} foul${b.n > 1 ? 's' : ''} in ${periodName(b.period)}`}
           >

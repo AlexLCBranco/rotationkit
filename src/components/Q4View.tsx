@@ -50,15 +50,16 @@ interface Cursor {
   y: number;
 }
 
-export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; setTrouble: (b: boolean) => void }) {
+export function Q4View({ g, trouble, setTrouble, first = null }: { g: Game; trouble: boolean; setTrouble: (b: boolean) => void; first?: string | null }) {
   const [boxRef, box] = useBox<HTMLDivElement>();
   const names = useGameNames(g);
   const end = gameLength(g.periods);
   const total = end - Q4_START;
   const W = Math.max(0, box.w - LEFT - RIGHT_PAD);
   const k = W / total;
-  const teams = [g.away, g.home];
-  const rows = useMemo(() => teams.map((t) => q4Rows(g, t.tri)), [g]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Selected team first (as on the Games chart); else away first.
+  const teams = first === g.home.tri ? [g.home, g.away] : [g.away, g.home];
+  const rows = useMemo(() => teams.map((t) => q4Rows(g, t.tri)), [g, first]); // eslint-disable-line react-hooks/exhaustive-deps
   const layouts = useMemo(
     () => rows.map((rs) => rs.map((r) => layoutRow(r.p, g.periods, W, { trouble, from: Q4_START }))),
     [rows, g.periods, W, trouble],
@@ -164,7 +165,9 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
                     {teamName(team.tri)}
                   </TeamLink>
                 </strong>
-                <span className="muted">{ti === 0 ? 'away' : 'home'}</span>
+                <span className={`ha-tag ${team.tri === g.home.tri ? 'home' : 'away'}`} data-testid="home-away-tag">
+                  {team.tri === g.home.tri ? 'HOME' : 'AWAY'}
+                </span>
               </div>
               {rows[ti]!.map((r, i) => (
                 <Row key={r.p.id} r={r} l={layouts[ti]![i]!} season={seasonOf(g.id)} name={names.get(r.p.id) ?? r.p.name} W={W} x={x} geo={geo} ticks={ticks} blowout={blowout} trouble={trouble} lit={lit.has(r.p.id)} />

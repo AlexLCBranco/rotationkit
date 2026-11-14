@@ -52,6 +52,10 @@ export const CHART = {
   laneBottomPx: 13,
 } as const;
 
+/** Game chart "Compact (both teams)" mode: thinner rows, no bottom label lane (a label with no room is left out). */
+export const CHART_COMPACT = { laneTopPx: 9, barPx: 12, laneBottomPx: 0 } as const;
+export type ChartGeo = { laneTopPx: number; barPx: number; laneBottomPx: number };
+
 /** "Usual" overlay on the Games chart: typical stints over the team's previous `games` games (this one excluded). */
 export const USUAL = {
   games: 10,

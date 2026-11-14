@@ -83,18 +83,19 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
 
   // Whose games the list shows: the URL's team if it played, else the remembered team if it played, else home.
   const fresh = loaded.status === 'ok' ? loaded.value : null;
-  const team = fresh
-    ? [route.team, rememberedTeam, fresh.home.tri].find((t): t is string => !!t && (fresh.home.tri === t || fresh.away.tri === t))!
-    : (route.team ?? rememberedTeam ?? null);
-  // URL always names the team and the actual game (so "latest" becomes bookmarkable).
+  // The selected team (URL, else remembered) when it played this game: its list, and its rows first in the chart.
+  const selected = fresh ? ([route.team, rememberedTeam].find((t): t is string => !!t && (fresh.home.tri === t || fresh.away.tri === t)) ?? null) : null;
+  const team = fresh ? (selected ?? fresh.home.tri) : (route.team ?? rememberedTeam ?? null);
+  // URL names the actual game (so "latest" becomes bookmarkable) and the selected team (so deep links keep its order);
+  // with no selected team it carries none, and the chart keeps away-first.
   useEffect(() => {
-    if (fresh && (route.game !== fresh.id || route.team !== team || route.season !== gameSeason)) {
+    if (fresh && (route.game !== fresh.id || route.team !== selected || route.season !== gameSeason)) {
       // Skip if the user navigated since this render (e.g. picked another team): never overwrite their choice.
       const live = parse(location.hash);
       if (live.view !== 'game' || live.game !== route.game || (live.team && live.team !== route.team)) return;
-      nav({ ...route, game: fresh.id, team, season: gameSeason }, { replace: true });
+      nav({ ...route, game: fresh.id, team: selected, season: gameSeason }, { replace: true });
     }
-  }, [fresh, team, gameSeason, route, nav]);
+  }, [fresh, selected, gameSeason, route, nav]);
 
   const picker = useMemo(() => {
     if (meta.status !== 'ok' || !team) return null;
@@ -215,11 +216,11 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
           {g && picker && team && (g.home.tri === team || g.away.tri === team) && (
             <GameHeader g={g} team={team} entry={meta.status === 'ok' ? meta.value[0].find((e) => e.id === g.id) : undefined} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
           )}
-          {g && tab === 'games' && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
+          {g && tab === 'games' && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} first={selected} />}
           {g && tab === 'q4' && (
             <>
               <QualityWarning g={g} />
-              <Q4View g={g} trouble={trouble} setTrouble={setTrouble} />
+              <Q4View g={g} trouble={trouble} setTrouble={setTrouble} first={selected} />
             </>
           )}
         </div>
@@ -276,14 +277,20 @@ function GameBody({
   setTrouble,
   cursor,
   setCursor,
+  first,
 }: {
   g: Game;
   trouble: boolean;
   setTrouble: (b: boolean) => void;
   cursor: Cursor | null;
   setCursor: (c: Cursor | null) => void;
+  /** Selected team: its rows first (null = away first). */
+  first: string | null;
 }) {
   const segments = useMemo(() => segmentsByTeam(g), [g]);
+  // Compact (both teams): remembered per browser (remember() swallows storage errors).
+  const [compact, setCompact] = useState(() => remember('rk.compact') === '1');
+  useEffect(() => void remember('rk.compact', compact ? '1' : '0'), [compact]);
   const names = useGameNames(g);
   const [readout, setReadout] = useState(loadReadout);
   // "Usual" overlay: each team's previous 10 games of the season (this game excluded).
@@ -316,6 +323,10 @@ function GameBody({
           <input type="checkbox" checked={showUsual} onChange={(e) => setShowUsual(e.target.checked)} data-testid="usual-toggle" />
           <span>Usual</span>
         </label>
+        <label className="toggle" title="Only players who played, thinner rows and one time axis: both teams on one screen">
+          <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} data-testid="compact-toggle" />
+          <span>Compact (both teams)</span>
+        </label>
         <ReadoutMenu
           value={readout}
           onChange={(r) => {
@@ -330,7 +341,7 @@ function GameBody({
           <CursorPanel g={g} cursor={cursor} segments={segments} names={names} onClose={() => setCursor(null)} />
         </div>
       )}
-      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} names={names} segments={segments} readout={readout} usual={showUsual ? usual : null} />
+      <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} names={names} segments={segments} readout={readout} usual={showUsual ? usual : null} compact={compact} first={first} />
       {[g.away, g.home].map((t) => (
         <section key={t.tri} className="team-extras">
           <h2>

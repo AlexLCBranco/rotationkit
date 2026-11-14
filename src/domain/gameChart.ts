@@ -1,7 +1,7 @@
 // Single-game chart logic (pure): foul marks and foul trouble, per-quarter minutes/fouls, game-type badge,
 // lineups and the cursor, and the collision-free label layout of a player row.
 
-import { CHART, FOUL_TROUBLE, GAME_TYPE, PATTERN_CONFIG } from './config.ts';
+import { CHART, CHART_COMPACT, FOUL_TROUBLE, GAME_TYPE, PATTERN_CONFIG } from './config.ts';
 import { blowoutIntervals } from './patterns.ts';
 import { formatClock, formatDuration, gameLength, periodAt, periodEnd, REG_PERIODS } from './time.ts';
 import type { Game, PlayerGame, Stint } from './types.ts';
@@ -328,7 +328,7 @@ function nearestFree(desired: number, w: number, occ: Occ, min: number, max: num
  * view uses from = start of Q4): x is measured from there and only stints, fouls and PF badges from that period on are
  * laid out. Foul numbers stay cumulative over the whole game.
  */
-export function layoutRow(p: PlayerGame, periods: number, width: number, opts: { trouble?: boolean; from?: number; points?: boolean } = {}): RowLayout {
+export function layoutRow(p: PlayerGame, periods: number, width: number, opts: { trouble?: boolean; from?: number; points?: boolean; compact?: boolean } = {}): RowLayout {
   const from = opts.from ?? 0;
   const firstPeriod = periodAt(from + 0.05);
   const total = gameLength(periods) - from;
@@ -404,6 +404,11 @@ export function layoutRow(p: PlayerGame, periods: number, width: number, opts: {
       const x = nearestFree(center, w, occ.top, Math.max(0, center - 24), Math.min(width, center + w + 24));
       if (x !== null) placed = { x, w, lane: 'top' };
     }
+    if (!placed && opts.compact) {
+      // Compact rows have no bottom lane: no room = no label (the readout still gives the duration).
+      b.label = { ...b.label, text: '', x: b.x, w: 0, lane: 'bar', inside: false };
+      continue;
+    }
     if (!placed) {
       const x = nearestFree(b.x + b.w / 2 - w / 2, w, occ.bottom, 0, width) ?? b.x;
       placed = { x, w, lane: 'bottom' };
@@ -420,7 +425,7 @@ export function layoutRow(p: PlayerGame, periods: number, width: number, opts: {
     ticks,
     badges,
     usesBottom,
-    height: CHART.laneTopPx + CHART.barPx + (usesBottom ? CHART.laneBottomPx : 0),
+    height: opts.compact ? CHART_COMPACT.laneTopPx + CHART_COMPACT.barPx : CHART.laneTopPx + CHART.barPx + (usesBottom ? CHART.laneBottomPx : 0),
   };
 }
 
