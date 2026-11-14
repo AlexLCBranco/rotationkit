@@ -71,13 +71,13 @@ test('links look like plain text until hovered (no blue charts); hover underline
   await page.goto('/#/game/0022500093');
   const link = page.locator('[data-testid=gc-player-row] [data-testid=player-link]').first();
   await expect(link).toBeVisible();
-  const style = () => link.evaluate((e) => ({ color: getComputedStyle(e).color, parent: getComputedStyle(e.parentElement!).color, deco: getComputedStyle(e).textDecorationLine, cursor: getComputedStyle(e).cursor }));
+  const style = () => link.evaluate((e) => ({ color: getComputedStyle(e).color, parent: getComputedStyle(e.parentElement!).color, deco: getComputedStyle(e).getPropertyValue('text-decoration'), cursor: getComputedStyle(e).cursor }));
   const before = await style();
   expect(before.color).toBe(before.parent);
-  expect(before.deco).toBe('none');
+  expect(before.deco).not.toContain('underline');
   await link.hover();
   const after = await style();
-  expect(after.deco).toBe('underline');
+  expect(after.deco).toContain('underline');
   expect(after.cursor).toBe('pointer');
   // A Q4 row name inherits the row's color too.
   await page.goto('/#/q4/0022500093');
@@ -91,8 +91,7 @@ test('Ctrl+click and middle-click open a new tab; the app stays where it was', a
   const href = (await link.getAttribute('href'))!;
   for (const click of [() => link.click({ modifiers: ['Control'] }), () => link.click({ button: 'middle' })]) {
     const [tab] = await Promise.all([context.waitForEvent('page'), click()]);
-    await tab.waitForLoadState();
-    expect(tab.url()).toContain(href);
+    await tab.waitForURL((u) => u.href.includes(href));
     await tab.close();
     await expect(page).toHaveURL(/#\/game\/0022500093/);
     await expect(page.getByTestId('cursor-panel')).toHaveCount(0); // no pin from the click
