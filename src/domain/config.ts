@@ -58,3 +58,12 @@ export const USUAL = {
   /** No outline for a player who played fewer of those games than this. */
   minGames: 3,
 } as const;
+
+/**
+ * Close game (Averages "Closers" table): the score margin was at most `margin` at some point in the last
+ * `lastSeconds` of the 4th quarter or in overtime.
+ */
+export const CLOSE_GAME = {
+  margin: 5,
+  lastSeconds: 300,
+} as const;

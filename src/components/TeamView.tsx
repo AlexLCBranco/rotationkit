@@ -18,6 +18,10 @@ import { Tabs } from './Tabs.tsx';
 import { tabRoute } from '../app/tabs.ts';
 import { TeamPicker } from './TeamPicker.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
+import { GameByGame } from './GameByGame.tsx';
+import { closersTable, type CloserRow } from '../domain/closers.ts';
+import { CLOSE_GAME } from '../domain/config.ts';
+import type { Game as G } from '../domain/types.ts';
 
 interface Props {
   seasons: string[];
@@ -118,7 +122,7 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
         onSeason={(s) => go({ season: s })}
         onFilters={(f) => go({ filters: f })}
       />
-      <TeamBlock seasons={seasons} season={season} team={team} filters={route.filters} go={go} />
+      <TeamBlock seasons={seasons} season={season} team={team} filters={route.filters} nav={nav} go={go} />
       {vs && (
         <TeamBlock
           seasons={seasons}
@@ -126,6 +130,7 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
           team={vs}
           filters={withoutWW(route.filters)}
           wwNote={ww ? `With/without ${roster.status === 'ok' ? (roster.value.names.get(ww.player) ?? '') : ''} applies to ${team} only.` : null}
+          nav={nav}
           go={go}
          
         />
@@ -144,6 +149,7 @@ function TeamBlock({
   season,
   team,
   filters,
+  nav,
   go,
   wwNote,
 }: {
@@ -151,6 +157,7 @@ function TeamBlock({
   season: string;
   team: string;
   filters: F;
+  nav: (r: Route) => void;
   go: (patch: { season?: string }) => void;
   wwNote?: string | null;
 }) {
@@ -161,7 +168,12 @@ function TeamBlock({
     return { games, idx, rest: restForTeam(schedule, team) };
   }, [season, team, !!ww]);
   const [hover, setHover] = useState<{ player: number; bucket: number; x: number; y: number } | null>(null);
-  const [view, setView] = useState<'typical' | 'heat'>('typical');
+  const [view, setView] = useState<'typical' | 'heat' | 'games'>('typical');
+  // Game by game needs to know why a player missed a game (with the team or not): the appearance index.
+  const gbgIdx = useAsync(
+    async () => (view === 'games' && data.status === 'ok' ? (data.value.idx ?? (await appearanceIndex(season, data.value.games))) : null),
+    [view, data.status, season, team, !!ww],
+  );
   const [showRare, setShowRare] = useState(false);
 
   const computed = useMemo(() => {
@@ -230,10 +242,27 @@ function TeamBlock({
               <button aria-pressed={view === 'heat'} onClick={() => setView('heat')}>
                 Heat map
               </button>
+              <button aria-pressed={view === 'games'} onClick={() => setView('games')}>
+                Game by game
+              </button>
             </div>
           )}
           {computed.tp.players.length === 0 ? (
             <p className="muted">No games match these filters.</p>
+          ) : view === 'games' ? (
+            gbgIdx.status === 'ok' && gbgIdx.value ? (
+              <GameByGame
+                sel={computed.sel}
+                tp={computed.tp}
+                names={computed.names}
+                idx={gbgIdx.value}
+                showRare={showRare}
+                onToggleRare={() => setShowRare(!showRare)}
+                nav={nav}
+              />
+            ) : (
+              <p className="muted">Loading…</p>
+            )
           ) : view === 'typical' ? (
             <PatternChart
               sel={computed.sel}
@@ -284,6 +313,7 @@ function TeamBlock({
             </>
           )}
           {computed.qa.length > 0 && <AveragesTable qa={computed.qa} sel={computed.sel} names={computed.names} />}
+          {computed.sel.games.length > 0 && <ClosersTable games={computed.sel.games} sel={computed.sel} names={computed.names} />}
         </>
       )}
     </section>
@@ -355,6 +385,59 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
           </tbody>
         </table>
       </div>
+    </details>
+  );
+}
+
+/** Close games of the selection (CLOSE_GAME): who plays them and who is on court at the final buzzer. */
+function ClosersTable({ games, sel, names }: { games: G[]; sel: Selection; names: Map<number, string> }) {
+  const { close, rows } = useMemo(() => closersTable(games, sel.team), [games, sel.team]);
+  const pct = (r: CloserRow) => `${Math.round(r.share * 100)}%`;
+  return (
+    <details className="avg-table closers" open data-testid="closers">
+      <summary>
+        Closers{' '}
+        <span className="muted" data-testid="closers-based-on">
+          · {close.length ? `based on ${close.length} close game${close.length === 1 ? '' : 's'}` : 'no close games in this selection'} (margin ≤ {CLOSE_GAME.margin} at some point in
+          the last {CLOSE_GAME.lastSeconds / 60}:00 of Q4 or in overtime)
+        </span>
+      </summary>
+      {rows.length > 0 && (
+        <div className="table-wrap">
+          <table className="tbl" data-testid="closers-table">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th className="num" title="Close games he played">
+                  Close GP
+                </th>
+                <th className="num" title="On court at the final buzzer (as on the Q4 tab)">
+                  Closed
+                </th>
+                <th className="num">Share</th>
+                <th className="num" title="Average 4th-quarter + overtime minutes in the close games he played">
+                  Q4+OT MIN
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} data-testid="closers-row" data-player={r.id}>
+                  <td className="name-cell">
+                    <PlayerLink id={r.id} team={sel.team} season={sel.season}>
+                      {names.get(r.id) ?? r.name}
+                    </PlayerLink>
+                  </td>
+                  <td className="num">{r.played}</td>
+                  <td className="num strong">{r.closed}</td>
+                  <td className="num">{pct(r)}</td>
+                  <td className="num">{formatMin(r.q4Min)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </details>
   );
 }

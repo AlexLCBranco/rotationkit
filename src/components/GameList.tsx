@@ -54,9 +54,11 @@ interface Props {
   season: string;
   onSeason: (s: string) => void;
   onCollapse: () => void;
+  /** Link to the matchup view for an upcoming game (Averages, this team vs that opponent, last 10). */
+  matchupHref?: (opp: string) => string;
 }
 
-export function GameList({ games, upcoming = [], selected, onSelect, seasons, season, onSeason, onCollapse }: Props) {
+export function GameList({ games, upcoming = [], selected, onSelect, seasons, season, onSeason, onCollapse, matchupHref }: Props) {
   const [q, setQ] = useState('');
   const scroller = useRef<HTMLDivElement>(null);
   const shown = useMemo(() => {
@@ -186,13 +188,25 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
             {next.map((g, i) => (
               <tr
                 key={g.id}
-                className={`gl-upcoming${i === 0 ? ' first' : ''}`}
-                title={g.status === 'live' ? 'In progress — the chart appears once the game is final and the daily update has run' : 'Not played yet'}
+                className={`gl-upcoming${i === 0 ? ' first' : ''}${g.opp && matchupHref ? ' open' : ''}`}
+                title={
+                  (g.status === 'live' ? 'In progress — the chart appears once the game is final and the daily update has run' : 'Not played yet') +
+                  (g.opp && matchupHref ? `. Click for the matchup: ${g.team} vs ${g.opp}, last 10 games.` : '')
+                }
+                onClick={() => g.opp && matchupHref && (location.hash = matchupHref(g.opp))}
                 data-testid="upcoming-row"
                 data-id={g.id}
                 data-opp={g.opp}
               >
-                <td className="gl-date-future">{usDate(g.date)}</td>
+                <td className="gl-date-future">
+                  {g.opp && matchupHref ? (
+                    <a className="gl-date-future" href={matchupHref(g.opp)} onClick={(e) => e.stopPropagation()} data-testid="upcoming-matchup">
+                      {usDate(g.date)}
+                    </a>
+                  ) : (
+                    usDate(g.date)
+                  )}
+                </td>
                 <td className="gl-team">
                   <TeamLogo teamId={g.teamId} tri={g.team} />
                   <TeamLink team={g.team} season={season}>

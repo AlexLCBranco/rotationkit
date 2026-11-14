@@ -54,7 +54,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 - **Games** (`#/game/<id>?t=ORL&s=2026-27`; `#/` = remembered team's latest game): left, the game list
   (`GameList.tsx`): every finished game of the team, oldest first, date | team | @/vs | opponent | W/L | schedule chips
   (B2B 1/2, 3-in-4, rest days; `scheduleTags.ts`) | ⚠ on flagged games; opponent filter; collapsible (remembered);
-  ↑/↓ moves; then the next 3 scheduled games, dimmed, not openable. Right: ◀ ▶, game header (score, game-type badge,
+  ↑/↓ moves; then the next 3 scheduled games, dimmed: ↑/↓ and ◀ ▶ skip them; a click opens Averages in matchup mode
+  (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. Right: ◀ ▶, game header (score, game-type badge,
   garbage-time chip, hoopsjunkie / calendarkit icon links, both teams' schedule chips) and the **game chart**
   (`GameChart.tsx`, layout in `src/domain/gameChart.ts`):
   - per team: one row per player (starters, divider, bench, then DNP/inactive rows with reasons), headshot, name,
@@ -78,8 +79,14 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   (`q4Story.ts`): each lineup change in words, linked to its moment (hover moves the chart's line).
 - **Averages** (`#/team/ORL?s=&w=&v=&rest=&b=&p=&m=&vs=`, `TeamView.tsx`): filters Last 5 / 10 / Season,
   All / Home / Away, rest, "Hide blowout time", With… / Without… a player; "based on N games" label; a note offers the
-  previous season under 5 games. **Typical stints** (`PatternChart.tsx`) or **Heat map** per player, "Rarely used"
-  group; "Minutes & fouls per game" table with "when does he sit?"; matchup mode `vs=` stacks the opponent.
+  previous season under 5 games. **Typical stints** (`PatternChart.tsx`), **Heat map** or **Game by game**
+  (`GameByGame.tsx`, `src/domain/gameByGame.ts`: per player, one thin strip per game of his actual regulation stints in
+  the selection's last 5 games, newest on top, date + opponent; a missed game = empty strip with the DNP / inactive
+  reason or "Not with the team"; click → that game), same player order and shared "Rarely used" group; "Minutes &
+  fouls per game" table with "when does he sit?"; **Closers** table (`src/domain/closers.ts`): over the selection's
+  close games (`CLOSE_GAME` in config: margin ≤ 5 at some point in the last 5:00 of Q4 or in OT), per player close
+  games played, times on court at the final buzzer (the Q4 tab's closer), share, average Q4+OT minutes; sorted by
+  times closed; "based on N close games". Matchup mode `vs=` stacks the opponent.
 - **Player page** (`#/player/ORL/<id>?…`, `PlayerView.tsx`): one row per game with actual stints, minutes trend,
   "when he sits", game log, games missed with reasons. Click a game → that game. A player with several teams in
   the season (season-wide `appearances.json`, `teamsOf`) gets a switch between them in the title.
