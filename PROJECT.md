@@ -23,7 +23,10 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
   All times are seconds since tip-off (OT included); every stint lies in one period.
 - **Generated at build time, never committed** (`scripts/lib/generated.ts`, written to `dist/data/` by the Vite data
   plugin and served by it in dev): `<season>/players.json` = `[id, name, teams]` per box-score player, teams ordered
-  by last appearance (most recent last; `src/domain/players.ts`), ~20 KB, for the header search.
+  by last appearance (most recent last; `src/domain/players.ts`), ~20 KB, for the header search;
+  `<season>/teams/<TEAM>.json` = that team's game files in index order (one per team, empty before its first game),
+  so `loadTeamGames` (Averages, player page, the Usual overlay) is ONE request per team-season (~1 MB raw, ~0.2 MB
+  compressed). Single-game screens keep loading `games/<id>.json`.
 - **Counts**: 2025-26 complete (1,230 games); 2026-27 grows daily (174 games through 2026-11-12). A few games fail a
   check because the box score is wrong; they keep their data, are `flagged` in the index and show a "⚠ Data note".
 
@@ -129,7 +132,8 @@ Single game: `npm run fetch-game -- <gameId> [--force] [--cdn-only]`. Raw respon
 (gitignored). Scripts use `HTTPS_PROXY` when set.
 
 ## Deploy
-Vercel: `npm ci`, `npm run build` (typecheck + Vite; the build copies `data/` to `dist/data/`), output `dist/`.
+Vercel: `npm ci`, `npm run build` (typecheck + Vite; the build copies `data/` to `dist/data/` and writes the
+generated files next to it), output `dist/`.
 `main` → production; branches get preview deployments.
 
 ## Open problems
