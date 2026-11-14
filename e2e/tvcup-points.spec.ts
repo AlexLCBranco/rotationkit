@@ -34,6 +34,9 @@ async function serve(page: Page) {
   });
 }
 
+// Intercepted requests can still be in flight when a test ends (bundles load in the background).
+test.afterEach(async ({ page }) => page.unrouteAll({ behavior: 'ignoreErrors' }));
+
 test('TV and CUP tags: game header, game list and player page rows', async ({ page }) => {
   await serve(page);
   // DET–BOS opener: NBC / Peacock in the feed.
