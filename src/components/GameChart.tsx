@@ -19,6 +19,8 @@ import { gameLength, periodEnd, periodStart } from '../domain/time.ts';
 import type { Game, PlayerGame, Stint, TeamInfo } from '../domain/types.ts';
 import { Headshot, TeamLogo } from './Headshot.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
+import { MarginLabel, MarginSvg } from './MarginStrip.tsx';
+import { usualAt, usualLine, usualStintAt, type Usual } from '../domain/usual.ts';
 import { seasonOf } from '../domain/season.ts';
 
 export interface Cursor {
@@ -62,7 +64,7 @@ export const stintLine = (name: string, s: Stint | null) => {
   return `${name}: in ${clockLabel(s[0], true)} → out ${clockLabel(s[1])} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${fouls}`;
 };
 
-function ReadoutCard({ r, names, settings, season }: { r: HoverReadout; names: Map<number, string>; settings: ReadoutSettings; season: string }) {
+function ReadoutCard({ r, names, settings, season, usual }: { r: HoverReadout; names: Map<number, string>; settings: ReadoutSettings; season: string; usual: string | null }) {
   const [mine, theirs] = r.teams as [HoverReadout['teams'][number], HoverReadout['teams'][number]];
   const name = (p: PlayerGame) => names.get(p.id) ?? p.name;
   const lineup = (t: HoverReadout['teams'][number], muted: boolean) => (
@@ -103,6 +105,11 @@ function ReadoutCard({ r, names, settings, season }: { r: HoverReadout; names: M
           {stintLine(name(r.player), r.stint)}
         </div>
       )}
+      {usual && (
+        <div className="rd-usual" data-testid="readout-usual">
+          {usual}
+        </div>
+      )}
     </>
   );
 }
@@ -123,9 +130,11 @@ interface Props {
   names: Map<number, string>;
   segments: Record<string, LineupSegment[]>;
   readout: ReadoutSettings;
+  /** "Usual" outlines per player (null = toggle off). */
+  usual?: Map<number, Usual> | null;
 }
 
-export function GameChart({ g, trouble, cursor, setCursor, names, segments, readout }: Props) {
+export function GameChart({ g, trouble, cursor, setCursor, names, segments, readout, usual = null }: Props) {
   const phone = usePhone();
   const cols = phone ? COLS.phone : COLS.desktop;
   const [boxRef, boxW] = useWidth<HTMLDivElement>();
@@ -228,6 +237,15 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
           }
         }}
       >
+        <div className="gc-row gc-margin-row" data-testid="margin-row">
+          <div className="gc-left gc-sticky">
+            <MarginLabel g={g} />
+          </div>
+          <div className="gc-track" style={{ width: W }}>
+            <MarginSvg g={g} width={W} />
+          </div>
+          <div className="gc-pf gc-sticky-r" />
+        </div>
         {[g.away, g.home].map((team) => (
           <TeamRows
             key={team.tri}
@@ -240,6 +258,7 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
             trouble={trouble}
             show={show}
             leave={() => (item.current = null)}
+            usual={usual}
           />
         ))}
         {cursor && (
@@ -271,7 +290,16 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
             {tip.content.kind === 'text' ? (
               tip.content.text
             ) : g.players.some((p) => tip.content.kind === 'player' && p.id === tip.content.id) ? (
-              <ReadoutCard r={hoverReadout(g, tip.content.id, tip.content.t, segments)} names={names} settings={readout} season={seasonOf(g.id)} />
+              <ReadoutCard
+                r={hoverReadout(g, tip.content.id, tip.content.t, segments)}
+                names={names}
+                settings={readout}
+                season={seasonOf(g.id)}
+                usual={(() => {
+                  const u = usual?.get(tip.content.id);
+                  return u && usualStintAt(u, tip.content.t) ? usualLine(usualAt(u, tip.content.t)) : null;
+                })()}
+              />
             ) : null}
           </div>
         )}
@@ -290,6 +318,7 @@ function TeamRows({
   trouble,
   show,
   leave,
+  usual,
 }: {
   g: Game;
   team: TeamInfo;
@@ -300,6 +329,7 @@ function TeamRows({
   trouble: boolean;
   show: (text: string) => (e: React.PointerEvent | React.MouseEvent) => void;
   leave: () => void;
+  usual: Map<number, Usual> | null;
 }) {
   const players = g.players.filter((p) => p.team === team.tri);
   const inactive = (g.inactive ?? []).filter((p) => p.team === team.tri);
@@ -392,11 +422,11 @@ function TeamRows({
         <div className="gc-pf gc-sticky-r gc-colhead">PF</div>
       </div>
       {starters.map((p) => (
-        <PlayerRow key={p.id} p={p} g={g} W={W} trouble={trouble} band={band} show={show} leave={leave} name={<Name id={p.id} name={p.name} />} />
+        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
       ))}
       {bench.length > 0 && <div className="gc-bench-divider" aria-hidden />}
       {bench.map((p) => (
-        <PlayerRow key={p.id} p={p} g={g} W={W} trouble={trouble} band={band} show={show} leave={leave} name={<Name id={p.id} name={p.name} />} />
+        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
       ))}
       {dnp.map((p) => (
         <div className="gc-row gc-dnp" key={p.id} data-testid="dnp-row">
@@ -432,6 +462,8 @@ function PlayerRow({
   p,
   g,
   W,
+  k,
+  usual,
   trouble,
   band,
   show,
@@ -441,6 +473,8 @@ function PlayerRow({
   p: PlayerGame;
   g: Game;
   W: number;
+  k: number;
+  usual: Usual | null;
   trouble: boolean;
   band: React.ReactNode;
   show: (text: string) => (e: React.PointerEvent | React.MouseEvent) => void;
@@ -460,6 +494,17 @@ function PlayerRow({
       </div>
       <div className="gc-track" style={{ width: W, height: r.height }}>
         {band}
+        {/* Usual stints: behind the bars, never taking pointer events or space. */}
+        {usual?.stints.map((u) => (
+          <i
+            key={`u${u.start}`}
+            className="gc-usual"
+            style={{ left: u.start * k, width: (u.end - u.start) * k, top: CHART.laneTopPx - 2, height: CHART.barPx + 4 }}
+            data-testid="usual-stint"
+            data-start={u.start}
+            data-end={u.end}
+          />
+        ))}
         {r.bars.map((b, i) => (
           <div
             key={i}

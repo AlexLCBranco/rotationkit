@@ -64,9 +64,17 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
     garbage time shaded;
   - hover: both lineups at that moment, score, fouls so far and the player's stint ("⚙ Readout" settings, saved in
     localStorage `rk.readout`); click pins the lineup cursor (panel with both 5-man lineups and "on since");
+  - **score margin strip** (`MarginStrip.tsx`, `src/domain/margin.ts`) above the timeline, on the bars' own axis:
+    the stored `margin` timeline (time-sorted) as a step area, away lead above the zero line, home lead below,
+    final margin in the label column; the lineup cursor crosses it;
+  - **"Usual"** (toolbar toggle, on by default, localStorage `rk.usual`; `src/domain/usual.ts`, `USUAL` in config):
+    a faint dashed outline behind each player's bars = `typicalStints` over his team's previous 10 games of the season
+    (this game excluded, blowout rule on, regulation only); none for a player with fewer than 3 games in that window.
+    No pointer events, never moves bars/labels/ticks. Hovering on an outline adds "usually on court here (7 of 10)";
   - below: minutes & fouls by quarter (sortable) and the lineup list per team.
 - **Q4** (`#/q4/<id>`, `Q4View.tsx`, `src/domain/q4.ts`): same game, Q4 + OT on one axis, both teams stacked; closers
-  first; MIN, fouls entering Q4, Q4 fouls; rows shrink to fit the window (no scroll). Beside it "Every change"
+  first; MIN, fouls entering Q4, Q4 fouls; a thinner margin strip (24 px) over Q4 + OT; rows shrink to fit the
+  window (no scroll; rows are border-box, so the fit counts no extra border). Beside it "Every change"
   (`q4Story.ts`): each lineup change in words, linked to its moment (hover moves the chart's line).
 - **Averages** (`#/team/ORL?s=&w=&v=&rest=&b=&p=&m=&vs=`, `TeamView.tsx`): filters Last 5 / 10 / Season,
   All / Home / Away, rest, "Hide blowout time", With… / Without… a player; "based on N games" label; a note offers the
