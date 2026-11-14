@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatClock, periodAt, periodEnd, periodStart, REG_PERIODS } from '../domain/time.ts';
 import type { Stint } from '../domain/types.ts';
-import { mergeContinuous } from '../domain/stints.ts';
+import { mergeContinuousPts, ptsText } from '../domain/stints.ts';
 import { periodLabel } from './Axis.tsx';
 import { signed, formatMin } from '../app/labels.ts';
 
@@ -13,9 +13,10 @@ export const clockAt = (t: number, entering: boolean) => {
   return `${periodLabel(p)} ${formatClock(periodEnd(p) - t)}`;
 };
 
-export function describeStint(s: Stint): string {
+/** Stint in words; `pts` = points in it (null = the game file has no points per stint). */
+export function describeStint(s: Stint, pts: number | null = null): string {
   const fouls = s[3]?.length ? ` · foul${s[3].length > 1 ? 's' : ''} at ${s[3].map((t) => clockAt(t, false)).join(', ')}` : ' · no fouls';
-  return `In ${clockAt(s[0], true)} → out ${clockAt(s[1], false)} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${fouls}`;
+  return `In ${clockAt(s[0], true)} → out ${clockAt(s[1], false)} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${ptsText(pts)}${fouls}`;
 }
 
 function useWidth<T extends HTMLElement>() {
@@ -49,15 +50,21 @@ interface Props {
   periods: number;
   blowout?: [number, number][];
   labels?: boolean;
-  onHover?: (s: Stint | null) => void;
+  /** Points per stint, parallel to `stints` (null = no data for this game). */
+  pts?: number[] | null;
+  /** Show points on the bars ("12:00 · 8p") where they fit. */
+  barPoints?: boolean;
+  onHover?: (s: Stint | null, pts: number | null) => void;
   active?: Stint | null;
 }
 
 const LABEL_PX = 40;
+/** Approximate width of a bar label (11px tabular text) plus padding. */
+const textPx = (text: string) => text.length * 6.2 + 8;
 
-export function StintBars({ stints: raw, total, periods, blowout = [], labels = false, onHover, active }: Props) {
+export function StintBars({ stints: raw, total, periods, blowout = [], labels = false, pts: rawPts = null, barPoints = false, onHover, active }: Props) {
   const [ref, width] = useWidth<HTMLDivElement>();
-  const stints = useMemo(() => mergeContinuous(raw), [raw]);
+  const { stints, pts } = useMemo(() => mergeContinuousPts(raw, rawPts), [raw, rawPts]);
   const pct = (t: number) => `${(t / total) * 100}%`;
   return (
     <div className="track" ref={ref}>
@@ -67,21 +74,26 @@ export function StintBars({ stints: raw, total, periods, blowout = [], labels = 
       <TrackGrid periods={periods} total={total} />
       {stints.map((s, i) => {
         const px = ((s[1] - s[0]) / total) * width;
+        const p = pts ? pts[i]! : null;
+        const withPts = barPoints && p !== null ? `${formatMin(s[1] - s[0])} · ${p}p` : null;
+        const text = withPts && px >= textPx(withPts) ? withPts : formatMin(s[1] - s[0]);
         return (
           <button
             key={i}
             type="button"
             className={`bar${active && active[0] === s[0] && active[1] === s[1] ? ' active' : ''}${s[1] === s[0] ? ' zero' : ''}`}
             style={{ left: pct(s[0]), width: `max(3px, ${pct(s[1] - s[0])})` }}
-            onPointerEnter={() => onHover?.(s)}
-            onFocus={() => onHover?.(s)}
+            onPointerEnter={() => onHover?.(s, p)}
+            onFocus={() => onHover?.(s, p)}
             onClick={(e) => {
               e.stopPropagation();
-              onHover?.(s);
+              onHover?.(s, p);
             }}
-            aria-label={describeStint(s)}
+            aria-label={describeStint(s, p)}
+            data-testid="pl-stint"
+            {...(p !== null ? { 'data-pts': p } : {})}
           >
-            {labels && px >= LABEL_PX && <span>{formatMin(s[1] - s[0])}</span>}
+            {labels && px >= LABEL_PX && <span data-testid="pl-stint-label">{text}</span>}
           </button>
         );
       })}

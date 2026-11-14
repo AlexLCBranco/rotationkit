@@ -17,11 +17,13 @@ import { Filters } from './Filters.tsx';
 import { Header } from './Header.tsx';
 import { describeStint, StintBars } from './Stints.tsx';
 import { rosterOf, SelectionSummary } from './TeamView.tsx';
-import { GameBadge } from './GameBadge.tsx';
+import { BroadcastTags, GameBadge } from './GameBadge.tsx';
 import { quarterStats } from '../domain/gameChart.ts';
 import { describeSit, minutesTrend, sitPattern, type Selection } from '../domain/patterns.ts';
 import { buildAppearances } from '../domain/availability.ts';
 import { MinutesTrend } from './MinutesTrend.tsx';
+import { ReadoutMenu } from './ReadoutMenu.tsx';
+import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { playerFullQ4 } from '../domain/fullQ4.ts';
 
 interface Props {
@@ -36,12 +38,13 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
   const ww = route.filters.withWithout;
   const data = useAsync(async () => {
     const [games, schedule] = await Promise.all([loadTeamGames(season, team), loadSchedule(season).catch(() => [])]);
-    return { games, idx: ww ? await appearanceIndex(season, games) : undefined, rest: restForTeam(schedule, team) };
+    return { games, idx: ww ? await appearanceIndex(season, games) : undefined, rest: restForTeam(schedule, team), sched: new Map(schedule.map((e) => [e.id, e])) };
   }, [season, team, !!ww]);
   // His teams this season (season-wide appearances, as the with/without rule uses): a traded player gets a switch.
   const teams = useAsync(async () => teamsOf(await loadSeasonAppearances(season), player), [season, player]);
   const links = useLinkContext();
-  const [hover, setHover] = useState<{ game: string; stint: Stint } | null>(null);
+  const [hover, setHover] = useState<{ game: string; stint: Stint; pts: number | null } | null>(null);
+  const [readout, setReadout] = useState(loadReadout);
   const go = (patch: { season?: string; filters?: F }) => nav({ ...route, season: patch.season ?? season, filters: patch.filters ?? route.filters });
 
   const c = useMemo(() => {
@@ -121,8 +124,18 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
             <strong>Full Q4s:</strong> {c.fullQ4.full.size} of {c.fullQ4.played} game{c.fullQ4.played === 1 ? '' : 's'}
             <span className="muted"> · on court for the whole regulation 4th quarter (12:00) · games of this selection he played</span>
           </p>
-          <div className="readout" aria-live="polite" data-testid="readout">
-            {hover ? describeStint(hover.stint) : <span className="muted">Hover or tap a stint for details. Click a game to open it.</span>}
+          <div className="pl-readout-bar">
+            <div className="readout" aria-live="polite" data-testid="readout">
+              {hover ? describeStint(hover.stint, hover.pts) : <span className="muted">Hover or tap a stint for details. Click a game to open it.</span>}
+            </div>
+            <ReadoutMenu
+              barsOnly
+              value={readout}
+              onChange={(r) => {
+                setReadout(r);
+                saveReadout(r);
+              }}
+            />
           </div>
           {c.rows.length === 0 ? (
             <p className="muted">He has no games in this selection.</p>
@@ -149,6 +162,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                       const g = c.sel.games.find((x) => x.id === r.gameId);
                       return g ? <GameBadge g={g} compact /> : null;
                     })()}
+                    <BroadcastTags tv={data.status === 'ok' ? data.value.sched.get(r.gameId)?.tv : undefined} cup={data.status === 'ok' ? data.value.sched.get(r.gameId)?.cup : undefined} />
                     {c.fullQ4.full.has(r.gameId) && (
                       <span className="fq-mark" title="Played the full 4th quarter (12:00)" data-testid="fq-mark">
                         Q4
@@ -168,8 +182,10 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                         total={total}
                         periods={c.periods}
                         labels
+                        pts={c.sel.games.find((x) => x.id === r.gameId)?.stintPts ? (r.ptsS ?? r.stints.map(() => 0)) : null}
+                        barPoints={readout.barPoints}
                         active={hover?.game === r.gameId ? hover.stint : null}
-                        onHover={(s) => setHover(s ? { game: r.gameId, stint: s } : null)}
+                        onHover={(s, pts) => setHover(s ? { game: r.gameId, stint: s, pts } : null)}
                       />
                     ) : (
                       <span className="dnp-inline">Did not play</span>

@@ -212,7 +212,7 @@ export function playerGames(sel: Selection, playerId: number) {
     const p = g.players.find((x) => x.id === playerId && x.team === sel.team);
     if (!p) return [];
     const home = g.home.tri === sel.team;
-    return [{ gameId: g.id, date: g.date, opponent: home ? g.away.tri : g.home.tri, home, played: p.played, stints: p.stints, min: p.min, flagged: !!g.quality }];
+    return [{ gameId: g.id, date: g.date, opponent: home ? g.away.tri : g.home.tri, home, played: p.played, stints: p.stints, ...(p.ptsS ? { ptsS: p.ptsS } : {}), min: p.min, flagged: !!g.quality }];
   });
 }
 

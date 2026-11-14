@@ -629,3 +629,16 @@ a.plain-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 1
 .fq-board h2 { font-size: 15px; margin: 0 0 8px; }
 .fq-mark { display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; font-size: 10px; font-weight: 700; color: #111; background: #e0b84a; vertical-align: 1px; }
 .fq-counter { margin: 0 0 6px; }
+
+/* Player page: readout line with the display menu beside it */
+.pl-readout-bar { display: flex; align-items: stretch; gap: 8px; }
+.pl-readout-bar .readout { flex: 1; min-width: 0; }
+.pl-readout-bar .rd-menu { align-self: center; }
+.pl-readout-bar .rd-panel { left: auto; right: 0; }
+
+/* National TV / NBA Cup tags (schedule feed) */
+.bc-tags { margin-left: 4px; vertical-align: 1px; }
+.badge.tv { background: #18233a; border-color: #34507f; color: #a9c6ff; }
+.badge.cup { background: #2f2410; border-color: #8a6a1e; color: #f5cf6b; }
+.gl-tags .bc-tags { font-size: 10px; }
+.gl-tags .badge { padding: 0 5px; }

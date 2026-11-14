@@ -7,7 +7,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cachedSeasons, fetchedSeasonGames, loadRaw } from './lib/games.ts';
-import { DATA_DIR, dataSeasons, indexEntry } from './lib/data.ts';
+import { DATA_DIR, dataSeasons, indexEntry, readSchedule, scheduleEntryOf, withScheduleTags } from './lib/data.ts';
 import { normalizeGame } from '../src/domain/normalize.ts';
 import { validateGame } from '../src/domain/validate.ts';
 import { qualityNotes } from '../src/domain/quality.ts';
@@ -21,16 +21,9 @@ function writeSchedule(season: string, dir: string, index: GameIndexEntry[]) {
   const file = join(CACHE_DIR, 'schedule.json');
   const s = existsSync(file) ? parseSchedule(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
   if (s?.seasonYear === season) {
-    const entries: ScheduleEntry[] = s.games.map((g) => ({
-      id: g.gameId,
-      date: g.dateEt,
-      home: g.homeTeam.teamTricode,
-      away: g.awayTeam.teamTricode,
-      status: g.status,
-      ...(g.gameLabel ? { label: [g.gameLabel, g.gameSubLabel].filter(Boolean).join(' · ') } : {}),
-    }));
+    const entries: ScheduleEntry[] = s.games.map(scheduleEntryOf);
     writeFileSync(join(dir, 'schedule.json'), JSON.stringify(entries));
-    console.log(`  schedule.json: ${entries.length} games from the feed`);
+    console.log(`  schedule.json: ${entries.length} games from the feed (${entries.filter((e) => e.tv).length} on national TV, ${entries.filter((e) => e.cup).length} NBA Cup)`);
   } else if (!existsSync(join(dir, 'schedule.json'))) {
     // Past season without a cached feed: every game we have is final.
     const entries: ScheduleEntry[] = index.map((g) => ({ id: g.id, date: g.date, home: g.home, away: g.away, status: 'final' }));
@@ -80,11 +73,12 @@ for (const season of seasons) {
   }
   index.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   for (const list of Object.values(apps)) list.sort((a, b) => a[0].localeCompare(b[0]));
-  writeFileSync(join(dir, 'index.json'), JSON.stringify(index));
+  writeSchedule(season, dir, index);
+  // TV / Cup tags come from the schedule (only seasons whose feed was cached have them).
+  writeFileSync(join(dir, 'index.json'), JSON.stringify(withScheduleTags(index, readSchedule(season))));
   writeFileSync(join(dir, 'appearances.json'), JSON.stringify(apps));
   // Minutes + points per period of every player in every game, for the Leaders tab (one small file per season).
   writeFileSync(join(dir, 'quarters.json'), JSON.stringify(buildQuartersFile(all)));
-  writeSchedule(season, dir, index);
   console.log(`${season}: ${written} normalized from raw this run, ${index.length} games in data/ (${(bytes / 1024 / Math.max(1, index.length)).toFixed(1)} KB/game)`);
   console.log(`  ${index.filter((g) => g.flagged).length} game(s) carry data-quality notes`);
   for (const f of failed) console.log(`  FAILED ${f.id}: ${f.error}`);
