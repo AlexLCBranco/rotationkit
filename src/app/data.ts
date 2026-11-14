@@ -28,6 +28,14 @@ export const loadIndex = (season: string) => get<GameIndexEntry[]>(`${season}/in
 export const loadQuarters = (season: string) => get<import('../domain/leaders.ts').QuartersFile>(`${season}/quarters.json`);
 export const loadSchedule = (season: string) => get<ScheduleEntry[]>(`${season}/schedule.json`);
 export const loadGame = (season: string, id: string) => get<Game>(`${season}/games/${id}.json`);
+/** Player index for the header search (generated at build time, src/domain/players.ts). */
+export const loadPlayers = (season: string) => get<import('../domain/players.ts').PlayerIndexEntry[]>(`${season}/players.json`);
+
+/** Season-wide appearances (every box-score listing, all teams): traded players' teams and the with/without rule. */
+export async function loadSeasonAppearances(season: string): Promise<AppearanceIndex> {
+  const [file, index] = await Promise.all([get<Record<string, [string, string][]>>(`${season}/appearances.json`), loadIndex(season)]);
+  return appearancesFromFile(file, new Map(index.map((e) => [e.id, e.date])));
+}
 
 /** All games of a team in a season, oldest first (fetched with limited concurrency). */
 export async function loadTeamGames(season: string, team: string): Promise<Game[]> {
@@ -51,6 +59,5 @@ export async function loadTeamGames(season: string, team: string): Promise<Game[
  */
 export async function appearanceIndex(season: string, games: Game[]): Promise<AppearanceIndex> {
   if (games.every((g) => g.inactive)) return buildAppearances(games);
-  const [file, index] = await Promise.all([get<Record<string, [string, string][]>>(`${season}/appearances.json`), loadIndex(season)]);
-  return appearancesFromFile(file, new Map(index.map((e) => [e.id, e.date])));
+  return loadSeasonAppearances(season);
 }

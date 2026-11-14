@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PlayerSearch } from './PlayerSearch.tsx';
 
 export function Header({ children, back }: { children?: ReactNode; back?: { label: string; onClick: () => void } }) {
   return (
@@ -13,6 +14,7 @@ export function Header({ children, back }: { children?: ReactNode; back?: { labe
         </button>
       )}
       {children}
+      <PlayerSearch />
     </header>
   );
 }

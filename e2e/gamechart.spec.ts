@@ -138,7 +138,7 @@ test('lineup cursor: 5 per team, fouls at that moment, pin; lineup list moves th
   await list.locator('summary').click();
   const row = list.getByTestId('lineup-row').nth(3);
   const start = (await row.locator('td').first().textContent())!;
-  await row.click();
+  await row.locator('td').first().click(); // not on a name: names are player links
   await expect(page.getByTestId('cursor-clock')).toContainText(start);
   await expect(page.getByTestId('cursor-team')).toHaveCount(2);
   for (const t of await page.getByTestId('cursor-team').all()) await expect(t.getByTestId('cursor-player')).toHaveCount(5);

@@ -21,6 +21,9 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
   with/without rule), `quarters.json` (per-period minutes/points for Leaders), `schedule.json` (every scheduled game,
   for upcoming games, rest days and deep links), `validation.json`; `known-issues.json`, `update-status.json`.
   All times are seconds since tip-off (OT included); every stint lies in one period.
+- **Generated at build time, never committed** (`scripts/lib/generated.ts`, written to `dist/data/` by the Vite data
+  plugin and served by it in dev): `<season>/players.json` = `[id, name, teams]` per box-score player, teams ordered
+  by last appearance (most recent last; `src/domain/players.ts`), ~20 KB, for the header search.
 - **Counts**: 2025-26 complete (1,230 games); 2026-27 grows daily (174 games through 2026-11-12). A few games fail a
   check because the box score is wrong; they keep their data, are `flagged` in the index and show a "⚠ Data note".
 
@@ -38,7 +41,15 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
 ## App (`src/App.tsx`, `src/components/`, `src/app/`)
 State lives in the URL hash (`src/app/route.ts`), so every view is linkable and the back button works.
 - **Header** (every tab): logo, tabs Games | Q4 | Averages | Leaders, team picker (`TeamPicker.tsx`, grouped by
-  division, full keyboard support). A stale-data banner (`StaleBanner.tsx`) shows when the last update failed or the
+  division, full keyboard support), **player search** (`PlayerSearch.tsx`): "/" or Ctrl+K focuses it (not while
+  typing in another field); case/accent-insensitive, any part of the name, initials ("sga"); up to 8 results
+  (headshot, name, most recent team), selected season first; ↑/↓, Enter, Esc, mouse; empty = last 5 players opened
+  (localStorage `rk.recent`). A result opens his page for that season with his most recent team, filters kept.
+- **Name links** (`Links.tsx`: `PlayerLink`, `TeamLink`; targets in `src/app/links.ts`): every player or team name
+  is a real `<a href="#/…">` (player → his page, team → its Averages view; that season, current filters, a
+  with/without filter only kept for its own team). Plain text until hovered; a click on one never reaches the row
+  under it. **Every new table, list or chart that prints a player or team name must use them.** Not linked: the
+  Q4 "Every change" sentences, tooltips, `<select>` options, the deep-link "not available" page. A stale-data banner (`StaleBanner.tsx`) shows when the last update failed or the
   last success is older than 36 h.
 - **Games** (`#/game/<id>?t=ORL&s=2026-27`; `#/` = remembered team's latest game): left, the game list
   (`GameList.tsx`): every finished game of the team, oldest first, date | team | @/vs | opponent | W/L | schedule chips
@@ -62,7 +73,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   previous season under 5 games. **Typical stints** (`PatternChart.tsx`) or **Heat map** per player, "Rarely used"
   group; "Minutes & fouls per game" table with "when does he sit?"; matchup mode `vs=` stacks the opponent.
 - **Player page** (`#/player/ORL/<id>?…`, `PlayerView.tsx`): one row per game with actual stints, minutes trend,
-  "when he sits", game log, games missed with reasons. Click a game → that game.
+  "when he sits", game log, games missed with reasons. Click a game → that game. A player with several teams in
+  the season (season-wide `appearances.json`, `teamsOf`) gets a switch between them in the title.
 - **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 or second-half
   minutes and points per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table;
   minimum games `LEADER_MIN_GAMES`.

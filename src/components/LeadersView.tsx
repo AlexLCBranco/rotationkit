@@ -14,6 +14,8 @@ import type { Window } from '../domain/patterns.ts';
 import { PATTERN_CONFIG } from '../domain/config.ts';
 import { Header } from './Header.tsx';
 import { Headshot } from './Headshot.tsx';
+import { PlayerLink, TeamLink, useLinkContext } from './Links.tsx';
+import { playerHref } from '../app/links.ts';
 import { Tabs } from './Tabs.tsx';
 
 interface Props {
@@ -109,8 +111,8 @@ export function LeadersView({ seasons, season, team, route, nav }: Props) {
       {file.status === 'ok' && rows.length === 0 && <p className="muted">No player has enough games for this choice yet.</p>}
       {rows.length > 0 && (
         <div className="ld-layout">
-          <Scatter rows={rows} sort={q.sort} hover={hover} setHover={setHover} partName={partName} onPick={(r) => nav({ view: 'player', team: r.team, player: r.id, season, filters: route.filters })} maxMin={(q.part === 'q4' ? 12 : 24) * 60} />
-          <Table rows={rows.slice(0, TABLE_ROWS)} sort={q.sort} hover={hover} setHover={setHover} onSort={(s) => set({ sort: s })} onPick={(r) => nav({ view: 'player', team: r.team, player: r.id, season, filters: route.filters })} />
+          <Scatter rows={rows} sort={q.sort} hover={hover} setHover={setHover} partName={partName} maxMin={(q.part === 'q4' ? 12 : 24) * 60} />
+          <Table rows={rows.slice(0, TABLE_ROWS)} sort={q.sort} hover={hover} setHover={setHover} onSort={(s) => set({ sort: s })} />
         </div>
       )}
     </div>
@@ -128,7 +130,6 @@ function Scatter({
   sort,
   hover,
   setHover,
-  onPick,
   maxMin,
   partName,
 }: {
@@ -136,10 +137,11 @@ function Scatter({
   sort: 'min' | 'pts';
   hover: number | null;
   setHover: (id: number | null) => void;
-  onPick: (r: LeaderRow) => void;
   maxMin: number;
   partName: string;
 }) {
+  const links = useLinkContext();
+  const href = (r: LeaderRow) => (links ? playerHref(links, { id: r.id, team: r.team }) : undefined);
   const W = 560;
   const H = 420;
   const pad = { l: 44, r: 14, t: 14, b: 38 };
@@ -194,6 +196,7 @@ function Scatter({
           scores in short minutes
         </text>
         {rows.map((r) => (
+          <a key={r.id} href={href(r)} className="plain-link" data-testid="leaders-dot-link">
           <circle
             key={r.id}
             cx={x(r.min)}
@@ -205,15 +208,17 @@ function Scatter({
             data-player={r.id}
             onPointerEnter={() => setHover(r.id)}
             onPointerLeave={() => setHover(null)}
-            onClick={() => onPick(r)}
           />
+          </a>
         ))}
         {labels.map((l) => (
           <g key={`l${l.id}`}>
             {l.line && <line x1={l.dx} y1={l.dy} x2={l.lx} y2={l.ly} className="ld-leader" />}
-            <text x={l.x} y={l.y} className="ld-label" data-testid="leaders-label" data-player={l.id}>
-              {l.text}
-            </text>
+            <a href={href(rows.find((r) => r.id === l.id)!)} className="plain-link">
+              <text x={l.x} y={l.y} className="ld-label" data-testid="leaders-label" data-player={l.id}>
+                {l.text}
+              </text>
+            </a>
           </g>
         ))}
         {h && (
@@ -241,14 +246,12 @@ function Table({
   hover,
   setHover,
   onSort,
-  onPick,
 }: {
   rows: LeaderRow[];
   sort: 'min' | 'pts';
   hover: number | null;
   setHover: (id: number | null) => void;
   onSort: (s: 'min' | 'pts') => void;
-  onPick: (r: LeaderRow) => void;
 }) {
   const th = (key: 'min' | 'pts', label: string) => (
     <th className={`num sortable${sort === key ? ' sorted' : ''}`} aria-sort={sort === key ? 'descending' : 'none'}>
@@ -290,12 +293,13 @@ function Table({
               <td className="num muted">{i + 1}</td>
               <td className="ld-player">
                 <Headshot id={r.id} name={r.name} />
-                <button className="link" onClick={() => onPick(r)}>
+                <PlayerLink id={r.id} team={r.team} className="ld-name">
                   {r.name}
-                </button>
+                </PlayerLink>
               </td>
               <td>
-                <span className="swatch" style={{ background: teamColor(r.team) }} /> {r.team}
+                <span className="swatch" style={{ background: teamColor(r.team) }} />{' '}
+                <TeamLink team={r.team}>{r.team}</TeamLink>
               </td>
               <td className="num">
                 {r.gp}
