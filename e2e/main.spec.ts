@@ -1,7 +1,17 @@
 // Main screen: a team's game (team picker + game list sidebar + game chart).
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+
+/** Cell texts without the logos' tricode fallback (shown when cdn.nba.com logos don't load, e.g. on CI runners). */
+const cellTexts = (row: Locator) =>
+  row.locator('td').evaluateAll((tds) =>
+    tds.map((td) => {
+      const c = td.cloneNode(true) as Element;
+      c.querySelectorAll('.logo-fallback').forEach((e) => e.remove());
+      return c.textContent ?? '';
+    }),
+  );
 
 type Entry = { id: string; date: string; home: string; away: string; hs: number; as: number; flagged?: true };
 const index = (s: string) => JSON.parse(readFileSync(`data/${s}/index.json`, 'utf8')) as Entry[];
@@ -81,7 +91,7 @@ test('game list: every finished game, oldest first, columns, latest selected and
   await expect(page.locator('.gl-table thead')).toContainText('OPP');
   // Columns in order: date | TM | @/vs | OPP | result | tags | rest.
   const first = oldestFirst[0]!;
-  const cells = await rows(page).first().locator('td').allTextContents();
+  const cells = await cellTexts(rows(page).first());
   const [us, them] = first.home === 'ORL' ? [first.hs, first.as] : [first.as, first.hs];
   expect(cells.slice(0, 5).map((c) => c.trim())).toEqual([usDate(first.date), 'ORL', first.home === 'ORL' ? 'vs' : '@', first.home === 'ORL' ? first.away : first.home, `${us > them ? 'W' : 'L'} ${us}–${them}`]);
   const results = await page.locator('[data-testid=list-row] [data-testid=list-result]').allTextContents();
@@ -305,7 +315,7 @@ test('the list ends with the next 3 scheduled games: dimmed, with tags, not open
   await expect(up).toHaveCount(next.length);
   expect(await up.evaluateAll((els) => els.map((e) => e.getAttribute('data-id')))).toEqual(next.map((e) => e.id));
   const first = next[0]!;
-  const cells = (await up.first().locator('td').allTextContents()).map((c) => c.trim());
+  const cells = (await cellTexts(up.first())).map((c) => c.trim());
   expect(cells.slice(0, 5)).toEqual([usDate(first.date), 'ORL', first.home === 'ORL' ? 'vs' : '@', first.home === 'ORL' ? first.away : first.home, 'upcoming']);
   expect(Number(await up.first().evaluate((e) => getComputedStyle(e).opacity))).toBeLessThan(1);
   // They come after every played game, the latest stays selected, and they are in view on load.
