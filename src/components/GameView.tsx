@@ -3,7 +3,7 @@ import { loadGame, loadIndex, loadSchedule, loadTeamGames } from '../app/data.ts
 import { usualFor, usualSelection, type Usual } from '../domain/usual.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, shortDate, signed } from '../app/labels.ts';
-import { parse, type Nav, type Route } from '../app/route.ts';
+import { format, parse, type Nav, type Route } from '../app/route.ts';
 import { teamName } from '../app/teams.ts';
 import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
 import { GameList, UPCOMING_GAMES, type ListGame, type UpcomingGame } from './GameList.tsx';
@@ -173,6 +173,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
             season={gameSeason}
             onSeason={pickSeason}
             onCollapse={() => setCollapsed(true)}
+            matchupHref={(opp) => format({ view: 'team', team, season: gameSeason, filters: { ...route.filters, window: 10 }, vs: opp })}
           />
         )}
         <div className="gv-main">

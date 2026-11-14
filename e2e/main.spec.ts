@@ -301,7 +301,7 @@ test('Averages is a secondary tab; Games goes back to the latest game', async ({
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?.*t=ORL`));
 });
 
-test('the list ends with the next 3 scheduled games: dimmed, with tags, not openable', async ({ page }) => {
+test('the list ends with the next 3 scheduled games: dimmed, with tags, skipped by ↓ and ▶', async ({ page }) => {
   type S = { id: string; date: string; home: string; away: string; status: string };
   const sched = JSON.parse(readFileSync('data/2026-27/schedule.json', 'utf8')) as S[];
   const played = new Set(index('2026-27').map((e) => e.id));
@@ -325,9 +325,7 @@ test('the list ends with the next 3 scheduled games: dimmed, with tags, not open
   const box = await page.getByTestId('game-list-rows').boundingBox();
   const lastUp = await up.last().boundingBox();
   expect(lastUp!.y + lastUp!.height).toBeLessThanOrEqual(box!.y + box!.height + 1);
-  // Not openable: clicking does nothing; ↓ from the latest game stays on it.
-  await up.first().click();
-  await expect(page).toHaveURL(new RegExp(`#/game/${latest27.id}\\?`));
+  // Not a game to open: ↓ and ▶ from the latest game stay on it (a click opens the matchup: e2e/acrossgames.spec.ts).
   await page.getByTestId('game-list-rows').focus();
   await page.keyboard.press('ArrowDown');
   await expect(page).toHaveURL(new RegExp(`#/game/${latest27.id}\\?`));
