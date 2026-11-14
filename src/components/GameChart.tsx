@@ -6,7 +6,8 @@
 // the screen is narrower than the minimum scale.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { formatMin, reasonText, signed } from '../app/labels.ts';
+import { formatMin, signed } from '../app/labels.ts';
+import { dnpLabel } from '../app/dnp.ts';
 import { shortNames } from '../app/names.ts';
 import { teamName } from '../app/teams.ts';
 import { CHART, CHART_COMPACT, type ChartGeo } from '../domain/config.ts';
@@ -359,8 +360,8 @@ function TeamRows({
   const starters = played.filter((p) => p.starter).sort((a, b) => totalPlayed(b) - totalPlayed(a));
   const bench = played.filter((p) => !p.starter).sort((a, b) => totalPlayed(b) - totalPlayed(a));
   const dnp = [
-    ...players.filter((p) => !p.played || !p.stints.length).map((p) => ({ id: p.id, name: p.name, reason: reasonText(p.reason, p.reasonDetail) })),
-    ...inactive.map((p) => ({ id: p.id, name: p.name, reason: reasonText(p.reason, p.reasonDetail) ?? 'Inactive' })),
+    ...players.filter((p) => !p.played || !p.stints.length).map((p) => ({ id: p.id, name: p.name, label: dnpLabel(p.reason, p.reasonDetail) })),
+    ...inactive.map((p) => ({ id: p.id, name: p.name, label: dnpLabel(p.reason, p.reasonDetail, true) })),
   ];
   const band = (
     <>
@@ -455,33 +456,32 @@ function TeamRows({
       ))}
       {compact && dnp.length > 0 && (
         <button type="button" className="gc-dnp-fold" aria-expanded={dnpOpen} onClick={(e) => (e.stopPropagation(), setDnpOpen(!dnpOpen))} data-testid="dnp-fold">
-          {dnpOpen ? '▾' : '▸'} Did not play: {dnp.length} <span className="muted">{dnpOpen ? '' : `· ${dnp.map((p) => names.get(p.id) ?? p.name).join(', ')}`}</span>
+          {dnpOpen ? '▾' : '▸'} Did not play: {dnp.length}{' '}
+          {!dnpOpen &&
+            dnp.map((p) => (
+              <span key={p.id} className="gc-fold-p">
+                {names.get(p.id) ?? p.name} <span className={`dnp-tag mini ${p.label.kind}`}>{p.label.kind === 'cd' ? 'CD' : p.label.kind === 'injury' ? 'OUT' : p.label.tag}</span>
+              </span>
+            ))}
         </button>
       )}
       {(!compact || dnpOpen) && dnp.map((p) => (
-        <div className="gc-row gc-dnp" key={p.id} data-testid="dnp-row">
+        <div className="gc-row gc-dnp" key={p.id} data-testid="dnp-row" data-kind={p.label.kind}>
           <div className="gc-left gc-sticky">
             <Headshot id={p.id} name={p.name} />
             <Name id={p.id} name={p.name} />
             <span className="gc-min muted">—</span>
           </div>
           <div className="gc-track" style={{ width: W }}>
-            <i className="gc-band" style={{ top: 7, height: geo.barPx }} />
+            {/* The reason, readable without hovering: kind tag + the source's detail. */}
+            <span className="gc-dnp-reason" data-testid="dnp-reason">
+              <span className={`dnp-tag ${p.label.kind}`} data-testid="dnp-tag">
+                {p.label.tag}
+              </span>
+              {p.label.detail && <span className="dnp-detail">{p.label.detail}</span>}
+            </span>
           </div>
-          <div className="gc-pf gc-sticky-r">
-            <button
-              className="dnp-badge"
-              title={p.reason ?? 'Did not play'}
-              onPointerEnter={show(`${p.name} — did not play${p.reason ? `: ${p.reason}` : ''}`)}
-              onPointerLeave={leave}
-              onClick={(e) => {
-                e.stopPropagation();
-                show(`${p.name} — did not play${p.reason ? `: ${p.reason}` : ''}`)(e);
-              }}
-            >
-              DNP
-            </button>
-          </div>
+          <div className="gc-pf gc-sticky-r" />
         </div>
       ))}
     </section>

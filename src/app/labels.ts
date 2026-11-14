@@ -29,6 +29,15 @@ const REASONS: Record<string, string> = {
   DNP_COACH: "Coach's decision",
   INACTIVE_CONCUSSION_PROTOCOL: 'Concussion protocol',
   INACTIVE_LEAGUE_SUSPENSION: 'Suspension',
+  INACTIVE_TRADE: 'Trade',
+  NWT_PERSONAL: 'Personal',
+  DND_PERSONAL: 'Personal',
+  DND_REST: 'Rest',
+  DNP_REST: 'Rest',
+  DND_LEAGUE_SUSPENSION: 'Suspension',
+  DNP_LEAGUE_SUSPENSION: 'Suspension',
+  NWT_LEAGUE_SUSPENSION: 'Suspension (not with team)',
+  NWT_TEAM_SUSPENSION: 'Team suspension (not with team)',
 };
 
 export function reasonText(reason?: string, detail?: string): string | undefined {
