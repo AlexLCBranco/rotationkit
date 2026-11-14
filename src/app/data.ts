@@ -37,20 +37,12 @@ export async function loadSeasonAppearances(season: string): Promise<AppearanceI
   return appearancesFromFile(file, new Map(index.map((e) => [e.id, e.date])));
 }
 
-/** All games of a team in a season, oldest first (fetched with limited concurrency). */
+/**
+ * All games of a team in a season, oldest first: ONE request for the team-season bundle (data/<season>/teams/<TEAM>.json,
+ * generated at build time from the game files, scripts/lib/generated.ts). Single-game screens keep loading single files.
+ */
 export async function loadTeamGames(season: string, team: string): Promise<Game[]> {
-  const ids = (await loadIndex(season)).filter((e) => e.home === team || e.away === team).map((e) => e.id);
-  const out: Game[] = new Array(ids.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(8, ids.length) }, async () => {
-      while (next < ids.length) {
-        const i = next++;
-        out[i] = await loadGame(season, ids[i]!);
-      }
-    }),
-  );
-  return out;
+  return get<Game[]>(`${season}/teams/${team}.json`);
 }
 
 /**
