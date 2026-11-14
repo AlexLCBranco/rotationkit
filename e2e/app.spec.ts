@@ -92,7 +92,7 @@ test('filters change the "based on N games" count and the plain-words label', as
   await expect(label(page)).toHaveText('Last 10 home games · based on 10 games');
   await page.getByRole('button', { name: 'All', exact: true }).click();
   await page.getByLabel('With or without').selectOption('without');
-  await page.getByLabel('Player').selectOption({ label: 'F. Wagner' });
+  await page.getByLabel('Player', { exact: true }).selectOption({ label: 'F. Wagner' });
   // Two Wagners on ORL → first initial.
   await expect(label(page)).toHaveText('Last 10 games without F. Wagner · based on 10 games');
   await expect(page.getByTestId('ww-groups')).toContainText('With F. Wagner: 34 games · Without: 48 games');
@@ -135,7 +135,7 @@ test('player drill-down and single-game chart open from clicks; flagged game sho
   const errors = trackErrors(page);
   await page.goto('/#/team/HOU?s=2025-26');
   await expect(page.getByTestId('flag-summary')).toContainText('1 game in this selection has a data note');
-  await page.getByRole('button', { name: /^(Kevin )?Durant$/ }).click();
+  await page.getByTestId('pattern-chart').getByRole('link', { name: /^(Kevin )?Durant$/ }).click();
   await expect(page.getByTestId('player-grid')).toBeVisible();
   await expect(page.locator('h1')).toContainText('Kevin Durant');
   const rows = page.getByTestId('game-row');
@@ -145,7 +145,7 @@ test('player drill-down and single-game chart open from clicks; flagged game sho
   // Flagged game row → game chart with the warning.
   const flagged = rows.filter({ has: page.getByTestId('flag') });
   await expect(flagged).toHaveCount(1);
-  await flagged.getByRole('button').first().click();
+  await flagged.getByRole('link').first().click();
   await expect(page).toHaveURL(/#\/game\/0022500093/);
   await expect(page.getByTestId('quality-warning')).toContainText('Kevin Durant — minutes: play-by-play 36:48 vs box score 28:08');
   await expect(page.getByTestId('quality-warning')).toContainText('The box score looks wrong');

@@ -24,6 +24,7 @@ import { CursorPanel, LineupList, QuarterTable, segmentsByTeam, useGameNames } f
 import { Header } from './Header.tsx';
 import { TeamLogo } from './Headshot.tsx';
 import { remember } from '../app/hooks.ts';
+import { PlayerLink, TeamLink } from './Links.tsx';
 
 interface Props {
   seasons: string[];
@@ -33,16 +34,27 @@ interface Props {
   rememberedTeam?: string | null;
 }
 
-/** Plain-words line for a data-quality note, using the game's own numbers. */
-function qualityLine(g: Game, q: QualityNote): string {
+/** Plain-words line for a data-quality note, using the game's own numbers (the player's name links to his page). */
+function qualityLine(g: Game, q: QualityNote): React.ReactNode {
   const p = g.players.find((x) => q.player === `${x.name} (${x.team})`);
   const verdict = q.verdict === 'box-score' ? `The box score looks wrong (${q.why}).` : `Unresolved (${q.why}).`;
-  if (p && q.check === 'minutes') return `${p.name} — minutes: play-by-play ${formatMin(totalPlayed(p))} vs box score ${formatMin(p.min)}. ${verdict}`;
+  const who = (rest: string) =>
+    p ? (
+      <>
+        <PlayerLink id={p.id} team={p.team} season={seasonOf(g.id)}>
+          {p.name}
+        </PlayerLink>
+        {rest}
+      </>
+    ) : (
+      `${q.player ?? 'Game'}${rest}`
+    );
+  if (p && q.check === 'minutes') return who(` — minutes: play-by-play ${formatMin(totalPlayed(p))} vs box score ${formatMin(p.min)}. ${verdict}`);
   if (p && q.check === 'plus-minus') {
     const pbp = p.stints.reduce((s, st) => s + st[2], 0);
-    return `${p.name} — +/-: play-by-play ${signed(pbp)} vs box score ${signed(p.pm)}. ${verdict}`;
+    return who(` — +/-: play-by-play ${signed(pbp)} vs box score ${signed(p.pm)}. ${verdict}`);
   }
-  return `${q.player ?? 'Game'} — ${q.check}: ${q.detail}. ${verdict}`;
+  return who(` — ${q.check}: ${q.detail}. ${verdict}`);
 }
 
 const plays = (e: { home: string; away: string }, t: string) => e.home === t || e.away === t;
@@ -218,7 +230,14 @@ function GameHeader({ g, team, ours, theirs }: { g: Game; team: string; ours: Sc
     <div className="game-head">
       <h1 className="title game-title">
         <TeamLogo teamId={g.away.id} tri={g.away.tri} />
-        {g.away.tri} {g.away.score} <span className="muted">@</span> {g.home.tri} {g.home.score}
+        <TeamLink team={g.away.tri} season={seasonOf(g.id)} title={teamName(g.away.tri)}>
+          {g.away.tri}
+        </TeamLink>{' '}
+        {g.away.score} <span className="muted">@</span>{' '}
+        <TeamLink team={g.home.tri} season={seasonOf(g.id)} title={teamName(g.home.tri)}>
+          {g.home.tri}
+        </TeamLink>{' '}
+        {g.home.score}
         <TeamLogo teamId={g.home.id} tri={g.home.tri} />
         <span className="muted">
           · {shortDate(g.date)} {g.date.slice(0, 4)}
@@ -233,7 +252,11 @@ function GameHeader({ g, team, ours, theirs }: { g: Game; team: string; ours: Sc
           [opp, theirs],
         ].map(([t, tags]) => (
           <span key={t as string} className="head-team-tags" data-testid="header-tags" data-team={t as string}>
-            <strong>{t as string}</strong>
+            <strong>
+              <TeamLink team={t as string} season={seasonOf(g.id)}>
+                {t as string}
+              </TeamLink>
+            </strong>
             <ScheduleChips tags={tags as ScheduleTags | undefined} />
           </span>
         ))}
@@ -283,7 +306,12 @@ function GameBody({
       <GameChart g={g} trouble={trouble} cursor={cursor} setCursor={setCursor} names={names} segments={segments} readout={readout} />
       {[g.away, g.home].map((t) => (
         <section key={t.tri} className="team-extras">
-          <h2>{t.tri}: minutes & fouls by quarter</h2>
+          <h2>
+            <TeamLink team={t.tri} season={seasonOf(g.id)}>
+              {t.tri}
+            </TeamLink>
+            : minutes & fouls by quarter
+          </h2>
           <QuarterTable g={g} team={t.tri} />
           <LineupList g={g} team={t.tri} segs={segments[t.tri]!} names={names} onPick={(time) => setCursor({ t: time, pinned: true })} />
         </section>

@@ -2,12 +2,14 @@ import { loadSeasons } from './app/data.ts';
 import { useAsync, remember } from './app/hooks.ts';
 import { useRoute, type Nav } from './app/route.ts';
 import { TEAM_CODES } from './app/teams.ts';
+import { seasonOf } from './domain/season.ts';
 import { TeamView } from './components/TeamView.tsx';
 import { PlayerView } from './components/PlayerView.tsx';
 import { GameView } from './components/GameView.tsx';
 import { DeepLink } from './components/DeepLink.tsx';
 import { StaleBanner } from './components/StaleBanner.tsx';
 import { LeadersView } from './components/LeadersView.tsx';
+import { LinkCtx } from './components/Links.tsx';
 
 export function App() {
   return (
@@ -37,9 +39,14 @@ function Screen() {
     go(r, opts);
   };
   const common = { seasons: list, season, nav };
-  if (route.view === 'player') return <PlayerView {...common} route={route} />;
-  // Main screen. "latest" without a team → the remembered (or first) team; a game id without one → resolved in the view.
-  if (route.view === 'game') return <GameView {...common} route={route.game === 'latest' ? { ...route, team } : route} rememberedTeam={rememberedTeam} />;
-  if (route.view === 'leaders') return <LeadersView {...common} route={route} team={team} />;
-  return <TeamView {...common} route={{ ...route, team }} team={team} />;
+  // Player / team links and the header search keep the current season and filters (src/app/links.ts).
+  const links = { seasons: list, season: route.view === 'game' && route.game !== 'latest' ? seasonOf(route.game) : season, filters: route.filters, team: route.team ?? team };
+  return <LinkCtx.Provider value={links}>{view()}</LinkCtx.Provider>;
+  function view() {
+    if (route.view === 'player') return <PlayerView {...common} route={route} />;
+    // Main screen. "latest" without a team → the remembered (or first) team; a game id without one → resolved in the view.
+    if (route.view === 'game') return <GameView {...common} route={route.game === 'latest' ? { ...route, team } : route} rememberedTeam={rememberedTeam} />;
+    if (route.view === 'leaders') return <LeadersView {...common} route={route} team={team} />;
+    return <TeamView {...common} route={{ ...route, team }} team={team} />;
+  }
 }

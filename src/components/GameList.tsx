@@ -6,6 +6,7 @@ import { teamName } from '../app/teams.ts';
 import type { ScheduleTags } from '../domain/scheduleTags.ts';
 import { TeamLogo } from './Headshot.tsx';
 import { ScheduleChips, ScheduleLegend } from './ScheduleChips.tsx';
+import { TeamLink } from './Links.tsx';
 
 export interface ListGame {
   id: string;
@@ -153,12 +154,16 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
                   </td>
                   <td className="gl-team">
                     <TeamLogo teamId={g.teamId} tri={g.team} />
-                    {g.team}
+                    <TeamLink team={g.team} season={season}>
+                      {g.team}
+                    </TeamLink>
                   </td>
                   <td className="muted gl-at">{g.home ? 'vs' : '@'}</td>
                   <td className="gl-team">
                     <TeamLogo teamId={g.oppId} tri={g.opp} />
-                    {g.opp}
+                    <TeamLink team={g.opp} season={season}>
+                      {g.opp}
+                    </TeamLink>
                   </td>
                   <td className={`gl-result ${won ? 'win' : 'loss'}`} data-testid="list-result">
                     {won ? 'W' : 'L'} {g.us}–{g.them}
@@ -190,14 +195,18 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
                 <td className="gl-date-future">{usDate(g.date)}</td>
                 <td className="gl-team">
                   <TeamLogo teamId={g.teamId} tri={g.team} />
-                  {g.team}
+                  <TeamLink team={g.team} season={season}>
+                    {g.team}
+                  </TeamLink>
                 </td>
                 <td className="muted gl-at">{g.home ? 'vs' : '@'}</td>
                 <td className="gl-team">
                   {g.opp ? (
                     <>
                       <TeamLogo teamId={g.oppId} tri={g.opp} />
-                      {g.opp}
+                      <TeamLink team={g.opp} season={season}>
+                        {g.opp}
+                      </TeamLink>
                     </>
                   ) : (
                     <span className="muted">TBD</span>

@@ -1,9 +1,13 @@
-import { useMemo, useState } from 'react';
-import { appearanceIndex, loadSchedule, loadTeamGames } from '../app/data.ts';
+import { useEffect, useMemo, useState } from 'react';
+import { appearanceIndex, loadSchedule, loadSeasonAppearances, loadTeamGames } from '../app/data.ts';
+import { playerHref } from '../app/links.ts';
+import { rememberPlayer } from '../app/recent.ts';
+import { teamsOf } from '../domain/players.ts';
+import { TeamLink, useLinkContext } from './Links.tsx';
 import { restForTeam } from '../domain/rest.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, reasonText, shortDate } from '../app/labels.ts';
-import type { Route } from '../app/route.ts';
+import { format, type Route } from '../app/route.ts';
 import { teamColor, teamName } from '../app/teams.ts';
 import { playerGames, selectGames, type Filters as F } from '../domain/patterns.ts';
 import { periodEnd } from '../domain/time.ts';
@@ -33,6 +37,9 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
     const [games, schedule] = await Promise.all([loadTeamGames(season, team), loadSchedule(season).catch(() => [])]);
     return { games, idx: ww ? await appearanceIndex(season, games) : undefined, rest: restForTeam(schedule, team) };
   }, [season, team, !!ww]);
+  // His teams this season (season-wide appearances, as the with/without rule uses): a traded player gets a switch.
+  const teams = useAsync(async () => teamsOf(await loadSeasonAppearances(season), player), [season, player]);
+  const links = useLinkContext();
   const [hover, setHover] = useState<{ game: string; stint: Stint } | null>(null);
   const go = (patch: { season?: string; filters?: F }) => nav({ ...route, season: patch.season ?? season, filters: patch.filters ?? route.filters });
 
@@ -57,12 +64,37 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
   }, [data, season, team, player, route.filters]);
 
   const total = c ? periodEnd(c.periods) : 2880;
+  const fullName = c?.fullName;
+  useEffect(() => {
+    if (fullName && fullName !== String(player)) rememberPlayer({ id: player, name: fullName, team, season });
+  }, [fullName, player, team, season]);
+  const opp = (tri: string, cls?: string) => (
+    <TeamLink team={tri} className={cls}>
+      {tri}
+    </TeamLink>
+  );
   return (
     <div className="page">
       <Header back={{ label: teamName(team), onClick: () => nav({ view: 'team', team, season, filters: route.filters }) }}>
         <h1 className="title">
           <span className="swatch" style={{ background: teamColor(team) }} />
-          {c?.fullName ?? '…'} <span className="muted">· {team}</span>
+          {c?.fullName ?? '…'}{' '}
+          <span className="muted">
+            ·{' '}
+            <TeamLink team={team} title={`${teamName(team)} averages`}>
+              {team}
+            </TeamLink>
+          </span>
+          {teams.status === 'ok' && teams.value.length > 1 && links && (
+            <span className="team-switch" data-testid="team-switch" aria-label="His teams this season">
+              <span className="muted">Teams this season:</span>
+              {teams.value.map((t) => (
+                <a key={t} href={playerHref(links, { id: player, team: t, season })} aria-current={t === team ? 'page' : undefined} data-testid="team-switch-option" data-team={t}>
+                  {t}
+                </a>
+              ))}
+            </span>
+          )}
         </h1>
       </Header>
       <Filters
@@ -102,8 +134,11 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                   data-testid="game-row"
                   onClick={() => nav({ view: 'game', game: r.gameId, team, season, filters: route.filters })}
                 >
-                  <button className="name link" onClick={(e) => (e.stopPropagation(), nav({ view: 'game', game: r.gameId, team, season, filters: route.filters }))}>
-                    {shortDate(r.date)} {r.home ? 'vs' : '@'} {r.opponent}
+                  <span className="name">
+                    <a className="link" href={format({ view: 'game', game: r.gameId, team, season, filters: route.filters })} onClick={(e) => e.stopPropagation()}>
+                      {shortDate(r.date)} {r.home ? 'vs' : '@'}
+                    </a>{' '}
+                    {opp(r.opponent)}
                     {(() => {
                       const g = c.sel.games.find((x) => x.id === r.gameId);
                       return g ? <GameBadge g={g} compact /> : null;
@@ -114,7 +149,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                         ⚠
                       </span>
                     )}
-                  </button>
+                  </span>
                   <div className="strip">
                     {r.played ? (
                       <StintBars
@@ -135,7 +170,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
             </div>
           )}
           <MinutesTrend {...c.trend} />
-          {c.rows.some((r) => r.played) && <GameLog sel={c.sel} player={player} team={team} onOpen={(id) => nav({ view: 'game', game: id, team, season, filters: route.filters })} />}
+          {c.rows.some((r) => r.played) && <GameLog sel={c.sel} player={player} team={team} opp={opp} onOpen={(id) => nav({ view: 'game', game: id, team, season, filters: route.filters })} />}
           {c.missed.length > 0 && (
             <details className="missed">
               <summary>
@@ -144,7 +179,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
               <ul>
                 {c.missed.map(({ g, reason }) => (
                   <li key={g.id}>
-                    {shortDate(g.date)} {g.home.tri === team ? 'vs' : '@'} {g.home.tri === team ? g.away.tri : g.home.tri}
+                    {shortDate(g.date)} {g.home.tri === team ? 'vs' : '@'} {opp(g.home.tri === team ? g.away.tri : g.home.tri)}
                     {reason && <span className="muted"> — {reason}</span>}
                   </li>
                 ))}
@@ -158,7 +193,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
 }
 
 /** Game-by-game minutes and fouls (OT periods combined), with an average row on top. */
-function GameLog({ sel, player, team, onOpen }: { sel: Selection; player: number; team: string; onOpen: (id: string) => void }) {
+function GameLog({ sel, player, team, opp, onOpen }: { sel: Selection; player: number; team: string; opp: (tri: string) => React.ReactNode; onOpen: (id: string) => void }) {
   const rows = [...sel.games]
     .reverse()
     .flatMap((g) => {
@@ -220,7 +255,7 @@ function GameLog({ sel, player, team, onOpen }: { sel: Selection; player: number
             return (
               <tr key={r.g.id} className="clickable" onClick={() => onOpen(r.g.id)} data-testid="game-log-row">
                 <td>{shortDate(r.g.date)}</td>
-                <td>{home ? r.g.away.tri : r.g.home.tri}</td>
+                <td>{opp(home ? r.g.away.tri : r.g.home.tri)}</td>
                 <td>{home ? 'H' : 'A'}</td>
                 <td>
                   <GameBadge g={r.g} compact />

@@ -17,6 +17,7 @@ import { PatternChart, RareToggle } from './PatternChart.tsx';
 import { Tabs } from './Tabs.tsx';
 import { tabRoute } from '../app/tabs.ts';
 import { TeamPicker } from './TeamPicker.tsx';
+import { PlayerLink, TeamLink } from './Links.tsx';
 
 interface Props {
   seasons: string[];
@@ -56,7 +57,11 @@ export function SelectionSummary({ sel, names, seasons, onSwitchSeason }: { sel:
       </p>
       {ww && (
         <p className="groups" data-testid="ww-groups">
-          With {names.get(ww.player) ?? ww.name}: {ww.withGames} game{ww.withGames === 1 ? '' : 's'} · Without: {ww.withoutGames} game{ww.withoutGames === 1 ? '' : 's'}
+          With{' '}
+          <PlayerLink id={ww.player} team={sel.team} season={sel.season}>
+            {names.get(ww.player) ?? ww.name}
+          </PlayerLink>
+          : {ww.withGames} game{ww.withGames === 1 ? '' : 's'} · Without: {ww.withoutGames} game{ww.withoutGames === 1 ? '' : 's'}
           {ww.withoutEstimated && <span className="est"> (estimated — some games have no official inactive list)</span>}
           {ww.notWithTeam > 0 && <span className="muted"> · {ww.notWithTeam} games before/after his time with the team not counted</span>}
         </p>
@@ -113,7 +118,7 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
         onSeason={(s) => go({ season: s })}
         onFilters={(f) => go({ filters: f })}
       />
-      <TeamBlock seasons={seasons} season={season} team={team} filters={route.filters} nav={nav} go={go} />
+      <TeamBlock seasons={seasons} season={season} team={team} filters={route.filters} go={go} />
       {vs && (
         <TeamBlock
           seasons={seasons}
@@ -121,7 +126,6 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
           team={vs}
           filters={withoutWW(route.filters)}
           wwNote={ww ? `With/without ${roster.status === 'ok' ? (roster.value.names.get(ww.player) ?? '') : ''} applies to ${team} only.` : null}
-          nav={nav}
           go={go}
          
         />
@@ -140,7 +144,6 @@ function TeamBlock({
   season,
   team,
   filters,
-  nav,
   go,
   wwNote,
 }: {
@@ -148,7 +151,6 @@ function TeamBlock({
   season: string;
   team: string;
   filters: F;
-  nav: (r: Route) => void;
   go: (patch: { season?: string }) => void;
   wwNote?: string | null;
 }) {
@@ -180,12 +182,14 @@ function TeamBlock({
     <div className={`tp-row${rare ? ' rare' : ''}`} key={p.id} data-testid="player-row" data-player={p.id} data-rare={rare}>
       <span className="tp-player">
         <Headshot id={p.id} name={p.name} />
-        <button
+        <PlayerLink
+          id={p.id}
+          team={team}
+          season={season}
           className={`tp-name${Math.max(...(computed!.names.get(p.id) ?? p.name).split(/[\s-]+/).map((w) => w.length)) > 10 ? ' long' : ''}`}
-          onClick={() => nav({ view: 'player', team, player: p.id, season, filters })}
         >
           {computed!.names.get(p.id) ?? p.name}
-        </button>
+        </PlayerLink>
       </span>
       <span className="tp-min">{formatMin(p.avgMin)}</span>
       <HeatStrip
@@ -208,7 +212,9 @@ function TeamBlock({
     <section className="team-block" data-testid="team-block" data-team={team}>
       <h2 className="block-head">
         <TeamLogo teamId={teamId} tri={team} />
-        {teamName(team)}
+        <TeamLink team={team} season={season}>
+          {teamName(team)}
+        </TeamLink>
       </h2>
       {data.status === 'loading' && <p className="muted">Loading {teamName(team)} {season}…</p>}
       {data.status === 'error' && <p className="error">Could not load games: {data.error}</p>}
@@ -233,7 +239,6 @@ function TeamBlock({
               sel={computed.sel}
               tp={computed.tp}
               names={computed.names}
-              onPlayer={(id) => nav({ view: 'player', team, player: id, season, filters })}
               showRare={showRare}
               onToggleRare={() => setShowRare(!showRare)}
             />
@@ -324,7 +329,11 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
           <tbody>
             {qa.map((p) => (
               <tr key={p.id} data-testid="avg-row">
-                <td className="name-cell">{names.get(p.id) ?? p.name}</td>
+                <td className="name-cell">
+                  <PlayerLink id={p.id} team={sel.team} season={sel.season}>
+                    {names.get(p.id) ?? p.name}
+                  </PlayerLink>
+                </td>
                 <td className="num">{p.gamesPlayed}</td>
                 <td className="num strong">{formatMin(p.min)}</td>
                 {qs.map((_, i) => (

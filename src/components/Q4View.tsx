@@ -14,6 +14,8 @@ import type { Game } from '../domain/types.ts';
 import { q4Story } from '../domain/q4Story.ts';
 import { useGameNames } from './GamePanels.tsx';
 import { TeamLogo } from './Headshot.tsx';
+import { PlayerLink, TeamLink } from './Links.tsx';
+import { seasonOf } from '../domain/season.ts';
 
 /** Left columns: player | Q4 MIN | fouls entering Q4 | fouls in Q4/OT. */
 const LEFT = 292;
@@ -147,11 +149,15 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
             <section key={team.tri} className="q4-team" data-testid="q4-team" data-team={team.tri}>
               <div className="q4-team-head" style={{ height: TEAM_HEAD_PX }}>
                 <TeamLogo teamId={team.id} tri={team.tri} />
-                <strong>{teamName(team.tri)}</strong>
+                <strong>
+                  <TeamLink team={team.tri} season={seasonOf(g.id)}>
+                    {teamName(team.tri)}
+                  </TeamLink>
+                </strong>
                 <span className="muted">{ti === 0 ? 'away' : 'home'}</span>
               </div>
               {rows[ti]!.map((r, i) => (
-                <Row key={r.p.id} r={r} l={layouts[ti]![i]!} name={names.get(r.p.id) ?? r.p.name} W={W} x={x} geo={geo} ticks={ticks} blowout={blowout} trouble={trouble} lit={lit.has(r.p.id)} />
+                <Row key={r.p.id} r={r} l={layouts[ti]![i]!} season={seasonOf(g.id)} name={names.get(r.p.id) ?? r.p.name} W={W} x={x} geo={geo} ticks={ticks} blowout={blowout} trouble={trouble} lit={lit.has(r.p.id)} />
               ))}
             </section>
           ))}
@@ -198,6 +204,7 @@ export function Q4View({ g, trouble, setTrouble }: { g: Game; trouble: boolean; 
 function Row({
   r,
   l,
+  season,
   name,
   W,
   x,
@@ -209,6 +216,7 @@ function Row({
 }: {
   r: Q4Row;
   l: RowLayout;
+  season: string;
   name: string;
   W: number;
   x: (t: number) => number;
@@ -226,7 +234,9 @@ function Row({
       <div className="q4-left">
         <span className="q4-name" title={r.p.name}>
           {r.closer && <i className="q4-closer" title="On court at the final buzzer" />}
-          {name}
+          <PlayerLink id={r.p.id} team={r.p.team} season={season}>
+            {name}
+          </PlayerLink>
         </span>
         <span className="q4-num q4-min" data-testid="q4-min">
           {formatMin(r.min)}
@@ -303,7 +313,14 @@ function LineupCard({ g, t, pinned, lineX, y, names, onClose }: { g: Game; t: nu
   return (
     <div className="gc-tip at-viewport rd q4-card" ref={ref} data-testid="q4-cursor-card" data-t={c.t} style={{ visibility: 'hidden', pointerEvents: pinned ? 'auto' : 'none' }}>
       <div className="rd-head">
-        {c.clock} · {g.away.tri} {c.score[1]}–{c.score[0]} {g.home.tri}
+        {c.clock} ·{' '}
+        <TeamLink team={g.away.tri} season={seasonOf(g.id)}>
+          {g.away.tri}
+        </TeamLink>{' '}
+        {c.score[1]}–{c.score[0]}{' '}
+        <TeamLink team={g.home.tri} season={seasonOf(g.id)}>
+          {g.home.tri}
+        </TeamLink>
         {pinned && (
           <>
             <span className="muted"> · pinned </span>
@@ -315,10 +332,14 @@ function LineupCard({ g, t, pinned, lineX, y, names, onClose }: { g: Game; t: nu
       </div>
       {c.teams.map((tm) => (
         <div key={tm.team} className="rd-lineup" data-testid="q4-lineup" data-team={tm.team}>
-          <span className="rd-tri">{tm.team}</span>
+          <TeamLink team={tm.team} season={seasonOf(g.id)} className="rd-tri">
+            {tm.team}
+          </TeamLink>
           {tm.players.map((x) => (
             <span key={x.p.id} className={`rd-p lvl-text-${troubleLevel(p, x.fouls)}`} data-testid="q4-lineup-player" data-player={x.p.id} data-fouls={x.fouls}>
-              {names.get(x.p.id) ?? x.p.name}
+              <PlayerLink id={x.p.id} team={x.p.team} season={seasonOf(g.id)}>
+                {names.get(x.p.id) ?? x.p.name}
+              </PlayerLink>
               {x.fouls > 0 && <span className="rd-pf">{x.fouls}</span>}
             </span>
           ))}

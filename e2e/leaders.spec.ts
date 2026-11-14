@@ -60,7 +60,7 @@ test('filters update the URL and the table; team filter; clicking a player opens
   await expect(page.getByRole('button', { name: 'Second half' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('leaders-row').first()).toBeVisible();
   const first = (await rows(page))[0]!;
-  await page.locator(`[data-testid=leaders-row][data-player="${first.id}"] .ld-player .link`).click();
+  await page.locator(`[data-testid=leaders-row][data-player="${first.id}"] .ld-player [data-testid=player-link]`).click();
   await expect(page).toHaveURL(new RegExp(`#/player/ORL/${first.id}`));
 });
 

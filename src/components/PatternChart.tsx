@@ -13,6 +13,7 @@ import { periodEnd, periodStart, REGULATION_LEN } from '../domain/time.ts';
 import type { PlayerGame } from '../domain/types.ts';
 import { COLS } from './GameChart.tsx';
 import { Headshot } from './Headshot.tsx';
+import { PlayerLink } from './Links.tsx';
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -45,12 +46,11 @@ interface Props {
   sel: Selection;
   tp: TeamPattern;
   names: Map<number, string>;
-  onPlayer: (id: number) => void;
   showRare: boolean;
   onToggleRare: () => void;
 }
 
-export function PatternChart({ sel, tp, names, onPlayer, showRare, onToggleRare }: Props) {
+export function PatternChart({ sel, tp, names, showRare, onToggleRare }: Props) {
   const phone = usePhone();
   const cols = { left: (phone ? COLS.phone : COLS.desktop).left, pf: phone ? GP_COL.phone : GP_COL.desktop };
   const [boxRef, boxW] = useWidth<HTMLDivElement>();
@@ -127,10 +127,12 @@ export function PatternChart({ sel, tp, names, onPlayer, showRare, onToggleRare 
             <div className={`gc-row${rarelyUsed ? ' rare' : ''}`} key={p.id} data-testid="player-row" data-player={p.id} data-rare={rarelyUsed}>
               <div className="gc-left gc-sticky">
                 <Headshot id={p.id} name={p.name} />
-                <button className="gc-name tp-link" title={p.name} onClick={() => onPlayer(p.id)}>
-                  <span className="full">{p.name}</span>
-                  <span className={`short${longWord ? ' long' : ''}`}>{name}</span>
-                </button>
+                <span className="gc-name" title={p.name}>
+                  <PlayerLink id={p.id} team={sel.team} season={sel.season}>
+                    <span className="full">{p.name}</span>
+                    <span className={`short${longWord ? ' long' : ''}`}>{name}</span>
+                  </PlayerLink>
+                </span>
                 <span className="gc-min" data-testid="avg-min">
                   {formatMin(p.avgMin)}
                 </span>

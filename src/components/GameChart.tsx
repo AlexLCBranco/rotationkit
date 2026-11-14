@@ -18,6 +18,8 @@ import { blowoutIntervals } from '../domain/patterns.ts';
 import { gameLength, periodEnd, periodStart } from '../domain/time.ts';
 import type { Game, PlayerGame, Stint, TeamInfo } from '../domain/types.ts';
 import { Headshot, TeamLogo } from './Headshot.tsx';
+import { PlayerLink, TeamLink } from './Links.tsx';
+import { seasonOf } from '../domain/season.ts';
 
 export interface Cursor {
   t: number;
@@ -60,15 +62,19 @@ export const stintLine = (name: string, s: Stint | null) => {
   return `${name}: in ${clockLabel(s[0], true)} → out ${clockLabel(s[1])} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${fouls}`;
 };
 
-function ReadoutCard({ r, names, settings }: { r: HoverReadout; names: Map<number, string>; settings: ReadoutSettings }) {
+function ReadoutCard({ r, names, settings, season }: { r: HoverReadout; names: Map<number, string>; settings: ReadoutSettings; season: string }) {
   const [mine, theirs] = r.teams as [HoverReadout['teams'][number], HoverReadout['teams'][number]];
   const name = (p: PlayerGame) => names.get(p.id) ?? p.name;
   const lineup = (t: HoverReadout['teams'][number], muted: boolean) => (
     <div className={`rd-lineup${muted ? ' opp' : ''}`} data-testid="readout-lineup" data-team={t.team}>
-      <span className="rd-tri">{t.team}</span>
+      <TeamLink team={t.team} season={season} className="rd-tri">
+        {t.team}
+      </TeamLink>
       {t.players.map((x) => (
         <span key={x.p.id} className={`rd-p${x.me ? ' me' : ''}`} data-testid="readout-player" data-player={x.p.id} data-fouls={x.fouls}>
-          {name(x.p)}
+          <PlayerLink id={x.p.id} team={x.p.team} season={season}>
+            {name(x.p)}
+          </PlayerLink>
           {settings.fouls && x.fouls > 0 && (
             <span className="rd-pf" data-testid="readout-fouls">
               {x.fouls}
@@ -81,7 +87,14 @@ function ReadoutCard({ r, names, settings }: { r: HoverReadout; names: Map<numbe
   return (
     <>
       <div className="rd-head" data-testid="readout-head">
-        {r.clock} · {mine.team} {mine.score}–{theirs.score} {theirs.team}
+        {r.clock} ·{' '}
+        <TeamLink team={mine.team} season={season}>
+          {mine.team}
+        </TeamLink>{' '}
+        {mine.score}–{theirs.score}{' '}
+        <TeamLink team={theirs.team} season={season}>
+          {theirs.team}
+        </TeamLink>
       </div>
       {settings.lineups !== 'off' && lineup(mine, false)}
       {settings.lineups === 'both' && lineup(theirs, true)}
@@ -258,7 +271,7 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
             {tip.content.kind === 'text' ? (
               tip.content.text
             ) : g.players.some((p) => tip.content.kind === 'player' && p.id === tip.content.id) ? (
-              <ReadoutCard r={hoverReadout(g, tip.content.id, tip.content.t, segments)} names={names} settings={readout} />
+              <ReadoutCard r={hoverReadout(g, tip.content.id, tip.content.t, segments)} names={names} settings={readout} season={seasonOf(g.id)} />
             ) : null}
           </div>
         )}
@@ -319,8 +332,10 @@ function TeamRows({
     const longWord = Math.max(...short.split(/[\s-]+/).map((w) => w.length)) > 10;
     return (
       <span className="gc-name" title={name}>
-        <span className="full">{name}</span>
-        <span className={`short${longWord ? ' long' : ''}`}>{short}</span>
+        <PlayerLink id={id} team={team.tri} season={seasonOf(g.id)}>
+          <span className="full">{name}</span>
+          <span className={`short${longWord ? ' long' : ''}`}>{short}</span>
+        </PlayerLink>
       </span>
     );
   };
@@ -329,7 +344,11 @@ function TeamRows({
       <div className="gc-team-head">
         <div className="gc-sticky gc-team-title">
           <TeamLogo teamId={team.id} tri={team.tri} />
-          <strong>{teamName(team.tri)}</strong>
+          <strong>
+            <TeamLink team={team.tri} season={seasonOf(g.id)}>
+              {teamName(team.tri)}
+            </TeamLink>
+          </strong>
         </div>
       </div>
       <div className="gc-legend-row">

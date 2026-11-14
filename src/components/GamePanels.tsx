@@ -8,6 +8,8 @@ import { periodAt } from '../domain/time.ts';
 import type { Game } from '../domain/types.ts';
 import type { Cursor } from './GameChart.tsx';
 import { totalPlayed } from './GameChart.tsx';
+import { PlayerLink, TeamLink } from './Links.tsx';
+import { seasonOf } from '../domain/season.ts';
 
 export function useGameNames(g: Game) {
   return useMemo(() => {
@@ -37,7 +39,14 @@ export function CursorPanel({
     <div className="cursor-panel" data-testid="cursor-panel">
       <div className="cursor-title">
         <strong data-testid="cursor-clock">
-          {c.clock} · {g.away.tri} {c.score[1]}–{c.score[0]} {g.home.tri}
+          {c.clock} ·{' '}
+          <TeamLink team={g.away.tri} season={seasonOf(g.id)}>
+            {g.away.tri}
+          </TeamLink>{' '}
+          {c.score[1]}–{c.score[0]}{' '}
+          <TeamLink team={g.home.tri} season={seasonOf(g.id)}>
+            {g.home.tri}
+          </TeamLink>
         </strong>
         <span className="muted">{cursor.pinned ? ' · pinned' : ''}</span>
         {onClose && (
@@ -48,11 +57,16 @@ export function CursorPanel({
       </div>
       {c.teams.map((t) => (
         <div key={t.team} className="cursor-team" data-testid="cursor-team" data-team={t.team}>
-          <span className="cursor-tri">{t.team}</span>
+          <TeamLink team={t.team} season={seasonOf(g.id)} className="cursor-tri">
+            {t.team}
+          </TeamLink>
           <span className="muted">on since {t.sinceClock}:</span>{' '}
           {t.players.map((x) => (
             <span key={x.p.id} className={`cursor-player lvl-text-${troubleLevel(p, x.fouls)}`} data-testid="cursor-player" data-fouls={x.fouls}>
-              {names.get(x.p.id) ?? x.p.name} <span className="pf-pill">{x.fouls} PF</span>
+              <PlayerLink id={x.p.id} team={x.p.team} season={seasonOf(g.id)}>
+                {names.get(x.p.id) ?? x.p.name}
+              </PlayerLink>{' '}
+              <span className="pf-pill">{x.fouls} PF</span>
             </span>
           ))}
         </div>
@@ -84,7 +98,16 @@ export function LineupList({ g, team, segs, names, onPick }: { g: Game; team: st
                 <td>{clockLabel(s.start, true)}</td>
                 <td>{clockLabel(s.end)}</td>
                 <td className="num">{formatMin(s.end - s.start)}</td>
-                <td>{s.players.map((id) => names.get(id) ?? g.players.find((p) => p.id === id)?.name).join(', ')}</td>
+                <td>
+                  {s.players.map((id, i) => (
+                    <span key={id}>
+                      {i > 0 && ', '}
+                      <PlayerLink id={id} team={team} season={seasonOf(g.id)}>
+                        {names.get(id) ?? g.players.find((p) => p.id === id)?.name}
+                      </PlayerLink>
+                    </span>
+                  ))}
+                </td>
                 <td className="num">{signed(s.pm)}</td>
               </tr>
             ))}
@@ -159,7 +182,11 @@ export function QuarterTable({ g, team }: { g: Game; team: string }) {
         <tbody>
           {sorted.map((r) => (
             <tr key={r.p.id} data-testid="quarter-row">
-              <td className="name-cell">{r.p.name}</td>
+              <td className="name-cell">
+                <PlayerLink id={r.p.id} team={team} season={seasonOf(g.id)}>
+                  {r.p.name}
+                </PlayerLink>
+              </td>
               <td className="num">{r.p.starter ? '✓' : ''}</td>
               <td className="num strong">{formatMin(r.min)}</td>
               {r.q.flatMap((q) => [

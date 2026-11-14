@@ -545,3 +545,25 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .gl-table tbody tr.gl-upcoming.first td { border-top: 1px dashed #3a3a3a; }
 .gl-date-future { color: var(--muted); }
 .gl-result-future { color: var(--muted); font-style: italic; font-size: 12px; }
+
+/* Player / team name links (Links.tsx): plain text until hovered, so charts don't turn blue. */
+a.plain-link { color: inherit; text-decoration: none; cursor: pointer; }
+a.plain-link:hover { text-decoration: underline; }
+a.plain-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+/* Header player search (PlayerSearch.tsx). */
+.psearch { position: relative; margin-left: auto; }
+.psearch-input { width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; }
+.psearch-input:focus { outline: none; border-color: var(--accent); width: 280px; }
+.psearch-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; width: 340px; margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); }
+.psearch-head, .psearch-empty { padding: 4px 8px; font-size: 13px; }
+.psearch-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; color: var(--text); text-decoration: none; }
+.psearch-item.active { background: #2c3440; }
+.psearch-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.psearch-team { font-size: 13px; white-space: nowrap; }
+
+/* Player page: switch between a traded player's teams. */
+.team-switch { display: inline-flex; gap: 4px; align-items: center; font-size: 14px; font-weight: 400; }
+.team-switch a { padding: 1px 8px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); text-decoration: none; }
+.team-switch a[aria-current=page] { color: var(--text); border-color: var(--accent); }
+.team-switch a:hover { border-color: var(--accent); }
