@@ -5,6 +5,7 @@ import { CHART, FOUL_TROUBLE, GAME_TYPE, PATTERN_CONFIG } from './config.ts';
 import { blowoutIntervals } from './patterns.ts';
 import { formatClock, formatDuration, gameLength, periodAt, periodEnd, REG_PERIODS } from './time.ts';
 import type { Game, PlayerGame, Stint } from './types.ts';
+import { stintPoints } from './stints.ts';
 
 // ---------- fouls ----------
 
@@ -230,12 +231,15 @@ export interface HoverReadout {
   /** [his team, opponent]. */
   teams: { team: string; score: number; players: { p: PlayerGame; fouls: number; me: boolean }[] }[];
   stint: Stint | null;
+  /** Points in that stint (null = off court, or no points per stint in this game file). */
+  stintPts: number | null;
 }
 
 export function hoverReadout(g: Game, playerId: number, t: number, segments?: Record<string, LineupSegment[]>): HoverReadout {
   const player = g.players.find((p) => p.id === playerId)!;
   const c = cursorInfo(g, t, segments);
   const order = player.team === g.home.tri ? [g.home.tri, g.away.tri] : [g.away.tri, g.home.tri];
+  const stint = stintAt(player, c.t, g.periods) ?? null;
   return {
     t: c.t,
     clock: c.clock,
@@ -245,7 +249,8 @@ export function hoverReadout(g: Game, playerId: number, t: number, segments?: Re
       score: team === g.home.tri ? c.score[0] : c.score[1],
       players: c.teams.find((x) => x.team === team)!.players.map((x) => ({ ...x, me: x.p.id === playerId })),
     })),
-    stint: stintAt(player, c.t, g.periods) ?? null,
+    stint,
+    stintPts: stint ? stintPoints(player, stint, g.stintPts) : null,
   };
 }
 
@@ -274,6 +279,8 @@ export interface BarLayout {
   x: number;
   w: number;
   segments: (Segment & { x: number; w: number })[];
+  /** Points in this stint, when shown on the bar (`points` option); null otherwise. */
+  pts: number | null;
   label: Box & { text: string; inside: boolean };
 }
 export interface TickLayout extends FoulMark {
@@ -321,7 +328,7 @@ function nearestFree(desired: number, w: number, occ: Occ, min: number, max: num
  * view uses from = start of Q4): x is measured from there and only stints, fouls and PF badges from that period on are
  * laid out. Foul numbers stay cumulative over the whole game.
  */
-export function layoutRow(p: PlayerGame, periods: number, width: number, opts: { trouble?: boolean; from?: number } = {}): RowLayout {
+export function layoutRow(p: PlayerGame, periods: number, width: number, opts: { trouble?: boolean; from?: number; points?: boolean } = {}): RowLayout {
   const from = opts.from ?? 0;
   const firstPeriod = periodAt(from + 0.05);
   const total = gameLength(periods) - from;
@@ -341,7 +348,8 @@ export function layoutRow(p: PlayerGame, periods: number, width: number, opts: {
       x: (s.a - from) * k,
       w: Math.max(st[1] === st[0] ? 2 : 0, (s.b - s.a) * k),
     }));
-    return { st, x, w, segments, label: { text: durationText(st[1] - st[0]), x: 0, w: 0, lane: 'bar', inside: false } };
+    const k0 = p.stints.indexOf(st);
+    return { st, x, w, segments, pts: opts.points ? (p.ptsS?.[k0] ?? 0) : null, label: { text: durationText(st[1] - st[0]), x: 0, w: 0, lane: 'bar', inside: false } };
   });
 
   // Per-quarter PF badges, right-aligned at the end of the quarter, in the top lane.
@@ -367,8 +375,17 @@ export function layoutRow(p: PlayerGame, periods: number, width: number, opts: {
   // Duration labels: inside for long stints; beside, then above, then below for short ones.
   let usesBottom = false;
   for (const b of bars) {
-    const w = labelWidth(b.label.text);
     const dur = b.st[1] - b.st[0];
+    // Points on the bar ("12:00 · 8p") only inside a bar long enough for them; else the plain duration as usual.
+    if (b.pts !== null && dur >= CHART.insideLabelMinSeconds) {
+      const text = `${b.label.text} · ${b.pts}p`;
+      const pw = labelWidth(text);
+      if (pw <= b.w) {
+        b.label = { ...b.label, text, x: b.x + (b.w - pw) / 2, w: pw, lane: 'bar', inside: true };
+        continue;
+      }
+    }
+    const w = labelWidth(b.label.text);
     if (dur >= CHART.insideLabelMinSeconds && w <= b.w) {
       b.label = { ...b.label, x: b.x + (b.w - w) / 2, w, lane: 'bar', inside: true };
       continue;

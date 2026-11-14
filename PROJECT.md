@@ -13,6 +13,11 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
   gamerotation wherever both exist.
 - **+/-** per stint from the play-by-play score; same-second FTs follow the foul they belong to. **PF** = personal +
   offensive fouls (technicals excluded). Points per period (`ptsQ`) and garbage-time points (`ptsGT`) from made shots.
+  **Points per stint** (`ptsS`, parallel to `stints`; `Game.stintPts` marks files that have them): same events, each in
+  the scorer's stint by log order, else the one ending (then starting) at that clock — FTs after a same-clock sub
+  (`stintIndexFor`). Older files lack them until `scripts/backfill-stint-points.ts [--fetch]` (only when stints match).
+- **TV / Cup** (`tv`, `cup` on `schedule.json` and `index.json` entries): the feed's national TV abbreviations and
+  `isCupGroupGame` / `isCupKnockout`; only for seasons whose feed is cached (none for 2025-26).
 - **Inactive / DNP** (`Game.inactive`, `inactiveSource`): box-score list with reasons (2025-26), else the
   `boxscoresummaryv3` roster (2026-27, no reasons), else `null` → the appearance rule (estimate, marked *estimated*):
   with team T from his first to his last appearance for T, and after it until he appears for another team.
@@ -58,7 +63,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   (`GameList.tsx`): every finished game of the team, oldest first, date | team | @/vs | opponent | W/L | schedule chips
   (B2B 1/2, 3-in-4, rest days; `scheduleTags.ts`) | ⚠ on flagged games; opponent filter; collapsible (remembered);
   ↑/↓ moves; then the next 3 scheduled games, dimmed: ↑/↓ and ◀ ▶ skip them; a click opens Averages in matchup mode
-  (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. Right: ◀ ▶, game header (score, game-type badge,
+  (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. Right: ◀ ▶, game header (score, game-type badge, TV / CUP tags (also in the list and player rows),
   garbage-time chip, hoopsjunkie / calendarkit icon links, both teams' schedule chips) and the **game chart**
   (`GameChart.tsx`, layout in `src/domain/gameChart.ts`):
   - per team: one row per player (starters, divider, bench, then DNP/inactive rows with reasons), headshot, name,
@@ -66,7 +71,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   - every stint labelled with its duration (inside when ≥ 2:00, else beside / in another lane, never overlapping);
     numbered foul ticks with type and clock; per-quarter PF badges; foul-trouble colors (`FOUL_TROUBLE`, toggle);
     garbage time shaded;
-  - hover: both lineups at that moment, score, fouls so far and the player's stint ("⚙ Readout" settings, saved in
+  - hover: both lineups at that moment, score, fouls so far and the player's stint with its points ("⚙ Readout"
+    settings incl. "Points on the bars" — "12:00 · 8p" inside bars long enough, off by default; also on the player page; saved in
     localStorage `rk.readout`); click pins the lineup cursor (panel with both 5-man lineups and "on since");
   - **score margin strip** (`MarginStrip.tsx`, `src/domain/margin.ts`) above the timeline, on the bars' own axis:
     the stored `margin` timeline (time-sorted) as a step area, away lead above the zero line, home lead below,
@@ -120,8 +126,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 ## Daily data update (`.github/workflows/data-update.yml` → `scripts/ci-update.ts`)
 - 11:00 UTC daily (and manual "Run workflow"): probe cdn.nba.com → `fetch-season --cdn-only --strict` → `normalize`
   → `validate-all` → `RK_TEST_GAMES=<new ids> npm test` (fixtures, unit tests, and the sweeps over the new games
-  only) → commit `data/` to `main` ("data: N new games through YYYY-MM-DD", or a schedule-only update) → Vercel
-  redeploys.
+  only) → commit `data/` to `main` ("data: N new games through YYYY-MM-DD", or a schedule-only update) → redeploy.
 - Every run writes `data/update-status.json`. A failing step commits **only** that status file ("data: update FAILED
   at <step>"), never partial game data; `scripts/record-failure.ts` records failures before the script starts.
 - A game failing a validate-all check is still committed with its warning; reviewed problems go to
@@ -129,18 +134,14 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 - Pushes to `claude/**` branches touching the pipeline run the same steps as a dry run (no commit).
 
 ## Updating data by hand
-```
-npm install
-npm run update-data      # = fetch-season → normalize → validate-all
-```
+`npm install`, then `npm run update-data` (= fetch-season → normalize → validate-all).
 Past season: `npm run fetch-season -- --season 2025-26 --cdn-only`, then `npm run normalize`, `npm run validate-all`.
 Single game: `npm run fetch-game -- <gameId> [--force] [--cdn-only]`. Raw responses are cached in `cache/`
 (gitignored). Scripts use `HTTPS_PROXY` when set.
 
 ## Deploy
-Vercel: `npm ci`, `npm run build` (typecheck + Vite; the build copies `data/` to `dist/data/` and writes the
-generated files next to it), output `dist/`.
-`main` → production; branches get preview deployments.
+Vercel: `npm ci`, `npm run build` (typecheck + Vite; copies `data/` to `dist/data/` + the generated files), output
+`dist/`. `main` → production; branches get preview deployments.
 
 ## Open problems
 - stats.nba.com is slow/flaky; it is optional.

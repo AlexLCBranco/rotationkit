@@ -22,6 +22,7 @@ import { PlayerLink, TeamLink } from './Links.tsx';
 import { MarginLabel, MarginSvg } from './MarginStrip.tsx';
 import { usualAt, usualLine, usualStintAt, type Usual } from '../domain/usual.ts';
 import { seasonOf } from '../domain/season.ts';
+import { ptsText } from '../domain/stints.ts';
 
 export interface Cursor {
   t: number;
@@ -57,11 +58,11 @@ function useWidth<T extends HTMLElement>() {
 
 export const totalPlayed = (p: PlayerGame) => p.stints.reduce((x, [s, e]) => x + e - s, 0);
 
-/** "Maxey: in Q1 12:00 → out Q1 6:12 · 5:48 · +/- +4", or "Maxey (off court)". */
-export const stintLine = (name: string, s: Stint | null) => {
+/** "Maxey: in Q1 12:00 → out Q1 6:12 · 5:48 · +/- +4 · 8 pts", or "Maxey (off court)". Points only with data. */
+export const stintLine = (name: string, s: Stint | null, pts: number | null = null) => {
   if (!s) return `${name} (off court)`;
   const fouls = s[3]?.length ? ` · ${s[3].length} foul${s[3].length > 1 ? 's' : ''}` : '';
-  return `${name}: in ${clockLabel(s[0], true)} → out ${clockLabel(s[1])} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${fouls}`;
+  return `${name}: in ${clockLabel(s[0], true)} → out ${clockLabel(s[1])} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${ptsText(pts)}${fouls}`;
 };
 
 function ReadoutCard({ r, names, settings, season, usual }: { r: HoverReadout; names: Map<number, string>; settings: ReadoutSettings; season: string; usual: string | null }) {
@@ -102,7 +103,7 @@ function ReadoutCard({ r, names, settings, season, usual }: { r: HoverReadout; n
       {settings.lineups === 'both' && lineup(theirs, true)}
       {settings.stint && (
         <div className="rd-stint" data-testid="readout-stint">
-          {stintLine(name(r.player), r.stint)}
+          {stintLine(name(r.player), r.stint, r.stintPts)}
         </div>
       )}
       {usual && (
@@ -256,6 +257,7 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
             blowout={blowout}
             ticks={ticks}
             trouble={trouble}
+            points={readout.barPoints && !!g.stintPts}
             show={show}
             leave={() => (item.current = null)}
             usual={usual}
@@ -316,6 +318,7 @@ function TeamRows({
   blowout,
   ticks,
   trouble,
+  points,
   show,
   leave,
   usual,
@@ -327,6 +330,8 @@ function TeamRows({
   blowout: [number, number][];
   ticks: { t: number; label: string; period: number }[];
   trouble: boolean;
+  /** Points on the bars (readout setting, only for game files with points per stint). */
+  points: boolean;
   show: (text: string) => (e: React.PointerEvent | React.MouseEvent) => void;
   leave: () => void;
   usual: Map<number, Usual> | null;
@@ -422,11 +427,11 @@ function TeamRows({
         <div className="gc-pf gc-sticky-r gc-colhead">PF</div>
       </div>
       {starters.map((p) => (
-        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
+        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} points={points} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
       ))}
       {bench.length > 0 && <div className="gc-bench-divider" aria-hidden />}
       {bench.map((p) => (
-        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
+        <PlayerRow key={p.id} p={p} g={g} W={W} k={k} trouble={trouble} points={points} band={band} show={show} leave={leave} usual={usual?.get(p.id) ?? null} name={<Name id={p.id} name={p.name} />} />
       ))}
       {dnp.map((p) => (
         <div className="gc-row gc-dnp" key={p.id} data-testid="dnp-row">
@@ -465,6 +470,7 @@ function PlayerRow({
   k,
   usual,
   trouble,
+  points,
   band,
   show,
   leave,
@@ -476,12 +482,13 @@ function PlayerRow({
   k: number;
   usual: Usual | null;
   trouble: boolean;
+  points: boolean;
   band: React.ReactNode;
   show: (text: string) => (e: React.PointerEvent | React.MouseEvent) => void;
   leave: () => void;
   name: React.ReactNode;
 }) {
-  const r: RowLayout = useMemo(() => layoutRow(p, g.periods, W, { trouble }), [p, g.periods, W, trouble]);
+  const r: RowLayout = useMemo(() => layoutRow(p, g.periods, W, { trouble, points }), [p, g.periods, W, trouble, points]);
   const y = { top: 0, bar: CHART.laneTopPx, bottom: CHART.laneTopPx + CHART.barPx };
   return (
     <div className="gc-row" data-testid="gc-player-row" data-player={p.id}>
@@ -513,6 +520,7 @@ function PlayerRow({
             data-testid="stint"
             data-start={b.st[0]}
             data-end={b.st[1]}
+            {...(g.stintPts ? { 'data-pts': p.ptsS?.[p.stints.indexOf(b.st)] ?? 0 } : {})}
           >
             {b.segments.map((s, j) => (
               <i key={j} className={`gc-seg ${trouble ? `lvl-${s.level}` : 'lvl-neutral'}`} style={{ left: s.x - b.x, width: s.w }} />

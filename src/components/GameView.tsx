@@ -18,8 +18,8 @@ import { ReadoutMenu } from './ReadoutMenu.tsx';
 import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { seasonOf } from '../domain/season.ts';
 import { REG_PERIODS } from '../domain/time.ts';
-import type { Game, QualityNote } from '../domain/types.ts';
-import { GameBadge } from './GameBadge.tsx';
+import type { Game, GameIndexEntry, QualityNote } from '../domain/types.ts';
+import { BroadcastTags, GameBadge } from './GameBadge.tsx';
 import { GameChart, totalPlayed, type Cursor } from './GameChart.tsx';
 import { CursorPanel, LineupList, QuarterTable, segmentsByTeam, useGameNames } from './GamePanels.tsx';
 import { Header } from './Header.tsx';
@@ -117,6 +117,8 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
           them: home ? e.as : e.hs,
           flagged: !!e.flagged,
           tags: ours.get(e.id),
+          tv: e.tv,
+          cup: e.cup,
         };
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)); // oldest first
@@ -129,7 +131,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
       .map((e) => {
         const home = e.home === team;
         const opp = home ? e.away : e.home;
-        return { id: e.id, date: e.date, team, teamId: TEAM_BY_TRI.get(team)?.id ?? 0, opp, oppId: TEAM_BY_TRI.get(opp)?.id ?? 0, home, status: e.status, label: e.label, tags: ours.get(e.id) };
+        return { id: e.id, date: e.date, team, teamId: TEAM_BY_TRI.get(team)?.id ?? 0, opp, oppId: TEAM_BY_TRI.get(opp)?.id ?? 0, home, status: e.status, label: e.label, tags: ours.get(e.id), tv: e.tv, cup: e.cup };
       });
     return { games, sched, ours, upcoming };
   }, [meta, team]);
@@ -211,7 +213,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
           {meta.status === 'error' && <p className="error">Could not load games: {meta.error}</p>}
           {loaded.status === 'error' && id && <p className="error">Could not load game: {loaded.error}</p>}
           {g && picker && team && (g.home.tri === team || g.away.tri === team) && (
-            <GameHeader g={g} team={team} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
+            <GameHeader g={g} team={team} entry={meta.status === 'ok' ? meta.value[0].find((e) => e.id === g.id) : undefined} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
           )}
           {g && tab === 'games' && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} />}
           {g && tab === 'q4' && (
@@ -226,7 +228,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   );
 }
 
-function GameHeader({ g, team, ours, theirs }: { g: Game; team: string; ours: ScheduleTags | undefined; theirs: ScheduleTags | undefined }) {
+function GameHeader({ g, team, entry, ours, theirs }: { g: Game; team: string; entry: GameIndexEntry | undefined; ours: ScheduleTags | undefined; theirs: ScheduleTags | undefined }) {
   const opp = g.home.tri === team ? g.away.tri : g.home.tri;
   return (
     <div className="game-head">
@@ -246,6 +248,7 @@ function GameHeader({ g, team, ours, theirs }: { g: Game; team: string; ours: Sc
           {g.periods > REG_PERIODS ? ` · Final/${g.periods === 5 ? 'OT' : `${g.periods - REG_PERIODS}OT`}` : ' · Final'}
         </span>
         <GameBadge g={g} />
+        <BroadcastTags tv={entry?.tv} cup={entry?.cup} />
         <GameLinks g={g} />
       </h1>
       <div className="head-tags">

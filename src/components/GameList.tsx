@@ -6,6 +6,8 @@ import { teamName } from '../app/teams.ts';
 import type { ScheduleTags } from '../domain/scheduleTags.ts';
 import { TeamLogo } from './Headshot.tsx';
 import { ScheduleChips, ScheduleLegend } from './ScheduleChips.tsx';
+import { BroadcastTags } from './GameBadge.tsx';
+import type { CupRound } from '../domain/types.ts';
 import { TeamLink } from './Links.tsx';
 
 export interface ListGame {
@@ -20,6 +22,8 @@ export interface ListGame {
   them: number;
   flagged: boolean;
   tags: ScheduleTags | undefined;
+  tv?: string[] | undefined;
+  cup?: CupRound | undefined;
 }
 
 /** How many not-yet-played games to show under the list. */
@@ -38,6 +42,8 @@ export interface UpcomingGame {
   status: 'scheduled' | 'live' | 'final' | 'unknown';
   label?: string;
   tags: ScheduleTags | undefined;
+  tv?: string[] | undefined;
+  cup?: CupRound | undefined;
 }
 
 /** m/d/yyyy */
@@ -178,6 +184,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
                   </td>
                   <td className="gl-tags">
                     <ScheduleChips tags={g.tags} rest={false} />
+                    <BroadcastTags tv={g.tv} cup={g.cup} />
                   </td>
                   <td className="rest-days" data-testid="list-rest">
                     <ScheduleChips tags={g.tags} chips={false} />
@@ -231,6 +238,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
                 </td>
                 <td className="gl-tags">
                   <ScheduleChips tags={g.tags} rest={false} />
+                  <BroadcastTags tv={g.tv} cup={g.cup} />
                 </td>
                 <td className="rest-days">
                   <ScheduleChips tags={g.tags} chips={false} />

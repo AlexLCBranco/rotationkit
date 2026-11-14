@@ -101,18 +101,18 @@ describe('readout settings (localStorage)', () => {
   };
   it('defaults: both lineups + stint details + fouls', () => {
     vi.stubGlobal('localStorage', store());
-    expect(loadReadout()).toEqual({ lineups: 'both', stint: true, fouls: true });
-    expect(DEFAULT_READOUT).toEqual({ lineups: 'both', stint: true, fouls: true });
+    expect(loadReadout()).toEqual({ lineups: 'both', stint: true, fouls: true, barPoints: false });
+    expect(DEFAULT_READOUT).toEqual({ lineups: 'both', stint: true, fouls: true, barPoints: false });
   });
   it('saves and loads; unknown or broken values fall back to defaults', () => {
     const s = store();
     vi.stubGlobal('localStorage', s);
-    saveReadout({ lineups: 'mine', stint: false, fouls: false });
-    expect(loadReadout()).toEqual({ lineups: 'mine', stint: false, fouls: false });
+    saveReadout({ lineups: 'mine', stint: false, fouls: false, barPoints: true });
+    expect(loadReadout()).toEqual({ lineups: 'mine', stint: false, fouls: false, barPoints: true });
     s.setItem('rk.readout', '{not json');
     expect(loadReadout()).toEqual(DEFAULT_READOUT);
     s.setItem('rk.readout', JSON.stringify({ lineups: 'everyone', stint: 'yes', fouls: false }));
-    expect(loadReadout()).toEqual({ lineups: 'both', stint: true, fouls: false });
+    expect(loadReadout()).toEqual({ lineups: 'both', stint: true, fouls: false, barPoints: false });
   });
   it('storage that throws (private mode, blocked) never breaks it', () => {
     vi.stubGlobal('localStorage', {
@@ -124,6 +124,6 @@ describe('readout settings (localStorage)', () => {
       },
     });
     expect(loadReadout()).toEqual(DEFAULT_READOUT);
-    expect(() => saveReadout({ lineups: 'off', stint: true, fouls: true })).not.toThrow();
+    expect(() => saveReadout({ lineups: 'off', stint: true, fouls: true, barPoints: false })).not.toThrow();
   });
 });

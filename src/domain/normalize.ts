@@ -79,6 +79,25 @@ function reasonOf(p: { notPlayingReason?: string; notPlayingDescription?: string
   return r;
 }
 
+/**
+ * Which of the scorer's stints a scoring event belongs to (index into `list`, -1 = none).
+ * 1. By log order, as fouls are: the stint whose in / out events bracket the event.
+ * 2. Same clock as a substitution but logged after the scorer's own exit (free throws shot after a substitution at
+ *    that moment): the stint that ends at that clock in that period — he was on court when the foul happened —
+ *    else one starting at that clock.
+ */
+export function stintIndexFor(list: Stint[], bounds: (s: Stint) => [number, number] | undefined, x: { t: number; period: number; i: number }): number {
+  const inPeriod = (st: Stint) => periodAt(st[0] + (st[1] > st[0] ? 0.05 : 0)) === x.period;
+  const byOrder = list.findIndex((st) => {
+    const b = bounds(st);
+    return b !== undefined && inPeriod(st) && b[0] < x.i && x.i < b[1];
+  });
+  if (byOrder >= 0) return byOrder;
+  const ending = list.findIndex((st) => inPeriod(st) && st[1] === x.t);
+  if (ending >= 0) return ending;
+  return list.findIndex((st) => inPeriod(st) && st[0] === x.t);
+}
+
 export function normalizeGame(raw: RawGame): Game {
   const bg = raw.boxscore.game;
   const team = (t: typeof bg.homeTeam): TeamInfo => ({ id: t.teamId, tri: t.teamTricode, name: t.teamName, city: t.teamCity, score: t.score });
@@ -195,7 +214,7 @@ export function normalizeGame(raw: RawGame): Game {
   // Points per period from the play-by-play's made shots and free throws (box score has game totals only).
   const POINTS: Record<string, number> = { '2pt': 2, '3pt': 3, freethrow: 1 };
   const ptsBy = new Map<number, number[]>();
-  const scoring: { id: number; t: number; period: number; pts: number }[] = [];
+  const scoring: { id: number; t: number; period: number; pts: number; i: number }[] = [];
   for (const e of evs) {
     const a = e.a;
     const pts = POINTS[a.actionType];
@@ -204,8 +223,24 @@ export function normalizeGame(raw: RawGame): Game {
     const row = ptsBy.get(a.personId)!;
     while (row.length < e.period) row.push(0);
     row[e.period - 1]! += pts;
-    scoring.push({ id: a.personId, t: e.t, period: e.period, pts });
+    scoring.push({ id: a.personId, t: e.t, period: e.period, pts, i: e.i });
   }
+
+  // Points per stint (same made shots and free throws as ptsQ), parallel to the player's stints.
+  const ptsSBy = new Map<number, number[]>();
+  const unplaced: string[] = [];
+  for (const x of scoring) {
+    const list = stintsBy.get(x.id) ?? [];
+    const k = stintIndexFor(list, (st) => orderBounds.get(st), x);
+    if (k < 0) {
+      unplaced.push(`${x.pts} pt by ${x.id} at ${x.t}s`);
+      continue;
+    }
+    const row = ptsSBy.get(x.id) ?? new Array<number>(list.length).fill(0);
+    row[k]! += x.pts;
+    ptsSBy.set(x.id, row);
+  }
+  if (unplaced.length) rebuilt.notes.push(`points outside every stint of the scorer (not in ptsS): ${unplaced.join('; ')}`);
 
   const players: PlayerGame[] = [...box.values()].map(({ side, p }) => {
     return {
@@ -225,6 +260,7 @@ export function normalizeGame(raw: RawGame): Game {
       stints: stintsBy.get(p.personId) ?? [],
       ...(foulsBy.has(p.personId) ? { fouls: foulsBy.get(p.personId)! } : {}),
       ...(ptsBy.has(p.personId) ? { ptsQ: ptsBy.get(p.personId)! } : {}),
+      ...(ptsSBy.has(p.personId) ? { ptsS: ptsSBy.get(p.personId)! } : {}),
     };
   });
 
@@ -276,6 +312,7 @@ export function normalizeGame(raw: RawGame): Game {
     margin,
     score,
     orphanFouls,
+    stintPts: true,
   };
 
   // Points scored in garbage time (blowout rule), per period. A basket at the moment the margin reaches the

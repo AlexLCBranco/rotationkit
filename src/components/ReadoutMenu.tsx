@@ -9,7 +9,8 @@ const LINEUPS: [ReadoutSettings['lineups'], string][] = [
   ['off', 'Off'],
 ];
 
-export function ReadoutMenu({ value, onChange }: { value: ReadoutSettings; onChange: (s: ReadoutSettings) => void }) {
+/** `barsOnly`: the player page has no lineup readout, only the points-on-bars option. */
+export function ReadoutMenu({ value, onChange, barsOnly = false }: { value: ReadoutSettings; onChange: (s: ReadoutSettings) => void; barsOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -30,22 +31,30 @@ export function ReadoutMenu({ value, onChange }: { value: ReadoutSettings; onCha
       </button>
       {open && (
         <div className="rd-panel" data-testid="readout-settings-panel">
-          <fieldset>
-            <legend>Lineups at the hovered moment</legend>
-            {LINEUPS.map(([v, label]) => (
-              <label key={v}>
-                <input type="radio" name="rd-lineups" checked={value.lineups === v} onChange={() => onChange({ ...value, lineups: v })} />
-                {label}
+          {!barsOnly && (
+            <>
+              <fieldset>
+                <legend>Lineups at the hovered moment</legend>
+                {LINEUPS.map(([v, label]) => (
+                  <label key={v}>
+                    <input type="radio" name="rd-lineups" checked={value.lineups === v} onChange={() => onChange({ ...value, lineups: v })} />
+                    {label}
+                  </label>
+                ))}
+              </fieldset>
+              <label>
+                <input type="checkbox" checked={value.stint} onChange={(e) => onChange({ ...value, stint: e.target.checked })} />
+                Stint details
               </label>
-            ))}
-          </fieldset>
+              <label>
+                <input type="checkbox" checked={value.fouls} onChange={(e) => onChange({ ...value, fouls: e.target.checked })} />
+                Foul counts
+              </label>
+            </>
+          )}
           <label>
-            <input type="checkbox" checked={value.stint} onChange={(e) => onChange({ ...value, stint: e.target.checked })} />
-            Stint details
-          </label>
-          <label>
-            <input type="checkbox" checked={value.fouls} onChange={(e) => onChange({ ...value, fouls: e.target.checked })} />
-            Foul counts
+            <input type="checkbox" checked={value.barPoints} onChange={(e) => onChange({ ...value, barPoints: e.target.checked })} data-testid="bar-points-toggle" />
+            Points on the bars (“12:00 · 8p”)
           </label>
         </div>
       )}

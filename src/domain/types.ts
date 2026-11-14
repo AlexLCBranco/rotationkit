@@ -39,6 +39,11 @@ export interface PlayerGame {
   fouls?: PlayerFoul[];
   /** Points per period (Q1, Q2, Q3, Q4, OT…) from the play-by-play's made shots and free throws. Absent = 0 points. */
   ptsQ?: number[];
+  /**
+   * Points scored in each stint (same order and length as `stints`), from the same play-by-play events as ptsQ.
+   * Only in games with `Game.stintPts`; there, absent = no points.
+   */
+  ptsS?: number[];
   /** Of those, points scored in garbage time (blowout rule, `blowoutIntervals`), per period. Absent = none. */
   ptsGT?: number[];
 }
@@ -76,6 +81,8 @@ export interface Game {
   stintNotes?: string[];
   /** Data-quality notes for checks this game fails (absent = passes everything). Stints/minutes still used. */
   quality?: QualityNote[];
+  /** Points per stint (`PlayerGame.ptsS`) were computed for this game (absent in files normalized before they existed). */
+  stintPts?: true;
   /** Personal fouls that could not be matched to one of the player's stints (should be empty). */
   orphanFouls: { player: number; t: number }[];
 }
@@ -93,7 +100,12 @@ export interface GameIndexEntry {
   periods: number;
   /** Game has data-quality notes. */
   flagged?: true;
+  /** From the season's schedule.json (see ScheduleEntry); absent when the feed did not have it. */
+  tv?: string[];
+  cup?: CupRound;
 }
+
+export type CupRound = 'group' | 'knockout';
 
 export interface QualityNote {
   check: string;
@@ -113,4 +125,8 @@ export interface ScheduleEntry {
   away: string;
   status: 'scheduled' | 'live' | 'final' | 'unknown';
   label?: string;
+  /** National TV networks: `broadcasterAbbreviation` of the feed's `broadcasters.nationalBroadcasters` (in feed order). */
+  tv?: string[];
+  /** NBA Cup game: `isCupGroupGame` → group, `isCupKnockout` → knockout (schedule parser). */
+  cup?: CupRound;
 }

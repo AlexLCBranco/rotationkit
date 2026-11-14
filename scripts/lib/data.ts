@@ -4,6 +4,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Game, GameIndexEntry, ScheduleEntry } from '../../src/domain/types.ts';
+import type { ScheduleGame } from '../../src/shared/nba-schedule/parse.ts';
 
 export const DATA_DIR = 'data';
 
@@ -51,8 +52,35 @@ export function newGamesSummary(before: GameIndexEntry[], after: GameIndexEntry[
 }
 
 /** Schedule entries added, removed or changed (date, teams, status) between two versions of all schedules. */
+/**
+ * Compact schedule entry from the parsed feed. `tv` = the national TV networks' `broadcasterAbbreviation` (feed order,
+ * `broadcasterDisplay` when the abbreviation is empty); `cup` from the parser's isCupGroupGame / isCupKnockout.
+ */
+export function scheduleEntryOf(g: ScheduleGame): ScheduleEntry {
+  const tv = [...new Set((g.broadcasters?.nationalBroadcasters ?? []).map((b) => String(b.broadcasterAbbreviation ?? '').trim() || String(b.broadcasterDisplay ?? '').trim()).filter(Boolean))];
+  return {
+    id: g.gameId,
+    date: g.dateEt,
+    home: g.homeTeam.teamTricode,
+    away: g.awayTeam.teamTricode,
+    status: g.status,
+    ...(g.gameLabel ? { label: [g.gameLabel, g.gameSubLabel].filter(Boolean).join(' · ') } : {}),
+    ...(tv.length ? { tv } : {}),
+    ...(g.isCupGroupGame ? { cup: 'group' as const } : g.isCupKnockout ? { cup: 'knockout' as const } : {}),
+  };
+}
+
+/** Index entries with the schedule's TV / Cup tags (by game id). */
+export function withScheduleTags(index: GameIndexEntry[], schedule: ScheduleEntry[]): GameIndexEntry[] {
+  const by = new Map(schedule.map((e) => [e.id, e]));
+  return index.map((g) => {
+    const e = by.get(g.id);
+    return { ...g, ...(e?.tv ? { tv: e.tv } : {}), ...(e?.cup ? { cup: e.cup } : {}) };
+  });
+}
+
 export function scheduleChanges(before: ScheduleEntry[], after: ScheduleEntry[]): number {
-  const key = (e: ScheduleEntry) => `${e.date}|${e.home}|${e.away}|${e.status}|${e.label ?? ''}`;
+  const key = (e: ScheduleEntry) => `${e.date}|${e.home}|${e.away}|${e.status}|${e.label ?? ''}|${(e.tv ?? []).join(',')}|${e.cup ?? ''}`;
   const b = new Map(before.map((e) => [e.id, key(e)]));
   const a = new Map(after.map((e) => [e.id, key(e)]));
   let n = 0;
