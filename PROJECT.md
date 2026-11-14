@@ -65,29 +65,30 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   (`GameChart.tsx`, layout in `src/domain/gameChart.ts`):
   - team order: the selected team (`t=`, else the remembered team, when it played) first, home or away; none →
     away first and no `t=` in the URL. Each team header has a HOME / AWAY tag and the score (Q4 tab: same order/tags);
-  - per team: one row per player (starters, divider, bench, then DNP/inactive rows with reasons), headshot, name,
+  - per team: one row per player (starters, divider, bench, then DNP/inactive rows with the reason on the row:
+    `src/app/dnp.ts` from the source codes only — `*_COACH` "DNP – CD", injury / concussion "OUT – injury/illness",
+    others neutral in words, no code = plain "DNP" / "Inactive"; + the source's detail), headshot, name,
     MIN, stints on a quarter timeline (≥ `CHART.minPxPerMinute`, scrolls inside its box), PF;
   - **Compact (both teams)** toggle (localStorage `rk.compact`): `CHART_COMPACT` rows (no bottom label lane; a label
     with no room is left out), one shared axis, no legend, DNP rows folded into one clickable line per team; both
     teams fit 1920×1080 (e2e on the game with the most players);
-  - every stint labelled with its duration (inside when ≥ 2:00, else beside / in another lane, never overlapping);
-    numbered foul ticks with type and clock; per-quarter PF badges; foul-trouble colors (`FOUL_TROUBLE`, toggle);
-    garbage time shaded;
-  - hover: both lineups at that moment, score, fouls so far and the player's stint with its points ("⚙ Readout"
-    settings incl. "Points on the bars" — "12:00 · 8p" inside bars long enough, off by default; also on the player page; saved in
-    localStorage `rk.readout`); click pins the lineup cursor (panel with both 5-man lineups and "on since");
+  - stints labelled with their duration (inside when ≥ 2:00, else beside / another lane, never overlapping); numbered
+    foul ticks (type, clock); per-quarter PF badges; foul-trouble colors (`FOUL_TROUBLE`, toggle); garbage time shaded;
+  - hover: both lineups, score, fouls so far, the player's stint with its points ("⚙ Readout" settings, `rk.readout`,
+    incl. "Points on the bars": "12:00 · 8p" inside bars long enough, off by default, also on the player page); click
+    pins the lineup cursor (panel with both 5-man lineups and "on since");
   - **score margin strip** (`MarginStrip.tsx`, `src/domain/margin.ts`) above the timeline, on the bars' own axis:
     the stored `margin` timeline (time-sorted) as a step area, away lead above the zero line, home lead below,
     final margin in the label column; the lineup cursor crosses it;
   - **"Usual"** (toolbar toggle, on by default, localStorage `rk.usual`; `src/domain/usual.ts`, `USUAL` in config):
     a faint dashed outline behind each player's bars = `typicalStints` over his team's previous 10 games of the season
-    (this game excluded, blowout rule on, regulation only); none for a player with fewer than 3 games in that window.
-    No pointer events, never moves bars/labels/ticks. Hovering on an outline adds "usually on court here (7 of 10)";
+    (this game excluded, blowout rule on, regulation only); none under 3 games in that window. No pointer events, never
+    moves bars/labels/ticks; hovering on an outline adds "usually on court here (7 of 10)";
   - below: minutes & fouls by quarter (sortable) and the lineup list per team.
 - **Q4** (`#/q4/<id>`, `Q4View.tsx`, `src/domain/q4.ts`): same game, Q4 + OT on one axis, both teams stacked; closers
   first; MIN, fouls entering Q4, Q4 fouls; a thinner margin strip (24 px) over Q4 + OT; rows shrink to fit the
-  window (no scroll; rows are border-box, so the fit counts no extra border). Beside it "Every change"
-  (`q4Story.ts`): each lineup change in words, linked to its moment (hover moves the chart's line).
+  window (no scroll; border-box rows). Beside it "Every change" (`q4Story.ts`): each lineup change in words, linked to
+  its moment (hover moves the chart's line).
 - **Averages** (`#/team/ORL?s=&w=&v=&rest=&b=&p=&m=&vs=`, `TeamView.tsx`): filters Last 5 / 10 / Season,
   All / Home / Away, rest, "Hide blowout time", With… / Without… a player; "based on N games" label; a note offers the
   previous season under 5 games. **Typical stints** (`PatternChart.tsx`), **Heat map** or **Game by game**
@@ -100,8 +101,9 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   times closed; "based on N close games". Matchup mode `vs=` stacks the opponent.
 - **Player page** (`#/player/ORL/<id>?…`, `PlayerView.tsx`): one row per game with actual stints (a "Q4" marker on
   games he played the full 4th; "Full Q4s: X of Y games" over the selection's games he played), minutes trend,
-  "when he sits", game log, games missed with reasons. Click a game → that game. A player with several teams in
-  the season (season-wide `appearances.json`, `teamsOf`) gets a switch between them in the title.
+  "when he sits", game log, games missed (DNP rows and the missed list use the same DNP labels). Click a game → that
+  game. His name, headshot and team sit on the readout line right above the rows; a player with several teams in the
+  season (season-wide `appearances.json`, `teamsOf`) gets a switch between them there.
 - **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 / second-half min and
   pts per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table; `LEADER_MIN_GAMES`.
 - **Full Q4** (`#/fullq4?s=&d=YYYY-MM-DD&th=11&nb=1`, `FullQ4View.tsx`, `src/domain/fullQ4.ts` on `quarters.json`, no
@@ -137,14 +139,12 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 ## Updating data by hand
 `npm install`, then `npm run update-data` (= fetch-season → normalize → validate-all).
 Past season: `npm run fetch-season -- --season 2025-26 --cdn-only`, then `npm run normalize`, `npm run validate-all`.
-Single game: `npm run fetch-game -- <gameId> [--force] [--cdn-only]`. Raw responses are cached in `cache/`
-(gitignored). Scripts use `HTTPS_PROXY` when set.
+Single game: `npm run fetch-game -- <gameId> [--force] [--cdn-only]`. Raw cache: `cache/` (gitignored); `HTTPS_PROXY` used.
 
 ## Deploy
 Vercel: `npm ci`, `npm run build` (typecheck + Vite; copies `data/` to `dist/data/` + the generated files), output
 `dist/`. `main` → production; branches get preview deployments.
 
 ## Open problems
-- stats.nba.com is slow/flaky; it is optional.
-- 2026-27 box scores carry no inactive players or reasons; the roster list is used (no reasons).
-- The appearance rule misjudges some fringe two-way / G-League players.
+- stats.nba.com is slow/flaky (optional). 2026-27 box scores carry no inactive players or reasons (roster list used,
+  no reasons). The appearance rule misjudges some fringe two-way / G-League players.

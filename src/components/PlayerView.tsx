@@ -6,7 +6,7 @@ import { teamsOf } from '../domain/players.ts';
 import { TeamLink, useLinkContext } from './Links.tsx';
 import { restForTeam } from '../domain/rest.ts';
 import { useAsync } from '../app/hooks.ts';
-import { formatMin, reasonText, shortDate } from '../app/labels.ts';
+import { formatMin, shortDate } from '../app/labels.ts';
 import { format, type Route } from '../app/route.ts';
 import { teamColor, teamName } from '../app/teams.ts';
 import { playerGames, selectGames, type Filters as F } from '../domain/patterns.ts';
@@ -22,6 +22,8 @@ import { quarterStats } from '../domain/gameChart.ts';
 import { describeSit, minutesTrend, sitPattern, type Selection } from '../domain/patterns.ts';
 import { buildAppearances } from '../domain/availability.ts';
 import { MinutesTrend } from './MinutesTrend.tsx';
+import { dnpLabel, type DnpLabel } from '../app/dnp.ts';
+import { Headshot } from './Headshot.tsx';
 import { ReadoutMenu } from './ReadoutMenu.tsx';
 import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { playerFullQ4 } from '../domain/fullQ4.ts';
@@ -58,7 +60,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
     const missed = sel.games.flatMap((g) => {
       if (inBox.has(g.id)) return [];
       const x = g.inactive?.find((i) => i.id === player && i.team === team);
-      return x ? [{ g, reason: reasonText(x.reason, x.reasonDetail) }] : [];
+      return x ? [{ g, label: dnpLabel(x.reason, x.reasonDetail, true) }] : [];
     });
     const periods = Math.max(4, ...sel.games.filter((g) => inBox.has(g.id)).map((g) => g.periods));
     const anyName =
@@ -78,10 +80,10 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
       {tri}
     </TeamLink>
   );
-  return (
-    <div className="page">
-      <Header back={{ label: teamName(team), onClick: () => nav({ view: 'team', team, season, filters: route.filters }) }}>
-        <h1 className="title">
+  // His name, headshot and team sit on the readout line, right above his rows.
+  const nameBlock = (
+    <h1 className="title pl-title" data-testid="player-title">
+          <Headshot id={player} name={c?.fullName ?? ''} />
           <span className="swatch" style={{ background: teamColor(team) }} />
           {c?.fullName ?? '…'}{' '}
           <span className="muted">
@@ -101,7 +103,10 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
             </span>
           )}
         </h1>
-      </Header>
+  );
+  return (
+    <div className="page">
+      <Header back={{ label: teamName(team), onClick: () => nav({ view: 'team', team, season, filters: route.filters }) }} />
       <Filters
         seasons={seasons}
         season={season}
@@ -110,6 +115,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
         onSeason={(s) => go({ season: s })}
         onFilters={(f) => go({ filters: f })}
       />
+      {!c && <div className="pl-readout-bar">{nameBlock}</div>}
       {data.status === 'loading' && <p className="muted">Loading…</p>}
       {data.status === 'error' && <p className="error">Could not load games: {data.error}</p>}
       {c && (
@@ -124,7 +130,8 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
             <strong>Full Q4s:</strong> {c.fullQ4.full.size} of {c.fullQ4.played} game{c.fullQ4.played === 1 ? '' : 's'}
             <span className="muted"> · on court for the whole regulation 4th quarter (12:00) · games of this selection he played</span>
           </p>
-          <div className="pl-readout-bar">
+          <div className="pl-readout-bar" data-testid="player-bar">
+            {nameBlock}
             <div className="readout" aria-live="polite" data-testid="readout">
               {hover ? describeStint(hover.stint, hover.pts) : <span className="muted">Hover or tap a stint for details. Click a game to open it.</span>}
             </div>
@@ -188,7 +195,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                         onHover={(s, pts) => setHover(s ? { game: r.gameId, stint: s, pts } : null)}
                       />
                     ) : (
-                      <span className="dnp-inline">Did not play</span>
+                      <DnpTag label={dnpLabel(r.reason, r.reasonDetail)} />
                     )}
                   </div>
                   <div className="num">{r.played ? formatMin(r.min) : '—'}</div>
@@ -204,10 +211,9 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                 Missed {c.missed.length} game{c.missed.length === 1 ? '' : 's'} in this selection
               </summary>
               <ul>
-                {c.missed.map(({ g, reason }) => (
-                  <li key={g.id}>
-                    {shortDate(g.date)} {g.home.tri === team ? 'vs' : '@'} {opp(g.home.tri === team ? g.away.tri : g.home.tri)}
-                    {reason && <span className="muted"> — {reason}</span>}
+                {c.missed.map(({ g, label }) => (
+                  <li key={g.id} data-testid="missed-game">
+                    {shortDate(g.date)} {g.home.tri === team ? 'vs' : '@'} {opp(g.home.tri === team ? g.away.tri : g.home.tri)} <DnpTag label={label} />
                   </li>
                 ))}
               </ul>
@@ -306,5 +312,15 @@ function GameLog({ sel, player, team, opp, onOpen }: { sel: Selection; player: n
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** DNP / inactive reason tag (src/app/dnp.ts) with the source's detail. */
+function DnpTag({ label }: { label: DnpLabel }) {
+  return (
+    <span className="dnp-inline" data-testid="dnp-label" data-kind={label.kind}>
+      <span className={`dnp-tag ${label.kind}`}>{label.tag}</span>
+      {label.detail && <span className="dnp-detail">{label.detail}</span>}
+    </span>
   );
 }
