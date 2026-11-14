@@ -6,14 +6,14 @@ const iso = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3_600_000).to
 const serve = (page: Page, body: unknown | null) =>
   page.route('**/data/update-status.json', (r) => (body === null ? r.fulfill({ status: 404, body: '' }) : r.fulfill({ json: body })));
 
-test('@desktop no banner when the last run succeeded recently', async ({ page }) => {
+test('no banner when the last run succeeded recently', async ({ page }) => {
   await serve(page, { lastRun: iso(3), result: 'ok', failingStep: null, error: null, lastSuccess: iso(3), failingSince: null, runId: '1' });
   await page.goto('/');
   await expect(page.getByTestId('game-list')).toBeVisible();
   await expect(page.getByTestId('stale-banner')).toHaveCount(0);
 });
 
-test('@desktop no banner and no error when there is no status file yet', async ({ page }) => {
+test('no banner and no error when there is no status file yet', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await serve(page, null);
@@ -23,7 +23,7 @@ test('@desktop no banner and no error when there is no status file yet', async (
   expect(errors).toEqual([]);
 });
 
-test('@desktop banner when the last run failed: last update date + failing since, on every tab', async ({ page }) => {
+test('banner when the last run failed: last update date + failing since, on every tab', async ({ page }) => {
   await serve(page, { lastRun: iso(4), result: 'failed', failingStep: 'npm test', error: 'exit code 1', lastSuccess: '2026-10-23T11:02:00Z', failingSince: '2026-10-24T11:01:00Z', runId: '9' });
   await page.goto('/');
   const b = page.getByTestId('stale-banner');
@@ -37,7 +37,7 @@ test('@desktop banner when the last run failed: last update date + failing since
   await expect(page.getByTestId('stale-banner')).toBeVisible();
 });
 
-test('@desktop banner when the last success is older than 36 hours', async ({ page }) => {
+test('banner when the last success is older than 36 hours', async ({ page }) => {
   await serve(page, { lastRun: iso(40), result: 'ok', failingStep: null, error: null, lastSuccess: iso(40), failingSince: null, runId: '1' });
   await page.goto('/');
   await expect(page.getByTestId('stale-banner')).toHaveAttribute('data-reason', 'stale');

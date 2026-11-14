@@ -47,7 +47,7 @@ async function openGame(page: Page, id: string, team: string) {
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
 }
 
-test('@desktop readout: both lineups at the hovered moment = the lineup cursor, 5 each, fouls so far; around substitutions', async ({ page }) => {
+test('readout: both lineups at the hovered moment = the lineup cursor, 5 each, fouls so far; around substitutions', async ({ page }) => {
   test.setTimeout(240_000);
   const errors = trackErrors(page);
   await page.addInitScript(() => localStorage.setItem('rk.list', 'collapsed'));
@@ -89,7 +89,7 @@ test('@desktop readout: both lineups at the hovered moment = the lineup cursor, 
   expect(errors).toEqual([]);
 });
 
-test('@desktop readout lineups equal the pinned lineup cursor panel at the same moment', async ({ page }) => {
+test('readout lineups equal the pinned lineup cursor panel at the same moment', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('rk.list', 'collapsed'));
   const g = load('2025-26', '0022500093');
   await openGame(page, g.id, 'DET');
@@ -111,7 +111,7 @@ test('@desktop readout lineups equal the pinned lineup cursor panel at the same 
   }
 });
 
-test('@desktop hovering an empty part of a row: both lineups, "(off court)" in the stint line', async ({ page }) => {
+test('hovering an empty part of a row: both lineups, "(off court)" in the stint line', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('rk.list', 'collapsed'));
   const g = load('2025-26', '0022500093');
   await openGame(page, g.id, 'DET');
@@ -126,7 +126,7 @@ test('@desktop hovering an empty part of a row: both lineups, "(off court)" in t
   await expect(page.getByTestId('readout-head')).toHaveText(/^Q\d \d+:\d\d · DET \d+–\d+ HOU$/);
 });
 
-test('@desktop readout settings change the content and persist across reload', async ({ page }) => {
+test('readout settings change the content and persist across reload', async ({ page }) => {
   await page.addInitScript(() => localStorage.getItem('rk.list') ?? localStorage.setItem('rk.list', 'collapsed'));
   const g = load('2025-26', '0022500093');
   const p = g.players.find((x) => x.name === 'Isaiah Stewart')!;
@@ -171,7 +171,7 @@ test('@desktop readout settings change the content and persist across reload', a
   await expect(page.getByLabel('Foul counts')).not.toBeChecked();
 });
 
-test('@desktop the readout stays on screen at 1280px and never covers the hovered row', async ({ page }) => {
+test('the readout stays on screen at 1280px and never covers the hovered row', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const g = load('2025-26', '0022500093');
   for (const list of ['open', 'collapsed']) {

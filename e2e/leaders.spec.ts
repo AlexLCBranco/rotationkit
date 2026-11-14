@@ -15,7 +15,7 @@ function trackErrors(page: Page) {
   return errors;
 }
 
-test('@desktop Leaders tab: table and scatter = the leaders computed from the data, for every window and part', async ({ page }) => {
+test('Leaders tab: table and scatter = the leaders computed from the data, for every window and part', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await page.getByTestId('tab-leaders').click();
@@ -36,7 +36,7 @@ test('@desktop Leaders tab: table and scatter = the leaders computed from the da
   expect(errors).toEqual([]);
 });
 
-test('@desktop filters update the URL and the table; team filter; clicking a player opens his page', async ({ page }) => {
+test('filters update the URL and the table; team filter; clicking a player opens his page', async ({ page }) => {
   await page.goto('/#/leaders?s=2025-26');
   await page.getByRole('button', { name: 'Second half' }).click();
   await expect(page).toHaveURL(/part=h2/);
@@ -64,7 +64,7 @@ test('@desktop filters update the URL and the table; team filter; clicking a pla
   await expect(page).toHaveURL(new RegExp(`#/player/ORL/${first.id}`));
 });
 
-test('@desktop scatter: top 12 named without overlapping; hovering a row highlights its dot', async ({ page }) => {
+test('scatter: top 12 named without overlapping; hovering a row highlights its dot', async ({ page }) => {
   await page.goto('/#/leaders?s=2025-26');
   await expect(page.getByTestId('leaders-label')).toHaveCount(12);
   const boxes = await page.getByTestId('leaders-label').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.left, r.top, r.right, r.bottom]));
@@ -79,7 +79,7 @@ test('@desktop scatter: top 12 named without overlapping; hovering a row highlig
   await expect(page.getByTestId('leaders-tip')).toBeVisible();
 });
 
-test('@desktop "Hide garbage time" is on by default and says the rule; switching it off changes the numbers', async ({ page }) => {
+test('"Hide garbage time" is on by default and says the rule; switching it off changes the numbers', async ({ page }) => {
   await page.goto('/#/leaders?s=2025-26');
   const box = page.getByRole('checkbox', { name: 'Hide garbage time' });
   await expect(box).toBeChecked();

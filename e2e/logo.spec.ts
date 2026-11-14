@@ -2,7 +2,7 @@
 
 import { test, expect } from '@playwright/test';
 
-test('@desktop favicon + touch icon are linked and served; the header shows the logo', async ({ page, request }) => {
+test('favicon + touch icon are linked and served; the header shows the logo', async ({ page, request }) => {
   await page.goto('/');
   const hrefs = await page.locator('head link[rel~=icon], head link[rel=apple-touch-icon]').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
   expect(hrefs).toEqual(['/favicon.svg', '/favicon-32.png', '/apple-touch-icon.png']);

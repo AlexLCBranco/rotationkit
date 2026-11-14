@@ -101,7 +101,7 @@ test(`labels, bars, ticks and badges on ${sample.length} games${ALL ? ' (all)' :
   expect(errors).toEqual([]);
 });
 
-test('foul tick readout: player, number, type, quarter, clock (hover on desktop, tap on phone)', async ({ page }, info) => {
+test('foul tick readout: player, number, type, quarter, clock', async ({ page }) => {
   const g = load('2025-26', '0022500093');
   const p = g.players.find((x) => x.name === 'Isaiah Stewart')!;
   const marks = foulMarks(p);
@@ -111,8 +111,7 @@ test('foul tick readout: player, number, type, quarter, clock (hover on desktop,
   for (const m of [marks[0]!, marks[2]!, marks[5]!]) {
     const tick = row.locator(`[data-testid=foul-tick][data-n="${m.n}"]`);
     await tick.scrollIntoViewIfNeeded();
-    if (info.project.name === 'phone') await tick.tap();
-    else await tick.hover();
+    await tick.hover();
     await expect(page.getByTestId('chart-tip')).toHaveText(foulReadout(p.name, m));
   }
   expect(foulReadout(p.name, marks[2]!)).toBe('Isaiah Stewart — foul #3 — offensive foul (turnover) — Q2 10:04');
@@ -146,8 +145,7 @@ test('lineup cursor: 5 per team, fouls at that moment, pin; lineup list moves th
   await expect(page.getByTestId('cursor-panel')).toContainText('pinned');
   // Tap/click on the chart moves the cursor.
   const box = (await chart.boundingBox())!;
-  if (info.project.name === 'phone') await chart.tap({ position: { x: box.width - 60, y: 120 } });
-  else await chart.click({ position: { x: box.width - 120, y: 120 } });
+  await chart.click({ position: { x: box.width - 120, y: 120 } });
   await expect(page.getByTestId('cursor-line')).toBeVisible();
   for (const t of await page.getByTestId('cursor-team').all()) await expect(t.getByTestId('cursor-player')).toHaveCount(5);
   await page.screenshot({ path: `screenshots/game-cursor-${info.project.name}.png` });
@@ -223,26 +221,9 @@ test('reference screenshots', async ({ page }, info) => {
   await page.screenshot({ path: `screenshots/gamechart-${info.project.name}.png`, fullPage: true });
 });
 
-test('rows use short names on phone (incl. DNP rows), full names on desktop', async ({ page }, info) => {
-  if (info.project.name === 'phone') {
-    // Includes long surnames (Gilgeous-Alexander, Antetokounmpo, Wembanyama, Caldwell-Pope).
-    for (const id of ['0022500093', '0022600001', '0022500811', '0022600003', '0022600004', '0022600005']) {
-      await page.goto(`/#/game/${id}`);
-      await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
-      const cut = await page.locator('[data-testid=gc-player-row] .gc-name, [data-testid=dnp-row] .gc-name').evaluateAll((els) =>
-        els.filter((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1).map((el) => el.textContent),
-      );
-      expect(cut, `${id}: names cut off`).toEqual([]);
-    }
-  }
+test('rows (incl. DNP rows) show full names', async ({ page }) => {
   await page.goto('/#/game/0022500093');
-  const dnp = page.getByTestId('dnp-row').first().locator('.gc-name');
-  if (info.project.name === 'phone') {
-    await expect(dnp.locator('.short')).toBeVisible();
-    await expect(dnp.locator('.full')).toBeHidden();
-    // The short name fits: no truncation.
-    expect(await dnp.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-  } else await expect(dnp.locator('.full')).toBeVisible();
+  await expect(page.getByTestId('dnp-row').first().locator('.gc-name .full')).toBeVisible();
 });
 
 test('"when does he sit?" in the team table and the player view header', async ({ page }) => {

@@ -31,7 +31,7 @@ const rowIds = (page: Page, team: string) =>
 const MOST_ROWS = '0022500086'; // WAS @ MIL, 28 players in Q4
 const LONGEST_OT = '0022500637'; // BOS @ BKN, 2OT, 20 players
 
-test('@desktop the worst real games fit on one screen at 1920×950 and 1600×1000: no scroll, no overlap', async ({ page }) => {
+test('the worst real games fit on one screen at 1920×950 and 1600×1000: no scroll, no overlap', async ({ page }) => {
   for (const [w, h] of [[1920, 950], [1600, 1000]] as const) {
     await page.setViewportSize({ width: w, height: h });
     for (const id of [MOST_ROWS, LONGEST_OT]) {
@@ -88,7 +88,7 @@ test('@desktop the worst real games fit on one screen at 1920×950 and 1600×100
   }
 });
 
-test('@desktop rows: only players on court in Q4/OT, both teams, away on top; closers first then minutes; fouls', async ({ page }) => {
+test('rows: only players on court in Q4/OT, both teams, away on top; closers first then minutes; fouls', async ({ page }) => {
   const errors = trackErrors(page);
   const g = await openQ4(page, '0022500093', 'DET');
   const teams = await page.getByTestId('q4-team').evaluateAll((els) => els.map((e) => e.getAttribute('data-team')));
@@ -112,7 +112,7 @@ test('@desktop rows: only players on court in Q4/OT, both teams, away on top; cl
   expect(errors).toEqual([]);
 });
 
-test('@desktop overtime is on the same axis after Q4 (5 min each)', async ({ page }) => {
+test('overtime is on the same axis after Q4 (5 min each)', async ({ page }) => {
   const g = await openQ4(page, LONGEST_OT);
   await expect(page.locator('.q4-axis .gc-qname')).toHaveText(['Q4', 'OT', '2OT']);
   const w = await page.locator('.q4-axis .gc-qname').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
@@ -123,7 +123,7 @@ test('@desktop overtime is on the same axis after Q4 (5 min each)', async ({ pag
   expect(bars).toEqual(pl.p.stints.filter(([s, e]) => e > s && s >= Q4_START).map(([s, e]) => [s, e]));
 });
 
-test('@desktop hover: one line across both teams with both 5-man lineups (= lineup cursor); click pins', async ({ page }) => {
+test('hover: one line across both teams with both 5-man lineups (= lineup cursor); click pins', async ({ page }) => {
   const g = await openQ4(page, '0022500093', 'DET');
   const track = page.locator('[data-testid=q4-row] .q4-track').first();
   const b = (await track.boundingBox())!;
@@ -158,13 +158,13 @@ test('@desktop hover: one line across both teams with both 5-man lineups (= line
   await expect(page.getByTestId('q4-cursor-line')).toHaveCount(0);
 });
 
-test('@desktop garbage time is shaded in Q4 like in Games', async ({ page }) => {
+test('garbage time is shaded in Q4 like in Games', async ({ page }) => {
   const id = index('2025-26').map((e) => e.id).find((x) => blowoutIntervals(load(x)).some(([a]) => a >= Q4_START))!;
   await openQ4(page, id);
   expect(await page.locator('[data-testid=q4-row] .gc-blowout').count()).toBeGreaterThan(0);
 });
 
-test('@desktop the tab is in the URL; Games ↔ Q4 keep the same game; the list and arrows keep the tab', async ({ page }) => {
+test('the tab is in the URL; Games ↔ Q4 keep the same game; the list and arrows keep the tab', async ({ page }) => {
   const orl = index('2025-26').filter((e) => e.home === 'ORL' || e.away === 'ORL');
   const g = await openQ4(page, orl[10]!.id, 'ORL');
   await expect(page.getByTestId('tab-q4')).toHaveAttribute('aria-current', 'page');
@@ -186,7 +186,7 @@ test('@desktop the tab is in the URL; Games ↔ Q4 keep the same game; the list 
   await expect(page).toHaveURL(new RegExp(`#/q4/${orl.at(-1)!.id}\\?`));
 });
 
-test('@desktop paragraph: every change in words (no clock times); hovering a sentence shows its moment and players', async ({ page }) => {
+test('paragraph: every change in words (no clock times); hovering a sentence shows its moment and players', async ({ page }) => {
   const errors = trackErrors(page);
   for (const id of ['0022600085', LONGEST_OT]) {
     const g = await openQ4(page, id);
@@ -225,7 +225,7 @@ test('@desktop paragraph: every change in words (no clock times); hovering a sen
   expect(errors).toEqual([]);
 });
 
-test('@desktop a game with a data note shows the same warning on the Q4 tab as on Games', async ({ page }) => {
+test('a game with a data note shows the same warning on the Q4 tab as on Games', async ({ page }) => {
   await page.goto('/#/q4/0022500093?t=DET');
   await expect(page.getByTestId('q4-chart')).toBeVisible();
   await expect(page.getByTestId('quality-warning')).toContainText('Kevin Durant — minutes: play-by-play 36:48 vs box score 28:08');

@@ -2,7 +2,7 @@
 
 import { test, expect } from '@playwright/test';
 
-test('@desktop the score line has the two icon links after the game-type chips, in Games and in Q4', async ({ page }) => {
+test('the score line has the two icon links after the game-type chips, in Games and in Q4', async ({ page }) => {
   for (const path of ['/#/game/0022600092?t=POR', '/#/q4/0022600092?t=POR']) {
     await page.goto(path);
     await expect(page.locator('h1')).toContainText('PHX');
@@ -29,7 +29,7 @@ test('@desktop the score line has the two icon links after the game-type chips, 
   }
 });
 
-test('@desktop clicking opens a new tab (and leaves the app where it was)', async ({ page, context }) => {
+test('clicking opens a new tab (and leaves the app where it was)', async ({ page, context }) => {
   // Don't hit the real sites: answer every request to them with a tiny page.
   await context.route(/hoopsjunkie\.io|gauntlet-home\.vercel\.app/, (r) => r.fulfill({ contentType: 'text/html', body: '<title>stub</title>' }));
   await page.goto('/#/game/0022600092?t=POR');

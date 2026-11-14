@@ -1,5 +1,7 @@
 // Daily data update (run by .github/workflows/data-update.yml, also runnable locally).
 //   probe-cdn → fetch-season --cdn-only --strict → normalize → validate-all → tests → commit + push (only with --commit)
+// The test step runs the fixtures and every unit test, but the whole-season sweeps (WHOLE_DATA_TIMEOUT suites) only
+// over the games this run added (RK_TEST_GAMES, see tests/data.ts); the full sweeps run on every pull request.
 // Commits when there are new finished games OR the schedule changed (fetch-season downloads the feed every run).
 // With --commit every run also records its outcome in data/update-status.json (the app warns when data is stale):
 //   - success: the status file is committed with the data (alone when nothing else changed);
@@ -20,6 +22,11 @@ export const STEPS = [
   'npm run validate-all',
   'npm test',
 ] as const;
+
+/** The shell command of a step: the test step gets the ids of the games this run added. */
+export function stepCommand(step: (typeof STEPS)[number], newIds: string[]): string {
+  return step === 'npm test' ? `RK_TEST_GAMES=${newIds.join(',')} npm test` : step;
+}
 
 export interface Deps {
   /** Run a shell command; throw if it fails. */
@@ -43,10 +50,12 @@ export function runUpdate(deps: Deps, opts: { commit: boolean }): Outcome {
   const schedBefore = deps.schedules();
   const record = (r: { ok: true } | { ok: false; step: string; error: string }) =>
     deps.writeStatus(nextStatus(deps.readStatus(), { ...r, at: deps.now(), runId: deps.runId() }));
+  const had = new Set(before.map((g) => g.id));
   for (const step of STEPS) {
     deps.log(`\n▶ ${step}`);
     try {
-      deps.run(step);
+      // After normalize the index holds this run's new games; only the test step needs them.
+      deps.run(step === 'npm test' ? stepCommand(step, deps.indexes().filter((g) => !had.has(g.id)).map((g) => g.id)) : step);
     } catch (e) {
       const error = (e as Error).message;
       // Nothing of this run's data is staged or committed; only the failure is recorded, so the site learns of it.

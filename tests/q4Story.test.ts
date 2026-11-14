@@ -1,7 +1,7 @@
 // The Q4 paragraph: every lineup change of Q4/OT exactly once, in words, no clock times, only facts from the data.
 
 import { describe, expect, it } from 'vitest';
-import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
+import { sweepGames, WHOLE_DATA_TIMEOUT } from './data.ts';
 import { onCourtAt } from '../src/domain/gameChart.ts';
 import { Q4_START } from '../src/domain/q4.ts';
 import { q4Story, scoreWords } from '../src/domain/q4Story.ts';
@@ -9,7 +9,7 @@ import { shortNames } from '../src/app/names.ts';
 import { gameLength } from '../src/domain/time.ts';
 import type { Game, PlayerGame, Stint } from '../src/domain/types.ts';
 
-const games: Game[] = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
+const games: Game[] = sweepGames();
 const names = (g: Game) => {
   const m = new Map<number, string>();
   for (const tri of [g.home.tri, g.away.tri]) for (const [id, n] of shortNames(g.players.filter((p) => p.team === tri))) m.set(id, n);

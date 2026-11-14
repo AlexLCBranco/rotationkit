@@ -1,7 +1,7 @@
 // Q4 tab: row filter, sort, fouls entering Q4 (vs play-by-play), OT, row-height fit.
 
 import { describe, expect, it } from 'vitest';
-import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
+import { FULL_SWEEP, loadSeason, sweepGames, WHOLE_DATA_TIMEOUT } from './data.ts';
 import { fixtureIds, loadFixtureGame, loadRawFixture } from './fixtures.ts';
 import { onCourtAt } from '../src/domain/gameChart.ts';
 import { Q4_ROW, Q4_START, q4RowHeight, q4Rows, q4Stints } from '../src/domain/q4.ts';
@@ -9,7 +9,7 @@ import { gameLength, periodLength } from '../src/domain/time.ts';
 import { toEvents } from '../src/domain/pbp.ts';
 import type { Game, PlayerGame, Stint } from '../src/domain/types.ts';
 
-const games: Game[] = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
+const games: Game[] = sweepGames();
 const clean = games.filter((g) => !g.quality?.length);
 
 const pl = (id: number, stints: Stint[], fouls: [number, number, string][] = [], name = `P${id}`): PlayerGame => ({
@@ -71,7 +71,7 @@ describe(`q4Rows on all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT },
         }
       }
     expect(bad.slice(0, 20)).toEqual([]);
-    expect(clean.length).toBeGreaterThan(1000);
+    if (FULL_SWEEP) expect(clean.length).toBeGreaterThan(1000);
   });
   it('the Q4 stints are exactly the stints from Q4 on (none cross into Q4)', () => {
     for (const g of games) for (const p of g.players) for (const [s, e] of p.stints) expect(s < Q4_START && e > Q4_START, `${g.id} ${p.name}`).toBe(false);
@@ -114,12 +114,14 @@ describe('row height fit', () => {
 describe('fit-test worst cases (e2e/q4.spec.ts) are really the worst games in data/', () => {
   it('0022500086 has the most Q4/OT players; 0022500637 is the 2OT+ game with the most, and no game is longer', () => {
     const rows = (g: Game) => q4Rows(g, g.home.tri).length + q4Rows(g, g.away.tri).length;
-    const most = Math.max(...games.map(rows));
-    const longest = Math.max(...games.map((g) => g.periods));
-    const a = games.find((g) => g.id === '0022500086')!;
-    const b = games.find((g) => g.id === '0022500637')!;
+    // Only the daily update's new games: they are compared with the two reference games.
+    const all = FULL_SWEEP ? games : [...games, ...loadSeason('2025-26').filter((g) => g.id === '0022500086' || g.id === '0022500637')];
+    const most = Math.max(...all.map(rows));
+    const longest = Math.max(...all.map((g) => g.periods));
+    const a = all.find((g) => g.id === '0022500086')!;
+    const b = all.find((g) => g.id === '0022500637')!;
     expect(rows(a)).toBe(most);
     expect(b.periods).toBe(longest);
-    expect(rows(b)).toBe(Math.max(...games.filter((g) => g.periods === longest).map(rows)));
+    expect(rows(b)).toBe(Math.max(...all.filter((g) => g.periods === longest).map(rows)));
   });
 });

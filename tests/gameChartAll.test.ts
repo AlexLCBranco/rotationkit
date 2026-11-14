@@ -2,20 +2,22 @@
 // spot-check of foul numbering on the raw fixtures.
 
 import { describe, expect, it } from 'vitest';
-import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
+import { FULL_SWEEP, sweepGames, WHOLE_DATA_TIMEOUT } from './data.ts';
 import { fixtureIds, loadFixtureGame, loadRawFixture } from './fixtures.ts';
 import { cursorInfo, foulMarks, foulsAt, layoutRow, lineupSegments, lineupSince, onCourtAt, quarterStats, rowBoxes, timelineWidth } from '../src/domain/gameChart.ts';
 import { gameLength, periodLength } from '../src/domain/time.ts';
 import { toEvents } from '../src/domain/pbp.ts';
 import type { Game } from '../src/domain/types.ts';
 
-const games: Game[] = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
+const games: Game[] = sweepGames();
 /** Games without data-quality notes. A game with notes has a play-by-play the NBA got wrong (e.g. a missing
  *  substitution leaves 6 on court); it is still shown, with its warning, so the 5-on-court invariants skip it
  *  instead of blocking the daily update for every other game. */
 const clean = games.filter((g) => !g.quality?.length);
-/** Timeline container widths used by the UI: desktop 1280px and phone 390px (minimum scale applies). */
-const WIDTHS = { desktop: 944, phone: 150 };
+/** Timeline container width used by the UI at 1280px (desktop only). */
+const WIDTHS = { desktop: 944 };
+/** Every 7th game in a full sweep; every game when only the daily update's new games are checked. */
+const every = FULL_SWEEP ? 7 : 1;
 
 describe(`all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
   it('flagged games stay rare (a parser bug would flag many)', () => {
@@ -83,7 +85,7 @@ describe(`all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
 
   it('cursor info: foul counts equal fouls committed so far; score never decreases', () => {
     const bad: string[] = [];
-    for (const g of games.filter((_, i) => i % 7 === 0)) {
+    for (const g of games.filter((_, i) => i % every === 0)) {
       let last = [0, 0];
       for (let t = 0; t <= gameLength(g.periods); t += 60) {
         const c = cursorInfo(g, t);
@@ -102,7 +104,7 @@ describe(`all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
   it('cursor info without precomputed segments = with them ("on since" included), at every lineup boundary', () => {
     const bad: string[] = [];
     // Every 5th game (all would take ~8 s): each probed at every stint boundary, just before it, and game end.
-    for (const g of clean.filter((_, i) => i % 5 === 0)) {
+    for (const g of clean.filter((_, i) => i % (FULL_SWEEP ? 5 : 1) === 0)) {
       const segs = { [g.home.tri]: lineupSegments(g, g.home.tri), [g.away.tri]: lineupSegments(g, g.away.tri) };
       const end = gameLength(g.periods);
       const times = new Set<number>([0, end]);
@@ -120,7 +122,8 @@ describe(`all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
     expect(bad.slice(0, 10)).toEqual([]);
   });
 
-  it('cursor info costs less than one lineupSegments build per call (machine-independent cost guard)', () => {
+  // A code cost guard, not a data check: needs a large sample, so it runs in full sweeps (every pull request) only.
+  it.skipIf(!FULL_SWEEP)('cursor info costs less than one lineupSegments build per call (machine-independent cost guard)', () => {
     // The old cursorInfo built lineupSegments twice per call (ratio ≥ 2); now ≈ 0.2. Comparing against
     // lineupSegments on the same machine keeps this independent of runner speed and of how many games exist.
     const sample = games.filter((_, i) => i % 7 === 0);
