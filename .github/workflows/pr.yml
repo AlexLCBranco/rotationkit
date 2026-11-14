@@ -1,0 +1,41 @@
+# Checks for every pull request to main: unit tests (incl. the whole-season sweeps), the production build, and the
+# Playwright end-to-end tests against that build. CLAUDE.md: a PR is merged once this workflow is green.
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    # Pinned: Playwright 1.56 cannot install its browser on ubuntu-latest (26.04).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: |
+            screenshots/
+            test-results/
+          if-no-files-found: ignore

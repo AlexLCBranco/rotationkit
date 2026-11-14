@@ -9,7 +9,7 @@ const games = (t: string) => index('2025-26').filter((e) => e.home === t || e.aw
 const button = (page: Page) => page.getByTestId('team-picker');
 const list = (page: Page) => page.getByTestId('team-picker-list');
 
-test('@desktop the button shows logo + name; the list is grouped by conference and division, current team highlighted', async ({ page }) => {
+test('the button shows logo + name; the list is grouped by conference and division, current team highlighted', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await expect(button(page)).toContainText('Orlando Magic');
   await expect(button(page)).toHaveAttribute('data-team', 'ORL');
@@ -29,7 +29,7 @@ test('@desktop the button shows logo + name; the list is grouped by conference a
   await expect(button(page)).toBeFocused();
 });
 
-test('@desktop picking with the mouse: same URL and game list as the old dropdown', async ({ page }) => {
+test('picking with the mouse: same URL and game list as the old dropdown', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await button(page).click();
   await list(page).locator('[data-tri=LAL]').click();
@@ -44,7 +44,7 @@ test('@desktop picking with the mouse: same URL and game list as the old dropdow
   await expect(page).toHaveURL(/#\/team\/MIA\?s=2025-26/);
 });
 
-test('@desktop picking with the keyboard: ↓ opens, arrows / letter jump move, Enter picks, Escape cancels', async ({ page }) => {
+test('picking with the keyboard: ↓ opens, arrows / letter jump move, Enter picks, Escape cancels', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await button(page).focus();
   // Escape: nothing changes.
@@ -82,7 +82,7 @@ test('@desktop picking with the keyboard: ↓ opens, arrows / letter jump move, 
   await page.keyboard.press('Escape');
 });
 
-test('@desktop Averages "vs" uses the same picker; "No matchup" clears it', async ({ page }) => {
+test('Averages "vs" uses the same picker; "No matchup" clears it', async ({ page }) => {
   await page.goto('/#/team/PHI?s=2025-26');
   await expect(page.locator('select[aria-label="Matchup opponent"]')).toHaveCount(0);
   await expect(page.getByTestId('vs-picker')).toContainText('No matchup');

@@ -22,3 +22,22 @@ export function loadSeason(season: string): Game[] {
  * caught by machine-independent cost guards (e.g. gameChartAll's cursorInfo vs lineupSegments ratio).
  */
 export const WHOLE_DATA_TIMEOUT = 60_000;
+
+/**
+ * Games the whole-data sweeps (the suites using WHOLE_DATA_TIMEOUT) check. Normally every committed game of both
+ * seasons. The daily data update sets RK_TEST_GAMES to the comma-separated ids of the games it just added, so its
+ * test step checks only those (the full sweeps run on every pull request instead, .github/workflows/pr.yml).
+ * RK_TEST_GAMES="" (a day with no new games) = no games.
+ */
+export const SWEEP_ONLY: Set<string> | null = process.env.RK_TEST_GAMES === undefined ? null : new Set(process.env.RK_TEST_GAMES.split(',').filter(Boolean));
+/** True when the sweeps run over every committed game (thresholds like "more than 1000 games" only apply then). */
+export const FULL_SWEEP = SWEEP_ONLY === null;
+
+export function sweepGames(): Game[] {
+  const all = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
+  if (!SWEEP_ONLY) return all;
+  const out = all.filter((g) => SWEEP_ONLY.has(g.id));
+  const missing = [...SWEEP_ONLY].filter((id) => !out.some((g) => g.id === id));
+  if (missing.length) throw new Error(`RK_TEST_GAMES: not in data/: ${missing.join(', ')}`);
+  return out;
+}

@@ -1,7 +1,17 @@
-// Main screen: a team's game (team picker + game list sidebar + game chart). Desktop only (@desktop).
+// Main screen: a team's game (team picker + game list sidebar + game chart).
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+
+/** Cell texts without the logos' tricode fallback (shown when cdn.nba.com logos don't load, e.g. on CI runners). */
+const cellTexts = (row: Locator) =>
+  row.locator('td').evaluateAll((tds) =>
+    tds.map((td) => {
+      const c = td.cloneNode(true) as Element;
+      c.querySelectorAll('.logo-fallback').forEach((e) => e.remove());
+      return c.textContent ?? '';
+    }),
+  );
 
 type Entry = { id: string; date: string; home: string; away: string; hs: number; as: number; flagged?: true };
 const index = (s: string) => JSON.parse(readFileSync(`data/${s}/index.json`, 'utf8')) as Entry[];
@@ -42,7 +52,7 @@ async function expectChips(scope: ReturnType<Page['locator']>, t: ReturnType<typ
   await expect(scope.getByTestId('tag-rest')).toHaveText(t.rest);
 }
 
-test('@desktop opening the app shows the main screen: team + game list + the latest game chart', async ({ page }) => {
+test('opening the app shows the main screen: team + game list + the latest game chart', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/');
   await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
@@ -69,7 +79,7 @@ const inView = (page: Page, id: string) =>
     return r.top >= box.top + head - 1 && r.bottom <= box.bottom + 1 && r.bottom <= innerHeight;
   }, id);
 
-test('@desktop game list: every finished game, oldest first, columns, latest selected and scrolled into view', async ({ page }) => {
+test('game list: every finished game, oldest first, columns, latest selected and scrolled into view', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?`));
@@ -81,7 +91,7 @@ test('@desktop game list: every finished game, oldest first, columns, latest sel
   await expect(page.locator('.gl-table thead')).toContainText('OPP');
   // Columns in order: date | TM | @/vs | OPP | result | tags | rest.
   const first = oldestFirst[0]!;
-  const cells = await rows(page).first().locator('td').allTextContents();
+  const cells = await cellTexts(rows(page).first());
   const [us, them] = first.home === 'ORL' ? [first.hs, first.as] : [first.as, first.hs];
   expect(cells.slice(0, 5).map((c) => c.trim())).toEqual([usDate(first.date), 'ORL', first.home === 'ORL' ? 'vs' : '@', first.home === 'ORL' ? first.away : first.home, `${us > them ? 'W' : 'L'} ${us}–${them}`]);
   const results = await page.locator('[data-testid=list-row] [data-testid=list-result]').allTextContents();
@@ -106,7 +116,7 @@ test('@desktop game list: every finished game, oldest first, columns, latest sel
   expect(errors).toEqual([]);
 });
 
-test('@desktop clicking a row, the date link and arrow keys load the right game; URL updates', async ({ page }) => {
+test('clicking a row, the date link and arrow keys load the right game; URL updates', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?`));
   const pick = oldestFirst[40]!;
@@ -129,7 +139,7 @@ test('@desktop clicking a row, the date link and arrow keys load the right game;
   await expect(page.locator(`[data-testid=list-row][data-id="${g.id}"]`)).toHaveAttribute('aria-selected', 'true');
 });
 
-test('@desktop prev / next arrows step through the team\'s games in order', async ({ page }) => {
+test('prev / next arrows step through the team\'s games in order', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?`));
   await expect(page.getByTestId('game-count')).toHaveText('Game 82 of 82 · 2025-26');
@@ -149,7 +159,7 @@ test('@desktop prev / next arrows step through the team\'s games in order', asyn
   await expect(page.getByTestId('next-game')).toBeEnabled();
 });
 
-test('@desktop opponent search filters rows (tricode or team name)', async ({ page }) => {
+test('opponent search filters rows (tricode or team name)', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   const vsBos = oldestFirst.filter((e) => e.home === 'BOS' || e.away === 'BOS');
   await page.getByLabel('Filter by opponent').fill('bos');
@@ -167,7 +177,7 @@ test('@desktop opponent search filters rows (tricode or team name)', async ({ pa
   await expect(rows(page)).toHaveCount(ORL.length);
 });
 
-test('@desktop picking a game updates the URL; reload and back keep the same game', async ({ page }) => {
+test('picking a game updates the URL; reload and back keep the same game', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?`));
   const pick = newestFirst[9]!;
@@ -181,7 +191,7 @@ test('@desktop picking a game updates the URL; reload and back keep the same gam
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?`));
 });
 
-test('@desktop collapse / expand the list; the state is remembered', async ({ page }) => {
+test('collapse / expand the list; the state is remembered', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   const chart = page.locator('.gc-box').first();
   await expect(page.getByTestId('game-list')).toBeVisible();
@@ -201,7 +211,7 @@ test('@desktop collapse / expand the list; the state is remembered', async ({ pa
   await expect(page.getByTestId('game-list')).toBeVisible();
 });
 
-test('@desktop minute labels keep their size with the sidebar open; the chart scrolls inside its box instead', async ({ page }) => {
+test('minute labels keep their size with the sidebar open; the chart scrolls inside its box instead', async ({ page }) => {
   const labels = () =>
     page.locator('[data-testid=game-team]').first().getByTestId('stint-label').evaluateAll((els) =>
       els.map((e) => ({ text: e.textContent, w: Math.round(e.getBoundingClientRect().width), clipped: e.scrollWidth > e.clientWidth + 1, visible: e.getBoundingClientRect().width > 0 })),
@@ -235,7 +245,7 @@ test('@desktop minute labels keep their size with the sidebar open; the chart sc
   expect(psw).toBeLessThanOrEqual(pcw);
 });
 
-test('@desktop team picker and season picker → that team\'s latest game; the opponent\'s view lists its own games', async ({ page }) => {
+test('team picker and season picker → that team\'s latest game; the opponent\'s view lists its own games', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await page.getByTestId('team-picker').click();
   await page.locator('[data-testid=team-picker-list] [data-tri=BOS]').click();
@@ -247,7 +257,7 @@ test('@desktop team picker and season picker → that team\'s latest game; the o
   await expect(page).toHaveURL(new RegExp(`#/game/${bos27.at(-1)!.id}\\?.*t=BOS`));
 });
 
-test('@desktop game header: this team\'s and the opponent\'s schedule tags', async ({ page }) => {
+test('game header: this team\'s and the opponent\'s schedule tags', async ({ page }) => {
   // A game where the opponent was on the second night of a back-to-back and ORL was not, and one in a 3-in-4.
   const oppB2b = ORL.find((e) => {
     const opp = e.home === 'ORL' ? e.away : e.home;
@@ -264,7 +274,7 @@ test('@desktop game header: this team\'s and the opponent\'s schedule tags', asy
   await expect(page.locator('[data-testid=header-tags][data-team=ORL] [data-testid=tag-rest]')).toHaveText('opener');
 });
 
-test('@desktop overlapping 3-in-4 sets: highest position shown, every set listed on hover', async ({ page }) => {
+test('overlapping 3-in-4 sets: highest position shown, every set listed on hover', async ({ page }) => {
   // A real game that sits in two sets (4 games in 5 days or tighter).
   const multi = ORL.find((e) => {
     const ds = ORL.map((x) => day(x.date)).sort((a, b) => a - b);
@@ -281,7 +291,7 @@ test('@desktop overlapping 3-in-4 sets: highest position shown, every set listed
   expect(title.split('\n').filter((l) => / game\)$/.test(l)).length).toBe(Number(await chip.getAttribute('data-sets')));
 });
 
-test('@desktop Averages is a secondary tab; Games goes back to the latest game', async ({ page }) => {
+test('Averages is a secondary tab; Games goes back to the latest game', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?`));
   await page.getByTestId('tab-averages').click();
@@ -291,7 +301,7 @@ test('@desktop Averages is a secondary tab; Games goes back to the latest game',
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?.*t=ORL`));
 });
 
-test('@desktop the list ends with the next 3 scheduled games: dimmed, with tags, not openable', async ({ page }) => {
+test('the list ends with the next 3 scheduled games: dimmed, with tags, not openable', async ({ page }) => {
   type S = { id: string; date: string; home: string; away: string; status: string };
   const sched = JSON.parse(readFileSync('data/2026-27/schedule.json', 'utf8')) as S[];
   const played = new Set(index('2026-27').map((e) => e.id));
@@ -305,7 +315,7 @@ test('@desktop the list ends with the next 3 scheduled games: dimmed, with tags,
   await expect(up).toHaveCount(next.length);
   expect(await up.evaluateAll((els) => els.map((e) => e.getAttribute('data-id')))).toEqual(next.map((e) => e.id));
   const first = next[0]!;
-  const cells = (await up.first().locator('td').allTextContents()).map((c) => c.trim());
+  const cells = (await cellTexts(up.first())).map((c) => c.trim());
   expect(cells.slice(0, 5)).toEqual([usDate(first.date), 'ORL', first.home === 'ORL' ? 'vs' : '@', first.home === 'ORL' ? first.away : first.home, 'upcoming']);
   expect(Number(await up.first().evaluate((e) => getComputedStyle(e).opacity))).toBeLessThan(1);
   // They come after every played game, the latest stays selected, and they are in view on load.

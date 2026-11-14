@@ -60,8 +60,7 @@ test('loads on the current season with no console errors', async ({ page }, info
   expect(errors).toEqual([]);
 });
 
-test('team pattern view renders for all 30 teams in both seasons', async ({ page }, info) => {
-  test.skip(info.project.name !== 'desktop', 'one viewport is enough for the 60-view sweep');
+test('team pattern view renders for all 30 teams in both seasons', async ({ page }) => {
   test.setTimeout(240_000);
   const errors = trackErrors(page);
   for (const season of ['2026-27', '2025-26']) {
@@ -181,7 +180,8 @@ test('team page with one game shows exactly that game\'s stints, numbers inside'
   const errors = trackErrors(page);
   const sel = findSelection((n) => n === 1);
   const game = sel.games[0]!;
-  await page.goto(`/#/team/${sel.team}?${sel.query}`);
+  // Blowout time shown (b=0): the bars must be the game's raw stints (the blowout cut is tested elsewhere).
+  await page.goto(`/#/team/${sel.team}?${sel.query}&b=0`);
   await expect(label(page)).toContainText('based on 1 game');
   await expect(page.getByTestId('pattern-chart')).toBeVisible();
   const played = game.players.filter((p) => p.team === sel.team && p.played && p.stints.some(([s, e]) => e > s));
@@ -273,7 +273,7 @@ test('heat map: same "Rarely used" group and the same open/closed state as the d
   expect(errors).toEqual([]);
 });
 
-test('@desktop Averages tooltips sit right next to the pointer (Typical stints and Heat map)', async ({ page }) => {
+test('Averages tooltips sit right next to the pointer (Typical stints and Heat map)', async ({ page }) => {
   await page.goto('/#/team/ATL?s=2025-26&w=5');
   const near = async (x: number, y: number) => {
     const b = (await page.getByTestId('pattern-tip').boundingBox())!;

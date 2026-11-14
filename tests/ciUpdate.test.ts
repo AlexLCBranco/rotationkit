@@ -1,7 +1,7 @@
 // Daily update logic: incremental detection, summary/commit message, gating, the status file (success + failure paths).
 
 import { describe, expect, it } from 'vitest';
-import { runUpdate, STEPS, type Deps } from '../scripts/ci-update.ts';
+import { runUpdate, stepCommand, STEPS, type Deps } from '../scripts/ci-update.ts';
 import { commitMessage, gamesToFetch, newGamesSummary, scheduleChanges, unexpectedFailures } from '../scripts/lib/data.ts';
 import { scheduleTags } from '../src/domain/scheduleTags.ts';
 import type { UpdateStatus } from '../src/domain/updateStatus.ts';
@@ -77,7 +77,7 @@ describe('runUpdate', () => {
     const deps: Deps = {
       run: (cmd) => {
         ran.push(cmd);
-        if (cmd === failAt) throw new Error('exit code 1');
+        if (failAt && (cmd === failAt || cmd.endsWith(` ${failAt}`))) throw new Error('exit code 1');
         if (cmd.startsWith('npm run normalize')) after = true;
       },
       schedules: () => (after ? schedAfter : SCHED),
@@ -94,6 +94,8 @@ describe('runUpdate', () => {
     return { deps, ran, written };
   }
   const gitCmds = (ran: string[]) => ran.filter((c) => c.startsWith('git '));
+  /** The commands of the steps when this run added games n0 and n1 (the fake's default). */
+  const CMDS = STEPS.map((s) => stepCommand(s, ['n0', 'n1']));
   const OK = { lastRun: NOW, result: 'ok', failingStep: null, error: null, lastSuccess: NOW, failingSince: null, runId: '42' };
 
   it('the CDN probe is the first step (a blocked CDN is recorded like any failure)', () => {
@@ -103,7 +105,7 @@ describe('runUpdate', () => {
   it('success with new games: all steps, status "ok" written, then data (incl. the status file) committed and pushed', () => {
     const { deps, ran, written } = fake();
     expect(runUpdate(deps, { commit: true })).toEqual({ status: 'committed', message: 'data: 2 new games through 2026-10-23' });
-    expect(ran).toEqual([...STEPS, "git add data ':!data/*/validation.json'", 'git commit -m "data: 2 new games through 2026-10-23"', 'git push']);
+    expect(ran).toEqual([...CMDS, "git add data ':!data/*/validation.json'", 'git commit -m "data: 2 new games through 2026-10-23"', 'git push']);
     expect(written).toEqual([OK]);
   });
 
@@ -112,8 +114,7 @@ describe('runUpdate', () => {
     const { deps, ran, written } = fake(step, 2, SCHED, prev as UpdateStatus);
     const out = runUpdate(deps, { commit: true });
     expect(out).toMatchObject({ status: 'failed', step });
-    expect(ran.indexOf(step)).toBe(STEPS.indexOf(step));
-    expect(ran.filter((c) => !c.startsWith('git '))).toEqual(STEPS.slice(0, STEPS.indexOf(step) + 1));
+    expect(ran.filter((c) => !c.startsWith('git '))).toEqual(CMDS.slice(0, STEPS.indexOf(step) + 1));
     expect(written).toEqual([
       { lastRun: NOW, result: 'failed', failingStep: step, error: 'exit code 1', lastSuccess: '2026-11-04T11:02:00.000Z', failingSince: NOW, runId: '42' },
     ]);
@@ -136,6 +137,14 @@ describe('runUpdate', () => {
       run(cmd);
     };
     expect(runUpdate(deps, { commit: true })).toMatchObject({ status: 'failed', step: 'npm test' });
+  });
+
+  it('the test step checks only the games this run added (the whole-season sweeps run on pull requests)', () => {
+    expect(CMDS.at(-1)).toBe('RK_TEST_GAMES=n0,n1 npm test');
+    expect(CMDS.slice(0, -1)).toEqual(STEPS.slice(0, -1));
+    const { deps, ran } = fake(undefined, 0);
+    runUpdate(deps, { commit: false });
+    expect(ran.at(-1)).toBe('RK_TEST_GAMES= npm test');
   });
 
   it('no new games and an unchanged schedule → status "ok" committed alone (quiet days are not stale)', () => {

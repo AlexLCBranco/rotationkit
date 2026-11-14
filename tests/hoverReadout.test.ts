@@ -2,7 +2,7 @@
 // stint at that moment; checked over every game and against raw play-by-play substitutions.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
+import { FULL_SWEEP, sweepGames, WHOLE_DATA_TIMEOUT } from './data.ts';
 import { fixtureIds, loadFixtureGame, loadRawFixture } from './fixtures.ts';
 import { cursorInfo, hoverReadout, lineupSegments, periodName } from '../src/domain/gameChart.ts';
 import { gameLength, periodAt, periodStart } from '../src/domain/time.ts';
@@ -10,7 +10,7 @@ import { toEvents } from '../src/domain/pbp.ts';
 import { DEFAULT_READOUT, loadReadout, saveReadout } from '../src/app/readoutSettings.ts';
 import type { Game } from '../src/domain/types.ts';
 
-const games: Game[] = [...loadSeason('2025-26'), ...loadSeason('2026-27')];
+const games: Game[] = sweepGames();
 /** Games with data-quality notes can have 6 on court (the NBA's play-by-play missed a substitution); they are shown
  *  with their warning, so the "exactly 5" invariants skip them (same rule as tests/gameChartAll.test.ts). */
 const clean = games.filter((g) => !g.quality?.length);
@@ -57,7 +57,7 @@ describe(`hover readout over all ${clean.length} games without data-quality note
       }
     }
     expect(bad.slice(0, 20)).toEqual([]);
-    expect(checked).toBeGreaterThan(100_000);
+    if (FULL_SWEEP) expect(checked).toBeGreaterThan(100_000);
   }, 120_000);
 });
 
