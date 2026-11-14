@@ -9,6 +9,7 @@ import { GameView } from './components/GameView.tsx';
 import { DeepLink } from './components/DeepLink.tsx';
 import { StaleBanner } from './components/StaleBanner.tsx';
 import { LeadersView } from './components/LeadersView.tsx';
+import { FullQ4View } from './components/FullQ4View.tsx';
 import { LinkCtx } from './components/Links.tsx';
 
 export function App() {
@@ -47,6 +48,7 @@ function Screen() {
     // Main screen. "latest" without a team → the remembered (or first) team; a game id without one → resolved in the view.
     if (route.view === 'game') return <GameView {...common} route={route.game === 'latest' ? { ...route, team } : route} rememberedTeam={rememberedTeam} />;
     if (route.view === 'leaders') return <LeadersView {...common} route={route} team={team} />;
+    if (route.view === 'fullq4') return <FullQ4View {...common} route={route} team={team} />;
     return <TeamView {...common} route={{ ...route, team }} team={team} />;
   }
 }

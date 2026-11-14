@@ -22,6 +22,7 @@ import { quarterStats } from '../domain/gameChart.ts';
 import { describeSit, minutesTrend, sitPattern, type Selection } from '../domain/patterns.ts';
 import { buildAppearances } from '../domain/availability.ts';
 import { MinutesTrend } from './MinutesTrend.tsx';
+import { playerFullQ4 } from '../domain/fullQ4.ts';
 
 interface Props {
   seasons: string[];
@@ -60,7 +61,8 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
     const anyName =
       games.flatMap((g) => g.players).find((p) => p.id === player)?.name ?? games.flatMap((g) => g.inactive ?? []).find((p) => p.id === player)?.name;
     const trend = minutesTrend(sel, player, idx ?? buildAppearances(games));
-    return { ...roster, sel, rows, missed, periods, trend, fullName: anyName ?? String(player) };
+    const fullQ4 = playerFullQ4(sel.games, player, team);
+    return { ...roster, sel, rows, missed, periods, trend, fullQ4, fullName: anyName ?? String(player) };
   }, [data, season, team, player, route.filters]);
 
   const total = c ? periodEnd(c.periods) : 2880;
@@ -115,6 +117,10 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
             {describeSit(sitPattern(c.sel, player)) || <span className="muted">no pattern seen in 3+ games of this selection</span>}
             <span className="muted"> · median game clock (games)</span>
           </p>
+          <p className="fq-counter" data-testid="fq-counter">
+            <strong>Full Q4s:</strong> {c.fullQ4.full.size} of {c.fullQ4.played} game{c.fullQ4.played === 1 ? '' : 's'}
+            <span className="muted"> · on court for the whole regulation 4th quarter (12:00) · games of this selection he played</span>
+          </p>
           <div className="readout" aria-live="polite" data-testid="readout">
             {hover ? describeStint(hover.stint) : <span className="muted">Hover or tap a stint for details. Click a game to open it.</span>}
           </div>
@@ -143,6 +149,11 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                       const g = c.sel.games.find((x) => x.id === r.gameId);
                       return g ? <GameBadge g={g} compact /> : null;
                     })()}
+                    {c.fullQ4.full.has(r.gameId) && (
+                      <span className="fq-mark" title="Played the full 4th quarter (12:00)" data-testid="fq-mark">
+                        Q4
+                      </span>
+                    )}
                     {r.flagged && (
                       <span className="flag" title="This game has a data note" data-testid="flag">
                         {' '}

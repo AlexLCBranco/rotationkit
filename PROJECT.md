@@ -43,7 +43,7 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
 
 ## App (`src/App.tsx`, `src/components/`, `src/app/`)
 State lives in the URL hash (`src/app/route.ts`), so every view is linkable and the back button works.
-- **Header** (every tab): logo, tabs Games | Q4 | Averages | Leaders, team picker (`TeamPicker.tsx`, grouped by
+- **Header** (every tab): logo, tabs Games | Q4 | Averages | Leaders | Full Q4, team picker (`TeamPicker.tsx`, grouped by
   division, full keyboard support), **player search** (`PlayerSearch.tsx`): "/" or Ctrl+K focuses it (not while
   typing in another field); case/accent-insensitive, any part of the name, initials ("sga"); up to 8 results
   (headshot, name, most recent team), selected season first; ↑/↓, Enter, Esc, mouse; empty = last 5 players opened
@@ -90,12 +90,18 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   close games (`CLOSE_GAME` in config: margin ≤ 5 at some point in the last 5:00 of Q4 or in OT), per player close
   games played, times on court at the final buzzer (the Q4 tab's closer), share, average Q4+OT minutes; sorted by
   times closed; "based on N close games". Matchup mode `vs=` stacks the opponent.
-- **Player page** (`#/player/ORL/<id>?…`, `PlayerView.tsx`): one row per game with actual stints, minutes trend,
+- **Player page** (`#/player/ORL/<id>?…`, `PlayerView.tsx`): one row per game with actual stints (a "Q4" marker on
+  games he played the full 4th; "Full Q4s: X of Y games" over the selection's games he played), minutes trend,
   "when he sits", game log, games missed with reasons. Click a game → that game. A player with several teams in
   the season (season-wide `appearances.json`, `teamsOf`) gets a switch between them in the title.
 - **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 or second-half
   minutes and points per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table;
   minimum games `LEADER_MIN_GAMES`.
+- **Full Q4** (`#/fullq4?s=&d=YYYY-MM-DD&th=11&nb=1`, `FullQ4View.tsx`, `src/domain/fullQ4.ts` on `quarters.json`, no
+  pipeline output): players on court for the whole regulation 4th (Q4 minutes = 12:00; back-to-back stints count; OT
+  never counts). Date (default latest day with games, ◀ ▶ = previous / next day with games), grouped by game with logos,
+  each name with his season count; season leaderboard (full Q4s, games played, %). Options: "11:00+" (`th=11`),
+  "Exclude blowouts" (`nb=1`: games with 4th-quarter garbage time by the blowout rule leave both counts).
 - **Deep link** `https://rotationkit.vercel.app/?game=<NBA gameId>` → that game; unknown / future / not yet added
   → "Rotation data not available for this game yet" with what the schedule knows (`DeepLink.tsx`).
 
@@ -106,7 +112,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   `RK_TEST_GAMES=id,id` limits the sweeps to those games (used by the daily update).
 - `npm run build && npm run e2e` — Playwright against the production build (`vite preview`), **desktop only**
   (1280 × 900; phone tests were removed 2026-11-14): no console errors, all 30 teams × both seasons, filters and
-  labels, game chart DOM checks, readout, Q4 fit, Leaders, team picker, banner, deep links. Screenshots →
+  labels, game chart DOM checks, readout, Q4 fit, Leaders, Full Q4, team picker, banner, deep links. Screenshots →
   `screenshots/` (gitignored). `E2E_ALL_GAMES=1` runs the chart label checks on every game.
 - **PR checks** (`.github/workflows/pr.yml`): every pull request to `main` runs `npm ci`, `npm test`,
   `npm run build`, `npm run e2e`. A PR is merged only when this workflow is green.
