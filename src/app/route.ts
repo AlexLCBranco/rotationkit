@@ -4,6 +4,7 @@
 //   #/game/0022500093?t=ORL&s=2025-26…  main screen: a team's game (t = whose games the picker lists)
 //   #/q4/0022500093?t=ORL…               same game, Q4 tab (4th quarter + OT only)
 //   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts&lt=ORL&gt=1   Leaders tab (lt = team filter, gt=1 keeps garbage time)
+//   #/fullq4?s=2026-27&d=2026-11-12&th=11&nb=1   Full Q4 tab (d = date, th=11 → 11:00+, nb=1 → exclude blowouts)
 //   #/ (empty) → the main screen with the remembered team's latest game
 
 import { useEffect, useState } from 'react';
@@ -13,7 +14,18 @@ export type Route =
   | { view: 'team'; team: string | null; season: string | null; filters: Filters; vs?: string | null }
   | { view: 'player'; team: string; player: number; season: string | null; filters: Filters }
   | { view: 'game'; game: string; team: string | null; season: string | null; filters: Filters; tab?: 'games' | 'q4' }
-  | { view: 'leaders'; team: string | null; season: string | null; filters: Filters; leaders: LeadersQuery };
+  | { view: 'leaders'; team: string | null; season: string | null; filters: Filters; leaders: LeadersQuery }
+  | { view: 'fullq4'; team: string | null; season: string | null; filters: Filters; fullq4: FullQ4Query };
+
+export const DEFAULT_FULLQ4: FullQ4Query = { date: null, threshold: 'full', noBlowouts: false };
+
+/** Full Q4 tab settings. */
+export interface FullQ4Query {
+  /** YYYY-MM-DD; null = the latest day with finished games. */
+  date: string | null;
+  threshold: 'full' | '11';
+  noBlowouts: boolean;
+}
 
 export const DEFAULT_LEADERS: LeadersQuery = { part: 'q4', ot: false, sort: 'min', only: null, noGarbage: true };
 
@@ -59,6 +71,16 @@ export function parse(hash: string): Route {
       filters,
       leaders: { part: q.get('part') === 'h2' ? 'h2' : 'q4', ot: q.get('ot') === '1', sort: q.get('sort') === 'pts' ? 'pts' : 'min', only: q.get('lt'), noGarbage: q.get('gt') !== '1' },
     };
+  if (parts[0] === 'fullq4') {
+    const d = q.get('d');
+    return {
+      view: 'fullq4',
+      team: t,
+      season,
+      filters,
+      fullq4: { date: d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null, threshold: q.get('th') === '11' ? '11' : 'full', noBlowouts: q.get('nb') === '1' },
+    };
+  }
   if (parts[0] === 'team') return { view: 'team', team: parts[1] ?? null, season, filters, vs: q.get('vs') };
   return { view: 'game', game: 'latest', team: t, season, filters };
 }
@@ -84,9 +106,16 @@ export function format(r: Route): string {
     if (r.leaders.only) q.set('lt', r.leaders.only);
     if (!r.leaders.noGarbage) q.set('gt', '1');
   }
+  if (r.view === 'fullq4') {
+    if (r.team) q.set('t', r.team);
+    if (r.fullq4.date) q.set('d', r.fullq4.date);
+    if (r.fullq4.threshold === '11') q.set('th', '11');
+    if (r.fullq4.noBlowouts) q.set('nb', '1');
+  }
   const qs = q.toString() ? `?${q}` : '';
   if (r.view === 'player') return `#/player/${r.team}/${r.player}${qs}`;
   if (r.view === 'leaders') return `#/leaders${qs}`;
+  if (r.view === 'fullq4') return `#/fullq4${qs}`;
   if (r.view === 'game') return `#/${r.tab === 'q4' ? 'q4' : 'game'}/${r.game}${qs}`;
   return `#/team/${r.team ?? ''}${qs}`;
 }

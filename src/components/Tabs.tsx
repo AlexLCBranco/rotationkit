@@ -1,5 +1,6 @@
-/** Games (one game, whole) | Q4 (same game, 4th quarter + OT) | Averages | Leaders (league-wide Q4 / 2nd-half leaders). */
-export type TabId = 'games' | 'q4' | 'averages' | 'leaders';
+/** Games (one game, whole) | Q4 (same game, 4th quarter + OT) | Averages | Leaders (league-wide Q4 / 2nd-half leaders)
+ *  | Full Q4 (who played the whole 4th quarter, per day and season). */
+export type TabId = 'games' | 'q4' | 'averages' | 'leaders' | 'fullq4';
 
 export function Tabs({ active, go }: { active: TabId; go: (tab: TabId) => void }) {
   const tab = (id: TabId, label: string) => (
@@ -13,6 +14,7 @@ export function Tabs({ active, go }: { active: TabId; go: (tab: TabId) => void }
       {tab('q4', 'Q4')}
       {tab('averages', 'Averages')}
       {tab('leaders', 'Leaders')}
+      {tab('fullq4', 'Full Q4')}
     </nav>
   );
 }
