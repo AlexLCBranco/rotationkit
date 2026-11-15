@@ -85,7 +85,9 @@ describe('nameCandidates / pickCandidate (synthetic)', () => {
 describe('real data', () => {
   const idx = Object.fromEntries(['2025-26', '2026-27'].map((s) => [s, buildPlayerIndex(loadSeason(s))]));
   it('"Luka Doncic" → Dončić (1629029) on LAL', () => {
-    expect(resolve(idx, 'Luka Doncic', '2026-27')).toMatchObject({ id: 1629029, name: 'Luka Dončić', team: 'LAL', season: '2026-27' });
+    // Not his exact spelling: the feed's accents can change between games.
+    expect(resolve(idx, 'Luka Doncic', '2026-27')).toMatchObject({ id: 1629029, team: 'LAL', season: '2026-27' });
+    expect(resolve(idx, 'Luka Dončić', '2026-27')).toMatchObject({ id: 1629029, team: 'LAL', season: '2026-27' });
   });
   it('"Kevin McCullar" (no Jr.) → Kevin McCullar Jr., traded NYK → TOR in 2026-27: TOR', () => {
     expect(resolve(idx, 'Kevin McCullar', '2026-27')).toMatchObject({ id: 1641755, team: 'TOR', season: '2026-27' });

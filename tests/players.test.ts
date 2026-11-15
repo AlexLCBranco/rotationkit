@@ -73,10 +73,15 @@ describe('matching', () => {
     expect(matchScore('Nikola Jokić', '   ')).toBeNull();
   });
   it('real data: "jok" → Jokić, "sga" and "gilgeous" → SGA, "porzingis" → Porziņģis', () => {
-    expect(searchPlayers(idx, 'jok', '2026-27')[0]).toMatchObject({ name: 'Nikola Jokić', teams: ['DEN'], season: '2026-27' });
+    // Names compared folded: the feed's spelling can change between games (e.g. "Jokić" / "Jokic"); the index keeps the latest.
+    const jok = searchPlayers(idx, 'jok', '2026-27')[0]!;
+    expect(jok).toMatchObject({ id: 203999, teams: ['DEN'], season: '2026-27' });
+    expect(fold(jok.name)).toBe('nikola jokic');
     expect(searchPlayers(idx, 'sga', '2026-27').map((h) => h.name)).toContain('Shai Gilgeous-Alexander');
     expect(searchPlayers(idx, 'gilgeous', '2026-27')[0]!.name).toBe('Shai Gilgeous-Alexander');
-    expect(searchPlayers(idx, 'porzingis', '2025-26')[0]).toMatchObject({ name: 'Kristaps Porziņģis', teams: ['ATL', 'GSW'] });
+    const kp = searchPlayers(idx, 'porzingis', '2025-26')[0]!;
+    expect(kp).toMatchObject({ teams: ['ATL', 'GSW'] });
+    expect(fold(kp.name)).toBe('kristaps porzingis');
   });
   it('at most 8; selected season first; each player once (his entry in the selected season if any)', () => {
     const hits = searchPlayers(idx, 'a', '2026-27');

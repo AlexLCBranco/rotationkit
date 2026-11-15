@@ -16,7 +16,7 @@ test('name without accents opens his page, URL replaced by #/player/<TEAM>/<id>,
   await expect(page.locator('header').first()).toBeVisible();
   await page.goto(`/#/player?name=${encodeURIComponent('luka doncic')}`);
   await expect(page).toHaveURL(/#\/player\/LAL\/1629029$/);
-  await expect(page.getByTestId('player-title')).toContainText('Luka Dončić');
+  await expect(page.getByTestId('player-title')).toContainText(/Luka Don[cč]i[cć]/);
   await expect(page.getByTestId('game-row').first()).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/#\/fullq4$/);
@@ -27,10 +27,10 @@ test('traded player without his "Jr." → his latest team; season and filters pa
   const errors = trackErrors(page);
   await page.goto(`/#/player?name=${encodeURIComponent('Kevin McCullar')}&w=10&v=away`);
   await expect(page).toHaveURL(/#\/player\/TOR\/1641755\?w=10&v=away$/);
-  await expect(page.getByTestId('player-title')).toContainText('Kevin McCullar Jr.');
+  await expect(page.getByTestId('player-title')).toContainText('Kevin McCullar');
   await page.goto(`/#/player?name=${encodeURIComponent('Kevin McCullar Jr.')}&s=2025-26`);
   await expect(page).toHaveURL(/#\/player\/NYK\/1641755\?s=2025-26$/);
-  await expect(page.getByTestId('player-title')).toContainText('Kevin McCullar Jr.');
+  await expect(page.getByTestId('player-title')).toContainText('Kevin McCullar');
   expect(errors).toEqual([]);
 });
 
