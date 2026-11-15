@@ -444,3 +444,7 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
 - **2026-11-14 — daily update tests only new games.** The whole-season sweeps (suites using `WHOLE_DATA_TIMEOUT`)
   run over every game on pull requests; the daily update runs them only over the games it added (`RK_TEST_GAMES`).
   Background: their run time grows with the season (see the 2026-11-06/07 incident above).
+- **2026-11-15 — player by name (`#/player?name=`).** For statmuse-builder, which only knows ESPN roster names.
+  Exact full-name match only (no partial / fuzzy match, so a link never opens the wrong player); suffixes and
+  punctuation ignored because ESPN and the NBA feed spell them differently. Resolved client-side from `players.json`
+  (already loaded by the header search); `appearances.json` is only fetched to break a same-name tie.

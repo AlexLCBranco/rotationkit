@@ -7,6 +7,7 @@ import { TeamView } from './components/TeamView.tsx';
 import { PlayerView } from './components/PlayerView.tsx';
 import { GameView } from './components/GameView.tsx';
 import { DeepLink } from './components/DeepLink.tsx';
+import { PlayerByName } from './components/PlayerByName.tsx';
 import { StaleBanner } from './components/StaleBanner.tsx';
 import { LeadersView } from './components/LeadersView.tsx';
 import { FullQ4View } from './components/FullQ4View.tsx';
@@ -45,6 +46,7 @@ function Screen() {
   return <LinkCtx.Provider value={links}>{view()}</LinkCtx.Provider>;
   function view() {
     if (route.view === 'player') return <PlayerView {...common} route={route} />;
+    if (route.view === 'playerName') return <PlayerByName {...common} route={route} />;
     // Main screen. "latest" without a team → the remembered (or first) team; a game id without one → resolved in the view.
     if (route.view === 'game') return <GameView {...common} route={route.game === 'latest' ? { ...route, team } : route} rememberedTeam={rememberedTeam} />;
     if (route.view === 'leaders') return <LeadersView {...common} route={route} team={team} />;

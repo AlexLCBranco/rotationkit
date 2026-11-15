@@ -1,6 +1,7 @@
 // App state lives in the URL hash so views are linkable and the back button works.
 //   #/team/ORL?s=2025-26&w=10&v=home&b=0&p=1630532&m=without
 //   #/player/ORL/1630532?…same filters
+//   #/player?name=Luka%20Don%C4%8Di%C4%87&s=…  a player by full name (other apps): resolved, then replaced by the line above
 //   #/game/0022500093?t=ORL&s=2025-26…  main screen: a team's game (t = whose games the picker lists)
 //   #/q4/0022500093?t=ORL…               same game, Q4 tab (4th quarter + OT only)
 //   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts&lt=ORL&gt=1   Leaders tab (lt = team filter, gt=1 keeps garbage time)
@@ -13,6 +14,7 @@ import type { Filters, Venue, Window } from '../domain/patterns.ts';
 export type Route =
   | { view: 'team'; team: string | null; season: string | null; filters: Filters; vs?: string | null }
   | { view: 'player'; team: string; player: number; season: string | null; filters: Filters }
+  | { view: 'playerName'; name: string; team: null; season: string | null; filters: Filters }
   | { view: 'game'; game: string; team: string | null; season: string | null; filters: Filters; tab?: 'games' | 'q4' }
   | { view: 'leaders'; team: string | null; season: string | null; filters: Filters; leaders: LeadersQuery }
   | { view: 'fullq4'; team: string | null; season: string | null; filters: Filters; fullq4: FullQ4Query };
@@ -61,6 +63,7 @@ export function parse(hash: string): Route {
   const t = q.get('t');
   const parts = path.split('/').filter(Boolean);
   if (parts[0] === 'player' && parts[1] && Number(parts[2])) return { view: 'player', team: parts[1], player: Number(parts[2]), season, filters };
+  if (parts[0] === 'player' && !parts[1]) return { view: 'playerName', name: (q.get('name') ?? '').trim(), team: null, season, filters };
   if (parts[0] === 'game' && parts[1]) return { view: 'game', game: parts[1], team: t, season, filters };
   if (parts[0] === 'q4') return { view: 'game', game: parts[1] ?? 'latest', team: t, season, filters, tab: 'q4' };
   if (parts[0] === 'leaders')
@@ -87,6 +90,7 @@ export function parse(hash: string): Route {
 
 export function format(r: Route): string {
   const q = new URLSearchParams();
+  if (r.view === 'playerName') q.set('name', r.name);
   if (r.season) q.set('s', r.season);
   if (r.filters.window !== 'season') q.set('w', String(r.filters.window));
   if (r.filters.venue !== 'all') q.set('v', r.filters.venue);
@@ -114,6 +118,7 @@ export function format(r: Route): string {
   }
   const qs = q.toString() ? `?${q}` : '';
   if (r.view === 'player') return `#/player/${r.team}/${r.player}${qs}`;
+  if (r.view === 'playerName') return `#/player${qs}`;
   if (r.view === 'leaders') return `#/leaders${qs}`;
   if (r.view === 'fullq4') return `#/fullq4${qs}`;
   if (r.view === 'game') return `#/${r.tab === 'q4' ? 'q4' : 'game'}/${r.game}${qs}`;
