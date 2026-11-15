@@ -113,6 +113,9 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   "Exclude blowouts" (`nb=1`: games with 4th-quarter garbage time by the blowout rule leave both counts).
 - **Deep link** `https://rotationkit.vercel.app/?game=<NBA gameId>` → that game; unknown / future / not yet added
   → "Rotation data not available for this game yet" with what the schedule knows (`DeepLink.tsx`).
+- **Player by name** `/#/player?name=<full name>[&s=&w=…]` (`PlayerByName.tsx`, `domain/playerByName.ts`; for statmuse-builder):
+  exact name, ignoring case, accents, `.'-`, Jr./Sr./II–IV; same name → latest appearance; team = his latest in `s=` / current
+  / last season with data; then history.replace → `#/player/<TEAM>/<id>`, params kept. None → "No rotation data for '<name>'".
 
 ## Testing
 - `npm test` — Vitest: normalization and validation on 12 raw fixture games (`tests/fixtures/`, OT, 2OT, blowouts,
@@ -121,10 +124,9 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   `RK_TEST_GAMES=id,id` limits the sweeps to those games (used by the daily update).
 - `npm run build && npm run e2e` — Playwright against the production build (`vite preview`), **desktop only**
   (1280 × 900, compact at 1920 × 1080; no phone tests): no console errors, all 30 teams × both seasons, filters,
-  labels, game chart DOM, readout, compact fit, team order, Q4 fit, Leaders, Full Q4, picker, banner, deep links. Screenshots →
-  `screenshots/` (gitignored). `E2E_ALL_GAMES=1` runs the chart label checks on every game.
-- **PR checks** (`.github/workflows/pr.yml`): every pull request to `main` runs `npm ci`, `npm test`,
-  `npm run build`, `npm run e2e`. A PR is merged only when this workflow is green.
+  labels, game chart DOM, readout, compact fit, team order, Q4 fit, Leaders, Full Q4, picker, banner, deep links,
+  player-by-name links. Screenshots → `screenshots/` (gitignored). `E2E_ALL_GAMES=1`: chart label checks on every game.
+- **PR checks** (`.github/workflows/pr.yml`, every PR to `main`): `npm ci`, `npm test`, `npm run build`, `npm run e2e`; merge only when green.
 
 ## Daily data update (`.github/workflows/data-update.yml` → `scripts/ci-update.ts`)
 - 11:00 UTC daily (and manual "Run workflow"): probe cdn.nba.com → `fetch-season --cdn-only --strict` → `normalize`
@@ -140,9 +142,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 `npm install`, then `npm run update-data` (= fetch-season → normalize → validate-all).
 Past season: `npm run fetch-season -- --season 2025-26 --cdn-only`, then `npm run normalize`, `npm run validate-all`.
 Single game: `npm run fetch-game -- <gameId> [--force] [--cdn-only]`. Raw cache: `cache/` (gitignored); `HTTPS_PROXY` used.
-
-## Deploy
-Vercel: `npm ci`, `npm run build` (typecheck + Vite; copies `data/` to `dist/data/` + the generated files), output
+**Deploy** (Vercel): `npm ci`, `npm run build` (typecheck + Vite; copies `data/` to `dist/data/` + the generated files), output
 `dist/`. `main` → production; branches get preview deployments.
 
 ## Open problems
