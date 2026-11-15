@@ -16,7 +16,8 @@
     "normalize": "tsx scripts/normalize.ts",
     "validate-all": "tsx scripts/validate-all.ts",
     "make-fixture": "tsx scripts/make-fixture.ts",
-    "update-data": "npm run fetch-season && npm run normalize && npm run validate-all"
+    "update-data": "npm run fetch-season && npm run normalize && npm run validate-all",
+    "pretest": "node scripts/check-lists.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
