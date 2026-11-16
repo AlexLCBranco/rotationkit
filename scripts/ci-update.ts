@@ -1,7 +1,7 @@
 // Daily data update (run by .github/workflows/data-update.yml, also runnable locally).
 //   probe-cdn → fetch-season --cdn-only --strict → normalize → validate-all → tests → commit + push (only with --commit)
 // The test step runs the fixtures and every unit test, but the whole-season sweeps (WHOLE_DATA_TIMEOUT suites) only
-// over the games this run added (RK_TEST_GAMES, see tests/data.ts); the full sweeps run on every pull request.
+// over the games this run added (RK_TEST_GAMES, see tests/data.ts); the full sweeps run on every push to main (Checks workflow).
 // Commits when there are new finished games OR the schedule changed (fetch-season downloads the feed every run).
 // With --commit every run also records its outcome in data/update-status.json (the app warns when data is stale):
 //   - success: the status file is committed with the data (alone when nothing else changed);

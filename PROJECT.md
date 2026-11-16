@@ -129,7 +129,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 - `npm run build && npm run e2e` — Playwright on the production build (`vite preview`), **desktop only** (1280 × 900,
   compact 1920 × 1080): no console errors, every screen incl. By day (fixture date 2025-11-10). `E2E_ALL_GAMES=1`:
   chart label checks on every game. Screenshots → `screenshots/` (gitignored).
-- **PR checks** (`.github/workflows/pr.yml`, every PR to `main`): `npm ci`, `npm test`, `npm run build`, `npm run e2e`; merge only when green.
+- **Checks** (`.github/workflows/pr.yml`, every push to `main`): `npm ci`, `npm test`, `npm run build`, `npm run e2e`. Work goes straight to `main` (no PRs); run the same locally before pushing.
 
 ## Daily data update (`.github/workflows/data-update.yml` → `scripts/ci-update.ts`)
 - 11:00 UTC daily (and manual): probe cdn.nba.com → `fetch-season --cdn-only --strict` → `normalize` → `validate-all`
@@ -143,7 +143,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 `npm install`, `npm run update-data` (= fetch-season → normalize → validate-all). Past season: `npm run fetch-season --
 --season 2025-26 --cdn-only`, then normalize, validate-all. Single game: `npm run fetch-game -- <gameId> [--force]
 [--cdn-only]`. Raw cache: `cache/` (gitignored); `HTTPS_PROXY` used. **Deploy** (Vercel): `npm ci`, `npm run build`
-(typecheck + Vite; copies `data/` + the generated files to `dist/`). `main` → production; branches → previews.
+(typecheck + Vite; copies `data/` + the generated files to `dist/`). `main` → production (every push).
 
 ## Open problems
 - stats.nba.com is slow/flaky (optional). 2026-27 box scores carry no inactive players or reasons (roster list, no

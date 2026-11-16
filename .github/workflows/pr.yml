@@ -1,14 +1,18 @@
-# Checks for every pull request to main: unit tests (incl. the whole-season sweeps), the production build, and the
-# Playwright end-to-end tests against that build. CLAUDE.md: a PR is merged once this workflow is green.
-name: PR checks
+# Checks after every push to main (work is committed straight to main, CLAUDE.md) and on any pull request: unit
+# tests (incl. the whole-season sweeps), the production build, and the Playwright end-to-end tests against that build.
+# The daily data update's own pushes (GITHUB_TOKEN) do not trigger it; that workflow runs its own tests.
+name: Checks
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
-  group: pr-checks-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: checks-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read

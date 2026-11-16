@@ -11,6 +11,7 @@ spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Featu
 ### Internal
 - Schedule data: tip-off times (`tip`) added to schedule.json from the feed
 - Player search e2e: compare names accent-insensitively (the Nov 14 box score spells Jokić without the accent)
+- Workflow: commit straight to main, no pull requests; Checks run after every push to main; local e2e uses the session's Chromium
 
 ## 2026-11-15
 - Open a player's page by name: #/player?name=<full name>

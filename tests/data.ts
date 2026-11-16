@@ -26,7 +26,7 @@ export const WHOLE_DATA_TIMEOUT = 60_000;
 /**
  * Games the whole-data sweeps (the suites using WHOLE_DATA_TIMEOUT) check. Normally every committed game of both
  * seasons. The daily data update sets RK_TEST_GAMES to the comma-separated ids of the games it just added, so its
- * test step checks only those (the full sweeps run on every pull request instead, .github/workflows/pr.yml).
+ * test step checks only those (the full sweeps run on every push to main instead, .github/workflows/pr.yml).
  * RK_TEST_GAMES="" (a day with no new games) = no games.
  */
 export const SWEEP_ONLY: Set<string> | null = process.env.RK_TEST_GAMES === undefined ? null : new Set(process.env.RK_TEST_GAMES.split(',').filter(Boolean));
