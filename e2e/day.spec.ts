@@ -1,4 +1,4 @@
-// Games tab, By day (desktop): game cards of one day (order, closers, full-Q4 marks, CD DNPs), clicking a team's
+// By day tab (desktop): game cards of one day (order, closers, full-Q4 marks, CD DNPs), clicking a team's
 // half, previous / next game and the back link on the game page, the Q4 minutes leaders panel (order, ties, No
 // blowouts), arrow keys, the empty-date note, upcoming games, and Full Q4 without its old by-date section.
 // Expected values come from the committed data through the same domain functions (src/domain/slate.ts).
@@ -35,20 +35,30 @@ const gameUrl = (id: string, team: string, date: string | null = D) => new RegEx
 /** Click a team's half of a card on a spot that is not a link (the area under the team's head). */
 const clickSide = (page: Page, id: string, team: string) => page.locator(`[data-testid=dv-game][data-game="${id}"] [data-testid=dv-side][data-team="${team}"]`).click({ position: { x: 4, y: 4 } });
 
-test('By team | By day switch in the Games tab; By day opens on the latest day with finished games', async ({ page }) => {
+test('By day tab in the main menu; opens on the latest day with finished games; Games tab goes back', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/#/game/latest?t=ORL&s=2026-27');
-  await expect(page.getByTestId('mode-team')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByTestId('mode-day').click();
+  await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('games-mode')).toHaveCount(0);
+  await page.getByTestId('tab-day').click();
   await expect(page).toHaveURL(/#\/games\?view=day&s=2026-27/);
   const latest = slateDates(index('2026-27'), schedule('2026-27')).latestFinished!;
   await expect(page.getByTestId('dv-date')).toHaveValue(latest);
-  await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('tab-day')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('tab-games')).not.toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('dv-game')).toHaveCount(day('2026-27', latest).length);
-  await page.getByTestId('mode-team').click();
+  await page.getByTestId('tab-games').click();
   await expect(page).toHaveURL(/#\/game\/\d+\?.*t=ORL/);
   await expect(page.getByTestId('game-team').first()).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('By day tab from a game opened from By day returns to that day', async ({ page }) => {
+  const id = day(S, D).find((g) => g.finished)!.id;
+  await page.goto(`/#/game/${id}?t=${game(S, id).home.tri}&s=${S}&day=${D}`);
+  await page.getByTestId('tab-day').click();
+  await expect(page.getByTestId('dv-date')).toHaveValue(D);
+  await expect(page.getByTestId('tab-day')).toHaveAttribute('aria-current', 'page');
 });
 
 test('cards: count and order, scores, closers with full-Q4 marks, coach\'s-decision DNPs', async ({ page }) => {

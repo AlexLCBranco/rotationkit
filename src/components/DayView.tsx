@@ -1,4 +1,4 @@
-// Games tab, By day (#/games?view=day&date=YYYY-MM-DD): one card per game of the day (tip-time order) with both
+// By day tab (#/games?view=day&date=YYYY-MM-DD): one card per game of the day (tip-time order) with both
 // teams' closers, full-Q4 marks and coach's-decision DNPs; beside them the day's Q4 minutes leaders.
 // Clicking a team's half of a card opens that game with that team first and the day as context (prev / next game).
 
@@ -31,20 +31,6 @@ interface Props {
   nav: Nav;
 }
 
-/** By team | By day switch (Games tab). */
-export function GamesModeSwitch({ mode, onTeam, onDay }: { mode: 'team' | 'day'; onTeam: () => void; onDay: () => void }) {
-  return (
-    <div className="seg" role="group" aria-label="Games view" data-testid="games-mode">
-      <button aria-pressed={mode === 'team'} onClick={() => mode !== 'team' && onTeam()} data-testid="mode-team">
-        By team
-      </button>
-      <button aria-pressed={mode === 'day'} onClick={() => mode !== 'day' && onDay()} data-testid="mode-day">
-        By day
-      </button>
-    </div>
-  );
-}
-
 /** Game page link from By day: that team first, the day kept for previous / next game and the back link. */
 export const dayGameRoute = (id: string, team: string, season: string, date: string, filters: Route['filters']): Route => ({ view: 'game', game: id, team, season, filters, day: date });
 
@@ -74,11 +60,10 @@ export function DayView({ seasons, season, team, route, nav }: Props) {
   return (
     <div className="page wide">
       <Header>
-        <Tabs active="games" go={(x) => nav(tabRoute(x, { team, season, filters: route.filters }))} />
+        <Tabs active="day" go={(x) => nav(tabRoute(x, { team, season, filters: route.filters }))} />
         <TeamPicker team={team} onChange={(t) => nav({ view: 'game', game: 'latest', team: t, season, filters: route.filters })} />
       </Header>
       <div className="filters dv-filters">
-        <GamesModeSwitch mode="day" onTeam={() => nav({ view: 'game', game: 'latest', team, season, filters: route.filters })} onDay={() => {}} />
         <label className="field">
           <span>Season</span>
           <select value={season} aria-label="Season" onChange={(e) => set({ date: null }, e.target.value)}>

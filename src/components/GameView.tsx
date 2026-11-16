@@ -27,7 +27,6 @@ import { TeamLogo } from './Headshot.tsx';
 import { remember } from '../app/hooks.ts';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { dayNeighbours, finishedOfDay } from '../domain/slate.ts';
-import { GamesModeSwitch } from './DayView.tsx';
 
 interface Props {
   seasons: string[];
@@ -174,7 +173,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   return (
     <div className={`page main-screen${tab === 'q4' ? ' q4-page' : ''}`}>
       <Header>
-        <Tabs active={tab} go={(x) => nav(tabRoute(x, { team: team ?? null, season: gameSeason, filters: route.filters, game: current ?? route.game }))} />
+        <Tabs active={tab} go={(x) => nav(tabRoute(x, { team: team ?? null, season: gameSeason, filters: route.filters, game: current ?? route.game, day: route.day }))} />
         <TeamPicker team={team} onChange={pickTeam} />
       </Header>
       <div className={`gv-layout${collapsed ? ' collapsed' : ''}`}>
@@ -193,7 +192,6 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
         )}
         <div className="gv-main">
           <div className="game-nav">
-            {tab === 'games' && <GamesModeSwitch mode="team" onTeam={() => {}} onDay={() => nav(dayRoute(route.day ?? null))} />}
             {collapsed && (
               <>
                 <button className="gl-expand" onClick={() => setCollapsed(false)} title="Show the game list" data-testid="list-expand">

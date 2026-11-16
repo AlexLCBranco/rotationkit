@@ -5,6 +5,8 @@ Entries dated before 2026-11-16 were backfilled from the git commit messages (da
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
 ## 2026-11-16
+- By day moved to the main menu (v0.1.1)
+  By day is now its own tab in the header, next to Games; the By team | By day switch is gone.
 - RK-1 — Games by day (slate view) (v0.1.0)
   Games tab has a By team | By day switch: one card per game of a day with each team's closers, full-Q4 marks and coach's-decision DNPs, the day's Q4 minutes leaders beside them, and previous / next game on the game page; Full Q4 keeps only its season leaderboard.
 

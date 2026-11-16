@@ -47,7 +47,7 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
 
 ## App (`src/App.tsx`, `src/components/`, `src/app/`)
 State lives in the URL hash (`src/app/route.ts`), so every view is linkable and the back button works.
-- **Header** (every tab): logo, tabs Games | Q4 | Averages | Leaders | Full Q4, team picker (`TeamPicker.tsx`, by
+- **Header** (every tab): logo, tabs Games | By day | Q4 | Averages | Leaders | Full Q4, team picker (`TeamPicker.tsx`, by
   division, full keyboard support), **player search** (`PlayerSearch.tsx`): "/" or Ctrl+K (not while typing elsewhere);
   case/accent-insensitive, any part of the name, initials ("sga"); up to 8 results (headshot, name, latest team),
   selected season first; ↑/↓, Enter, Esc, mouse; empty = last 5 opened (`rk.recent`); opens his page, filters kept.
@@ -85,8 +85,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
     (this game excluded, blowout rule on, regulation only); none under 3 games in that window. No pointer events, never
     moves bars/labels/ticks; hovering on an outline adds "usually on court here (7 of 10)";
   - below: minutes & fouls by quarter (sortable) and the lineup list per team.
-- **Games › By day** (`#/games?view=day&date=YYYY-MM-DD&s=&nb=1`, `DayView.tsx`, `src/domain/slate.ts`; switch `By team |
-  By day`): `DateBar.tsx` (◀ ▶ / ← → = previous / next day with games, date input, "No games on X; showing Y"; default
+- **By day** tab (`#/games?view=day&date=YYYY-MM-DD&s=&nb=1`, `DayView.tsx`, `src/domain/slate.ts`; from a game opened
+  from By day the tab returns to that day): `DateBar.tsx` (◀ ▶ / ← → = previous / next day with games, date input, "No games on X; showing Y"; default
   latest day with finished games). Cards in tip-time order (no tip → id order): score, TV / CUP, schedule chips; per team
   the 5 on court at the end of regulation ("Q4" mark = Full Q4 rule) and DNP – CD players only (`*_COACH`); games not in
   `index.json` dimmed with tip time, not clickable. A team's half → its game, that team first, `day=` (game page:
@@ -115,7 +115,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   pts per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table; `LEADER_MIN_GAMES`.
 - **Full Q4** (`#/fullq4?s=&th=11&nb=1`, `FullQ4View.tsx`, `src/domain/fullQ4.ts` on `quarters.json`): whole regulation
   4th on court (Q4 minutes = 12:00; back-to-back stints count; OT never counts): season leaderboard (full Q4s, GP, %);
-  "11:00+" (`th=11`); "Exclude blowouts" (`nb=1`: games with 4th-quarter garbage time leave both counts). Per date: By day.
+  "11:00+" (`th=11`); "Exclude blowouts" (`nb=1`: games with 4th-quarter garbage time leave both counts). Per date: By day tab.
 - **Deep link** `https://rotationkit.vercel.app/?game=<NBA gameId>` → that game; unknown / future / not yet added
   → "Rotation data not available for this game yet" with what the schedule knows (`DeepLink.tsx`).
 - **Player by name** `/#/player?name=<full name>[&s=&w=…]` (`PlayerByName.tsx`, `domain/playerByName.ts`; for statmuse-builder):
