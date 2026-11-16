@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { dayNumber, restLabel, scheduleTags } from '../src/domain/scheduleTags.ts';
+import { dayNumber, mergedChip, mergedDays, mergedLabel, mergedTip, ordinal, restLabel, scheduleTags } from '../src/domain/scheduleTags.ts';
 import type { ScheduleLike } from '../src/domain/rest.ts';
 import { parseSchedule } from '../src/shared/nba-schedule/parse.ts';
 
@@ -128,5 +128,69 @@ describe('scheduleTags on real 2025-26 data', () => {
       }
     }
     expect(sets).toBeGreaterThan(100);
+  });
+});
+
+// RK-3: overlapping 3-in-4 sets merged into one stretch, chained — calendarkit's cases (tests/scheduleTags.test.ts at
+// 7a1c7f7, "merged 3-in-4 stretches"), ported to rotationkit's schedule rows. Label = games "in" days first→last
+// inclusive, with this game's place; the pop-up's day strip.
+describe('merged 3-in-4 stretches (calendarkit cases)', () => {
+  const merged = (dates: string[]) => tagsOf(sched(dates)).map((t) => (t.merged ? mergedChip(t.merged) : null));
+  const strip = (m: NonNullable<ReturnType<typeof tagsOf>[number]['merged']>) => mergedDays(m).map((d) => `${d.date}:${d.kind[0] === 'g' ? 'g' : d.kind[0] === 'r' ? 'r' : 't'}`).join(' ');
+  const s27 = JSON.parse(readFileSync('data/2026-27/schedule.json', 'utf8')) as ScheduleLike[];
+
+  it('HOU, Oct 28 / 30 / 31 / Nov 2, 2026 (sets Oct 28-30-31 and Oct 30-31-Nov 2): "4in6", Oct 30 is the 2nd; strip game, rest, TONIGHT, game, rest, game', () => {
+    const t = scheduleTags(s27, 'HOU');
+    const oct30 = s27.find((g) => (g.home === 'HOU' || g.away === 'HOU') && g.date === '2026-10-30')!;
+    const x = t.get(oct30.id)!;
+    const m = x.merged!;
+    expect(x.threeInFour.map((s) => s.dates.join(' '))).toEqual(['2026-10-28 2026-10-30 2026-10-31', '2026-10-30 2026-10-31 2026-11-02']);
+    expect(m.dates).toEqual(['2026-10-28', '2026-10-30', '2026-10-31', '2026-11-02']);
+    expect([mergedLabel(m), m.position, mergedChip(m)]).toEqual(['4in6', 2, '4in6 · 2nd']);
+    expect(strip(m)).toBe('2026-10-28:g 2026-10-29:r 2026-10-30:t 2026-10-31:g 2026-11-01:r 2026-11-02:g');
+    expect(mergedTip(m)).toBe('4 games in 6 days (Oct 28 – Nov 2), tonight the 2nd');
+    // every game of the stretch shares it, each with its own place
+    expect(m.ids.map((id) => mergedChip(t.get(id)!.merged!))).toEqual(['4in6 · 1st', '4in6 · 2nd', '4in6 · 3rd', '4in6 · 4th']);
+    // the strip's games from HOU's side, against the schedule
+    for (const g of m.games) {
+      const e = s27.find((x) => x.id === g.id)!;
+      expect([g.date, g.at, g.opp, g.away, g.home]).toEqual([e.date, e.home === 'HOU' ? 'vs' : '@', e.home === 'HOU' ? e.away : e.home, e.away, e.home]);
+    }
+  });
+
+  it('a single set: "3in4" with its place ("3in4 · 3rd")', () => {
+    expect(merged(['2025-11-01', '2025-11-03', '2025-11-04', '2025-11-08'])).toEqual(['3in4 · 1st', '3in4 · 2nd', '3in4 · 3rd', null]);
+    expect(merged(['2025-11-01', '2025-11-02', '2025-11-03'])).toEqual(['3in3 · 1st', '3in3 · 2nd', '3in3 · 3rd']);
+  });
+
+  it('two sets that share no game stay separate', () => {
+    expect(merged(['2025-11-01', '2025-11-03', '2025-11-04', '2025-11-08', '2025-11-09', '2025-11-11'])).toEqual(['3in4 · 1st', '3in4 · 2nd', '3in4 · 3rd', '3in4 · 1st', '3in4 · 2nd', '3in4 · 3rd']);
+  });
+
+  it('a long chain merges transitively: 7 games in 11 days (A shares with B, B with C …, A not with the last)', () => {
+    const dates = ['2027-02-02', '2027-02-04', '2027-02-05', '2027-02-07', '2027-02-09', '2027-02-10', '2027-02-12']; // BOS's real stretch
+    expect(merged(dates)).toEqual(['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'].map((o) => `7in11 · ${o}`));
+    const m = tagsOf(sched(dates))[0]!.merged!;
+    expect(strip(m).split(' ').map((d) => d.slice(11)).join('')).toBe('trggrgrggrg');
+    // and on the real schedule: BOS Feb 2–12, 2027 is one stretch
+    const feb4 = s27.find((g) => (g.home === 'BOS' || g.away === 'BOS') && g.date === '2027-02-04')!;
+    expect(mergedChip(scheduleTags(s27, 'BOS').get(feb4.id)!.merged!)).toBe('7in11 · 2nd');
+  });
+
+  it("the season's longest stretches are 7in11 and every game in a set has exactly one stretch", () => {
+    let longest = 0;
+    const teams = [...new Set(s27.flatMap((g) => [g.home, g.away]))].filter((t) => /^[A-Z]{3}$/.test(t));
+    for (const team of teams)
+      for (const [, x] of scheduleTags(s27, team)) {
+        expect(!!x.merged).toBe(x.threeInFour.length > 0);
+        if (!x.merged) continue;
+        for (const s of x.threeInFour) for (const id of s.ids) expect(x.merged.ids).toContain(id); // every set inside its stretch
+        longest = Math.max(longest, x.merged.ids.length);
+      }
+    expect(longest).toBe(7);
+  });
+
+  it('ordinal', () => {
+    expect([1, 2, 3, 4, 7, 11, 12, 13, 21, 22].map(ordinal)).toEqual(['1st', '2nd', '3rd', '4th', '7th', '11th', '12th', '13th', '21st', '22nd']);
   });
 });

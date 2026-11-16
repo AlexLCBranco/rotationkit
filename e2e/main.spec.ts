@@ -37,7 +37,20 @@ function expectedTags(team: string, id: string) {
   const i = ds.findIndex((x) => x.id === id);
   let pos = 0;
   for (let k = Math.max(0, i - 2); k <= i && k + 2 < ds.length; k++) if (ds[k + 2]!.d - ds[k]!.d <= 3) pos = Math.max(pos, i - k + 1);
+  // The merged stretch (RK-3): sets that share a game, chained; "<games>in<days>" and this game's place in it.
+  const starts: number[] = [];
+  for (let k = 0; k + 2 < ds.length; k++) if (ds[k + 2]!.d - ds[k]!.d <= 3) starts.push(k);
+  let stretch = '';
+  for (let a = 0; a < starts.length; ) {
+    let b = a;
+    while (b + 1 < starts.length && starts[b + 1]! - starts[b]! <= 2) b++;
+    const lo = starts[a]!;
+    const hi = starts[b]! + 2;
+    if (i >= lo && i <= hi) stretch = `${hi - lo + 1}in${ds[hi]!.d - ds[lo]!.d + 1}/${i - lo + 1}`;
+    a = b + 1;
+  }
   return {
+    stretch,
     b2b1: i + 1 < ds.length && ds[i + 1]!.d - ds[i]!.d === 1,
     b2b2: i > 0 && ds[i]!.d - ds[i - 1]!.d === 1,
     pos,
@@ -48,7 +61,7 @@ async function expectChips(scope: ReturnType<Page['locator']>, t: ReturnType<typ
   await expect(scope.getByTestId('tag-b2b1')).toHaveCount(t.b2b1 ? 1 : 0);
   await expect(scope.getByTestId('tag-b2b2')).toHaveCount(t.b2b2 ? 1 : 0);
   await expect(scope.getByTestId('tag-3in4')).toHaveCount(t.pos ? 1 : 0);
-  if (t.pos) await expect(scope.getByTestId('tag-3in4')).toHaveAttribute('data-position', String(t.pos));
+  if (t.pos) await expect(scope.getByTestId('tag-3in4')).toHaveAttribute('data-stretch', t.stretch);
   await expect(scope.getByTestId('tag-rest')).toHaveText(t.rest);
 }
 
@@ -274,7 +287,7 @@ test('game header: this team\'s and the opponent\'s schedule tags', async ({ pag
   await expect(page.locator('[data-testid=header-tags][data-team=ORL] [data-testid=tag-rest]')).toHaveText('opener');
 });
 
-test('overlapping 3-in-4 sets: highest position shown, every set listed on hover', async ({ page }) => {
+test('overlapping 3-in-4 sets: one merged chip ("4in6 · 2nd"), the hover pop-up shows the stretch day by day', async ({ page }) => {
   // A real game that sits in two sets (4 games in 5 days or tighter).
   const multi = ORL.find((e) => {
     const ds = ORL.map((x) => day(x.date)).sort((a, b) => a - b);
@@ -283,12 +296,48 @@ test('overlapping 3-in-4 sets: highest position shown, every set listed on hover
     const sets = [i - 2, i - 1, i].filter((k) => k >= 0 && k + 2 < ds.length && ds[k + 2]! - ds[k]! <= 3);
     return sets.length >= 2;
   })!;
+  const want = expectedTags('ORL', multi.id).stretch;
+  const [label, pos] = want.split('/');
+  const [games, days] = label!.split('in').map(Number);
+  const ord = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 10 > 3 || (n % 100 >= 11 && n % 100 <= 13) ? 0 : n % 10]}`;
   await page.goto(`/#/game/${multi.id}?t=ORL&s=2025-26`);
   const chip = page.locator('[data-testid=header-tags][data-team=ORL] [data-testid=tag-3in4]');
-  await expect(chip).toHaveAttribute('data-position', String(expectedTags('ORL', multi.id).pos));
+  await expect(chip).toHaveCount(1);
+  await expect(chip).toHaveAttribute('data-stretch', want);
+  await expect(chip).toHaveText(`${label} · ${ord(Number(pos))}`);
   expect(Number(await chip.getAttribute('data-sets'))).toBeGreaterThanOrEqual(2);
-  const title = (await chip.getAttribute('title'))!;
-  expect(title.split('\n').filter((l) => / game\)$/.test(l)).length).toBe(Number(await chip.getAttribute('data-sets')));
+  // Hover: calendarkit's pop-up — the stretch in words, one square per day, tonight marked, games link to hoopsjunkie.
+  await chip.hover();
+  const pop = page.getByTestId('tif-pop');
+  await expect(pop).toBeVisible();
+  await expect(pop).toContainText(`${label} · ${ord(Number(pos))}: ${games} games in ${days} days (`);
+  await expect(pop).toContainText(`tonight the ${ord(Number(pos))}`);
+  await expect(pop.getByTestId('tip-day')).toHaveCount(days!);
+  await expect(pop.getByTestId('tip-game')).toHaveCount(games!);
+  await expect(pop.locator('[data-kind=tonight]')).toHaveAttribute('data-date', multi.date);
+  const opp = multi.home === 'ORL' ? multi.away : multi.home;
+  await expect(pop.locator('[data-kind=tonight] [data-testid=tip-game]')).toHaveText(`${multi.home === 'ORL' ? 'vs' : '@'} ${opp}`);
+  await expect(pop.locator('[data-kind=tonight] a')).toHaveAttribute('href', `https://hoopsjunkie.io/games/${multi.date}/${multi.away.toLowerCase()}-vs-${multi.home.toLowerCase()}`);
+  // The pointer can travel onto the pop-up (it stays); leaving both closes it.
+  await pop.hover();
+  await expect(pop).toBeVisible();
+  await page.mouse.move(5, 890);
+  await expect(pop).toHaveCount(0);
+});
+
+test('games list: one merged 3-in-4 chip per row, never two stacked 3-in-4 chips; hover opens the same pop-up', async ({ page }) => {
+  await page.goto('/#/game/latest?t=ORL&s=2025-26');
+  await expect(rows(page)).toHaveCount(ORL.length);
+  for (const e of oldestFirst) {
+    const row = page.locator(`[data-testid=list-row][data-id="${e.id}"]`);
+    const t = expectedTags('ORL', e.id);
+    await expect(row.getByTestId('tag-3in4')).toHaveCount(t.stretch ? 1 : 0);
+    if (t.stretch) await expect(row.getByTestId('tag-3in4')).toHaveAttribute('data-stretch', t.stretch);
+  }
+  const chip = page.locator('[data-testid=list-row] [data-testid=tag-3in4]').first();
+  await chip.hover();
+  await expect(page.getByTestId('tif-pop')).toBeVisible();
+  await expect(page.getByTestId('tif-pop').locator('[data-kind=tonight]')).toHaveCount(1);
 });
 
 test('Averages is a secondary tab; Games goes back to the latest game', async ({ page }) => {

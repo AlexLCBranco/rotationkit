@@ -448,3 +448,9 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
   Exact full-name match only (no partial / fuzzy match, so a link never opens the wrong player); suffixes and
   punctuation ignored because ESPN and the NBA feed spell them differently. Resolved client-side from `players.json`
   (already loaded by the header search); `appearances.json` is only fetched to break a same-name tie.
+- **2026-11-16 — RK-2 / RK-3: list width and merged 3-in-4 chips.** List: 500 px stays the default and the maximum;
+  the minimum is 420 px, the narrowest at which date, teams, result and rest still fit and the badges keep ~40 px.
+  3-in-4: one source per repo. calendarkit's version is the better one (it merges overlapping sets), but its code sits
+  on calendarkit's own data model (`CalendarData`, `ScheduleGame`) and the repos share no package, so it can't be
+  imported. rotationkit keeps `src/domain/scheduleTags.ts` (where the set rule started) and carries calendarkit's
+  merge step, labels and pop-up (calendarkit 7a1c7f7) line for line, with calendarkit's tests ported.

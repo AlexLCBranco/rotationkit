@@ -2,6 +2,7 @@
 // team in the season, oldest at top. Click a row → that game; ↑ / ↓ while the list is focused → previous / next.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { remember } from '../app/hooks.ts';
 import { teamName } from '../app/teams.ts';
 import type { ScheduleTags } from '../domain/scheduleTags.ts';
 import { TeamLogo } from './Headshot.tsx';
@@ -46,6 +47,16 @@ export interface UpcomingGame {
   cup?: CupRound | undefined;
 }
 
+/** The panel's width (px): the default is the widest it gets; it can only be dragged narrower, down to LIST_MIN_WIDTH. */
+export const LIST_MAX_WIDTH = 500;
+export const LIST_MIN_WIDTH = 420;
+const WIDTH_KEY = 'rk.listWidth';
+const clampWidth = (w: number) => Math.round(Math.min(LIST_MAX_WIDTH, Math.max(LIST_MIN_WIDTH, w)));
+const savedWidth = () => {
+  const w = Number(remember(WIDTH_KEY));
+  return Number.isFinite(w) && w > 0 ? clampWidth(w) : LIST_MAX_WIDTH;
+};
+
 /** m/d/yyyy */
 const usDate = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}/${d.slice(0, 4)}`;
 
@@ -67,6 +78,33 @@ interface Props {
 export function GameList({ games, upcoming = [], selected, onSelect, seasons, season, onSeason, onCollapse, matchupHref }: Props) {
   const [q, setQ] = useState('');
   const scroller = useRef<HTMLDivElement>(null);
+  // Drag the right border to resize (narrower only); remembered; double-click or ↺ restores the default width.
+  const [width, setWidth] = useState(savedWidth);
+  const setSaved = (w: number) => {
+    const c = clampWidth(w);
+    setWidth(c);
+    remember(WIDTH_KEY, String(c));
+  };
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const x0 = e.clientX;
+    const w0 = width;
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+    document.body.classList.add('gl-resizing');
+    const move = (ev: PointerEvent) => setWidth(clampWidth(w0 + ev.clientX - x0));
+    const up = (ev: PointerEvent) => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      document.body.classList.remove('gl-resizing');
+      setSaved(w0 + ev.clientX - x0);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  };
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     return s ? games.filter((g) => g.opp.toLowerCase().includes(s) || teamName(g.opp).toLowerCase().includes(s)) : games;
@@ -96,7 +134,20 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
     if (next) onSelect(next.id);
   };
   return (
-    <aside className="gl" data-testid="game-list">
+    <aside className="gl" data-testid="game-list" style={{ width }}>
+      <div
+        className="gl-resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the game list (double-click: default width)"
+        title="Drag to resize · double-click for the default width"
+        aria-valuenow={width}
+        aria-valuemin={LIST_MIN_WIDTH}
+        aria-valuemax={LIST_MAX_WIDTH}
+        onPointerDown={startDrag}
+        onDoubleClick={() => setSaved(LIST_MAX_WIDTH)}
+        data-testid="list-resize"
+      />
       <div className="gl-top">
         <div className="gl-bar">
           <label className="field">
@@ -117,6 +168,11 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+          {width < LIST_MAX_WIDTH && (
+            <button className="gl-collapse" onClick={() => setSaved(LIST_MAX_WIDTH)} title="Default width" aria-label="Restore the default width" data-testid="list-reset">
+              ↔
+            </button>
+          )}
           <button className="gl-collapse" onClick={onCollapse} title="Hide the game list" aria-label="Hide the game list" data-testid="list-collapse">
             ⟨
           </button>
@@ -125,6 +181,15 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
       </div>
       <div className="gl-scroll" ref={scroller} tabIndex={0} onKeyDown={onKey} aria-label="Games (↑ ↓ to move)" data-testid="game-list-rows">
         <table className="gl-table">
+          <colgroup>
+            <col className="gl-c-date" />
+            <col className="gl-c-team" />
+            <col className="gl-c-at" />
+            <col className="gl-c-team" />
+            <col className="gl-c-result" />
+            <col />
+            <col className="gl-c-rest" />
+          </colgroup>
           <thead>
             <tr>
               <th>DATE</th>
@@ -183,8 +248,10 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
                     )}
                   </td>
                   <td className="gl-tags">
-                    <ScheduleChips tags={g.tags} rest={false} />
-                    <BroadcastTags tv={g.tv} cup={g.cup} />
+                    <span className="gl-tags-in">
+                      <ScheduleChips tags={g.tags} rest={false} />
+                      <BroadcastTags tv={g.tv} cup={g.cup} />
+                    </span>
                   </td>
                   <td className="rest-days" data-testid="list-rest">
                     <ScheduleChips tags={g.tags} chips={false} />
@@ -237,8 +304,10 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
                   {g.status === 'live' ? 'live' : 'upcoming'}
                 </td>
                 <td className="gl-tags">
-                  <ScheduleChips tags={g.tags} rest={false} />
-                  <BroadcastTags tv={g.tv} cup={g.cup} />
+                  <span className="gl-tags-in">
+                    <ScheduleChips tags={g.tags} rest={false} />
+                    <BroadcastTags tv={g.tv} cup={g.cup} />
+                  </span>
                 </td>
                 <td className="rest-days">
                   <ScheduleChips tags={g.tags} chips={false} />

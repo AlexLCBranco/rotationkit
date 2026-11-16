@@ -8,9 +8,8 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
 ## Data
 - **Sources**: cdn.nba.com schedule, box score and play-by-play (required); stats.nba.com `gamerotation` (stint
   cross-check) and `boxscoresummaryv3` (roster incl. inactive players) are optional (`--cdn-only` skips them).
-- **Stints** are rebuilt from play-by-play (`src/domain/stintsPbp.ts`): period starters = first involvement before any
-  "sub in"; subs replayed in log order; every resolution or problem goes to `Game.stintNotes`. Identical to
-  gamerotation wherever both exist.
+- **Stints** rebuilt from play-by-play (`src/domain/stintsPbp.ts`): period starters = first involvement before any "sub
+  in"; subs replayed in log order; every resolution or problem goes to `Game.stintNotes`. = gamerotation where both exist.
 - **+/-** per stint from the play-by-play score; same-second FTs follow the foul they belong to. **PF** = personal +
   offensive fouls (technicals excluded). Points per period (`ptsQ`) and garbage-time points (`ptsGT`) from made shots.
   **Points per stint** (`ptsS`, parallel to `stints`; `Game.stintPts` marks files that have them): same events, each in
@@ -36,8 +35,7 @@ dark theme only. History, incidents and old validation tables: `docs/DECISIONS.m
   check because the box score is wrong; they keep their data, are `flagged` in the index and show a "⚠ Data note".
 
 ## Pattern engine (`src/domain/patterns.ts`, settings in `src/domain/config.ts`)
-- **Blowout rule** (`PATTERN_CONFIG.blowout`, one place): Q4/OT, under 6:00 left in the period, margin ≥ 20. On by
-  default; that time leaves both numerator and denominator.
+- **Blowout rule** (`PATTERN_CONFIG.blowout`, one place): Q4/OT, under 6:00 left in the period, margin ≥ 20; on by default (that time leaves both counts).
 - **Selection order**: season → team → home/away → rest → with/without → last N ("last 10 without X" = the 10 latest
   games X missed). Seasons never mix (season from the game id). The UI always says "based on N games".
 - **With/without**: "with" = played; "without" = inactive or DNP while with the team; neither when not with the team.
@@ -59,6 +57,9 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 - **Games** (`#/game/<id>?t=ORL&s=2026-27`; `#/` = remembered team's latest game): left, the game list
   (`GameList.tsx`): every finished game of the team, oldest first, date | team | @/vs | opponent | W/L | schedule chips
   (B2B 1/2, 3-in-4, rest days; `scheduleTags.ts`) | ⚠ on flagged games; opponent filter; collapsible (remembered);
+  drag its right border narrower only (500 → 420 px, `rk.listWidth`; ↔ / double-click = 500); never scrolls sideways
+  (fixed columns, badges cut with "…"). **3-in-4 chip** (list, header, By day) = calendarkit's merged stretch (port of
+  7a1c7f7): chained overlapping sets, "4in6 · 2nd"; hover pop-up: one square per day, games link to hoopsjunkie;
   ↑/↓ moves; then the next 3 scheduled games, dimmed: ↑/↓ and ◀ ▶ skip them; a click opens Averages in matchup mode
   (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. Right: ◀ ▶, game header (score, game-type badge, TV / CUP tags (also in the list and player rows),
   garbage-time chip, hoopsjunkie / calendarkit icon links, both teams' schedule chips) and the **game chart**
@@ -93,9 +94,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   "← previous game | next game →" keeping the side, "Back to <date>"). Panel: day's regulation Q4 minutes top 10 + ties
   (`quarters.json`); "No blowouts" (`nb=1`, Full Q4's rule) applies to it only.
 - **Q4** (`#/q4/<id>`, `Q4View.tsx`, `src/domain/q4.ts`): same game, Q4 + OT on one axis, both teams stacked; closers
-  first; MIN, fouls entering Q4, Q4 fouls; a thinner margin strip (24 px) over Q4 + OT; rows shrink to fit the
-  window (no scroll; border-box rows). Beside it "Every change" (`q4Story.ts`): each lineup change in words, linked to
-  its moment (hover moves the chart's line).
+  first; MIN, fouls entering Q4, Q4 fouls; a thinner margin strip (24 px) over Q4 + OT; rows shrink to fit the window
+  (no scroll; border-box rows). Beside it "Every change" (`q4Story.ts`): each lineup change in words, linked to its moment.
 - **Averages** (`#/team/ORL?s=&w=&v=&rest=&b=&p=&m=&vs=`, `TeamView.tsx`): filters Last 5 / 10 / Season,
   All / Home / Away, rest, "Hide blowout time", With… / Without… a player; "based on N games" label; a note offers the
   previous season under 5 games. **Typical stints** (`PatternChart.tsx`), **Heat map** or **Game by game**

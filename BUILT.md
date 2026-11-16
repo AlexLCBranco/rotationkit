@@ -5,6 +5,10 @@ Entries dated before 2026-11-16 were backfilled from the git commit messages (da
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
 ## 2026-11-16
+- RK-3 — Merged schedule-density badges (match calendarkit) (v0.2.0)
+  Overlapping 3-in-4 sets now show as one chip like calendarkit's ("4in6 · 2nd"), with its hover pop-up showing the stretch day by day.
+- RK-2 — Resizable games panel, no horizontal scroll (v0.2.0)
+  Drag the games list's right border to make it narrower (↔ or double-click restores it); the list never scrolls sideways.
 - By day moved to the main menu (v0.1.1)
   By day is now its own tab in the header, next to Games; the By team | By day switch is gone.
 - RK-1 — Games by day (slate view) (v0.1.0)
