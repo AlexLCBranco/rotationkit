@@ -95,6 +95,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
   // Drag the right border to resize (narrower only); remembered; double-click or ↺ restores the default width.
   const table = useRef<HTMLTableElement>(null);
   const [fit, setFit] = useState<Fit | null>(null);
+  const measured = useRef<{ key: string; cols: number[] } | null>(null);
   const min = fit?.min ?? FALLBACK.min;
   const [chosen, setWidth] = useState(savedWidth);
   const width = clampWidth(chosen, min);
@@ -111,10 +112,14 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
         r.selectNodeContents(c);
         w[i] = Math.max(w[i]!, Math.ceil(r.getBoundingClientRect().width));
       });
-    const cols = w.map((x) => x + CELL_PAD);
+    // A measurement can only come out short (clipped text), never long: for the same rows, widths only grow.
+    const key = `${shown.map((g) => g.id).join()}|${next.map((g) => g.id).join()}`;
+    const prev = measured.current?.key === key ? measured.current.cols : null;
+    const cols = w.map((x, i) => Math.max(x + CELL_PAD, prev?.[i] ?? 0));
+    measured.current = { key, cols };
     const base = cols.slice(0, 5).reduce((a, b) => a + b, 0) + 2; // + the panel's borders
-    const next: Fit = { cols, min: Math.min(LIST_MAX_WIDTH, base), narrow: base + cols[6]! + LIST_MIN_TAGS };
-    setFit((f) => (f && f.min === next.min && f.narrow === next.narrow && f.cols.every((x, i) => x === cols[i]) ? f : next));
+    const nextFit: Fit = { cols, min: Math.min(LIST_MAX_WIDTH, base), narrow: base + cols[6]! + LIST_MIN_TAGS };
+    setFit((f) => (f && f.min === nextFit.min && f.narrow === nextFit.narrow && f.cols.every((x, i) => x === cols[i]) ? f : nextFit));
   });
   const setSaved = (w: number) => {
     const c = clampWidth(w, min);

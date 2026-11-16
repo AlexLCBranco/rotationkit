@@ -19,6 +19,7 @@ spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Featu
   Games tab has a By team | By day switch: one card per game of a day with each team's closers, full-Q4 marks and coach's-decision DNPs, the day's Q4 minutes leaders beside them, and previous / next game on the game page; Full Q4 keeps only its season leaderboard.
 
 ### Internal
+- Games list width measurement made stable (no ellipsis on measured cells; widths only grow for the same rows): Checks red on v0.2.2
 - Schedule data: tip-off times (`tip`) added to schedule.json from the feed
 - Player search e2e: compare names accent-insensitively (the Nov 14 box score spells Jokić without the accent)
 - Workflow: commit straight to main, no pull requests; Checks run after every push to main; local e2e uses the session's Chromium
