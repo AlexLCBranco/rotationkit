@@ -4,6 +4,14 @@ Shipped work only, newest first. Planned work is in `FEATURE_BACKLOG.md`, never 
 Entries dated before 2026-11-16 were backfilled from the git commit messages (data, docs, test-only, merge and
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
+## 2026-11-16
+- RK-1 — Games by day (slate view) (v0.1.0)
+  Games tab has a By team | By day switch: one card per game of a day with each team's closers, full-Q4 marks and coach's-decision DNPs, the day's Q4 minutes leaders beside them, and previous / next game on the game page; Full Q4 keeps only its season leaderboard.
+
+### Internal
+- Schedule data: tip-off times (`tip`) added to schedule.json from the feed
+- Player search e2e: compare names accent-insensitively (the Nov 14 box score spells Jokić without the accent)
+
 ## 2026-11-15
 - Open a player's page by name: #/player?name=<full name>
 

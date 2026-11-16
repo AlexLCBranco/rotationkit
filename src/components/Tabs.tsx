@@ -1,5 +1,5 @@
 /** Games (one game, whole) | Q4 (same game, 4th quarter + OT) | Averages | Leaders (league-wide Q4 / 2nd-half leaders)
- *  | Full Q4 (who played the whole 4th quarter, per day and season). */
+ *  | Full Q4 (who played the whole 4th quarter, season leaderboard). Games has By team | By day. */
 export type TabId = 'games' | 'q4' | 'averages' | 'leaders' | 'fullq4';
 
 export function Tabs({ active, go }: { active: TabId; go: (tab: TabId) => void }) {

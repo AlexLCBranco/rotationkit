@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadSeason, WHOLE_DATA_TIMEOUT } from './data.ts';
-import { fullQ4Day, gameDates, gameHasQ4Garbage, hasQ4Garbage, leaderboard, playerFullQ4, reachesQ4, seasonCounts } from '../src/domain/fullQ4.ts';
+import { gameHasQ4Garbage, hasQ4Garbage, leaderboard, playerFullQ4, reachesQ4, seasonCounts } from '../src/domain/fullQ4.ts';
 import type { QuartersFile } from '../src/domain/leaders.ts';
 import { parse, format } from '../src/app/route.ts';
 import type { Game } from '../src/domain/types.ts';
@@ -36,12 +36,6 @@ describe('full 4th quarters from quarters.json = from the stints', () => {
         const got = seasonCounts(file(season), { threshold: 'full', noBlowouts: false });
         expect(got.size).toBe(want.size);
         for (const [id, w] of want) expect([id, got.get(id)?.gp, got.get(id)?.full]).toEqual([id, w.gp, w.full]);
-        // Five players per team at most can play the whole 4th.
-        for (const date of gameDates(file(season)))
-          for (const g of fullQ4Day(file(season), date, { threshold: 'full', noBlowouts: false })) {
-            expect(g.home5.length).toBeLessThanOrEqual(5);
-            expect(g.away5.length).toBeLessThanOrEqual(5);
-          }
       },
       WHOLE_DATA_TIMEOUT,
     );
@@ -88,17 +82,11 @@ describe('options', () => {
     expect(eleven.get(3)?.full).toBe(0);
     expect(leaderboard(eleven).map((r) => r.id)).toEqual([1, 2]);
   });
-  it('exclude blowouts: games with 4th-quarter garbage time leave both counts and are marked on the day', () => {
+  it('exclude blowouts: games with 4th-quarter garbage time leave both counts', () => {
     const f = mk([720, 720, 720], 120);
     const c = seasonCounts(f, { threshold: 'full', noBlowouts: true });
     expect(c.get(1)).toMatchObject({ gp: 1, full: 1 });
     expect(c.has(3)).toBe(false);
-    const [g] = fullQ4Day(f, '2026-11-01', { threshold: 'full', noBlowouts: true });
-    expect(g).toMatchObject({ excluded: true, home5: [], away5: [] });
-    const [k] = fullQ4Day(f, '2026-11-01', { threshold: 'full', noBlowouts: false });
-    expect(k!.home5.map((p) => p.id)).toEqual([1]);
-    expect(k!.away5.map((p) => p.id)).toEqual([2, 3]);
-    expect(gameDates(f)).toEqual(['2026-11-01', '2026-11-03']);
   });
   it('gameHasQ4Garbage ignores 3rd-quarter blowouts', () => {
     const g = { periods: 4, margin: [[0, 0], [1500, 30], [2880, 30]] } as unknown as Game;
@@ -109,10 +97,11 @@ describe('options', () => {
 });
 
 describe('route', () => {
-  it('date and options round-trip in the URL', () => {
+  it('options round-trip in the URL; an old d= (by-date section, now By day) is ignored', () => {
     const r = parse('#/fullq4?s=2026-27&d=2026-11-12&th=11&nb=1&t=ORL');
-    expect(r).toMatchObject({ view: 'fullq4', season: '2026-27', team: 'ORL', fullq4: { date: '2026-11-12', threshold: '11', noBlowouts: true } });
+    expect(r).toEqual({ view: 'fullq4', season: '2026-27', team: 'ORL', filters: r.filters, fullq4: { threshold: '11', noBlowouts: true } });
     expect(parse(format(r))).toEqual(r);
-    expect(parse('#/fullq4?d=bad')).toMatchObject({ fullq4: { date: null, threshold: 'full', noBlowouts: false } });
+    expect(format(r)).not.toContain('d=');
+    expect(parse('#/fullq4')).toMatchObject({ fullq4: { threshold: 'full', noBlowouts: false } });
   });
 });

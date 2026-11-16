@@ -1,4 +1,5 @@
-// Full 4th quarters: who was on court for the whole regulation 4th quarter (12:00), per day and over the season.
+// Full 4th quarters: who was on court for the whole regulation 4th quarter (12:00), over the season (the per-day
+// view is the Games tab's By day, src/domain/slate.ts).
 // Computed in the browser from quarters.json (per-period minutes, written by normalize): Q4 minutes are the sum of
 // his stints inside period 4, so being subbed out and back in at the same clock still counts as the full 12:00.
 // Overtime never counts (period 4 only).
@@ -65,43 +66,6 @@ export function seasonCounts(file: QuartersFile, o: FullQ4Opts): Map<number, Sea
 /** Leaderboard: players with at least one full 4th, most first; then higher share, then name. */
 export const leaderboard = (counts: Map<number, SeasonCount>) =>
   [...counts.values()].filter((c) => c.full > 0).sort((a, b) => b.full - a.full || b.pct - a.pct || a.name.localeCompare(b.name));
-
-/** Dates that have games in the file, ascending. */
-export const gameDates = (file: QuartersFile) => [...new Set(file.games.map((g) => g[1]))].sort();
-
-export interface DayPlayer {
-  id: number;
-  name: string;
-  team: string;
-  /** Seconds on court in the 4th quarter. */
-  q4: number;
-}
-export interface DayGame {
-  id: string;
-  home: string;
-  away: string;
-  /** Left out by "exclude blowouts" (4th-quarter garbage time). */
-  excluded: boolean;
-  home5: DayPlayer[];
-  away5: DayPlayer[];
-}
-
-/** Every game of one date with the players who reached the threshold in the 4th quarter, per team. */
-export function fullQ4Day(file: QuartersFile, date: string, o: FullQ4Opts): DayGame[] {
-  return file.games
-    .filter((g) => g[1] === date)
-    .map((g) => {
-      const excluded = o.noBlowouts && hasQ4Garbage(g);
-      const side = (s: 0 | 1): DayPlayer[] =>
-        excluded
-          ? []
-          : g[4]
-              .filter((p) => p[1] === s && reachesQ4(p[2][REG_PERIODS - 1] ?? 0, o.threshold))
-              .map((p) => ({ id: p[0], name: file.names[p[0]]?.[0] ?? String(p[0]), team: s === 0 ? g[2] : g[3], q4: p[2][REG_PERIODS - 1] ?? 0 }))
-              .sort((a, b) => b.q4 - a.q4 || a.name.localeCompare(b.name));
-      return { id: g[0], home: g[2], away: g[3], excluded, home5: side(0), away5: side(1) };
-    });
-}
 
 /** Player page: of the given games, those he played for `team` and those where he reached the threshold in the 4th. */
 export function playerFullQ4(games: Game[], player: number, team: string, th: FullQ4Threshold = 'full') {

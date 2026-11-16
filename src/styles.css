@@ -609,25 +609,43 @@ a.plain-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 1
 .closers .tbl td.num, .closers .tbl th.num { min-width: 64px; }
 
 /* Full Q4 tab */
-.fq-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 520px); gap: 20px; align-items: start; }
-.fq-datebar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.fq-layout { max-width: 760px; }
+.fq-datebar { display: flex; align-items: center; gap: 8px; }
 .fq-datebar input[type='date'] { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; color: var(--text); color-scheme: dark; }
-.fq-day { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 10px; align-content: start; }
-.fq-day .fq-datebar, .fq-day > p { grid-column: 1 / -1; }
-.fq-game { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: #181818; }
-.fq-game header { font-weight: 600; margin-bottom: 6px; }
-.fq-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.fq-team-head { display: flex; align-items: center; gap: 6px; font-weight: 600; margin-bottom: 4px; }
-.fq-team-head .logo { width: 22px; height: 22px; }
-.fq-team ul { list-style: none; margin: 0; padding: 0; }
 .fq-player { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-size: 13px; }
 .fq-player .headshot { width: 22px; height: 22px; }
 .fq-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.fq-count { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.fq-none { margin: 2px 0; font-size: 12px; }
 .fq-board h2 { font-size: 15px; margin: 0 0 8px; }
 .fq-mark { display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 3px; font-size: 10px; font-weight: 700; color: #111; background: #e0b84a; vertical-align: 1px; }
 .fq-counter { margin: 0 0 6px; }
+
+/* Games tab, By day */
+.dv-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(400px, 460px); gap: 20px; align-items: start; }
+.dv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 10px; align-content: start; }
+.dv-cards > p { grid-column: 1 / -1; }
+.dv-game { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: #181818; }
+.dv-game.upcoming { opacity: 0.5; }
+.dv-game header { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 13px; margin-bottom: 6px; }
+.dv-tip { font-weight: 600; }
+.dv-sides { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; }
+.dv-at { align-self: start; padding-top: 10px; }
+.dv-side { border-radius: 5px; padding: 6px; min-width: 0; }
+.dv-side.clickable { cursor: pointer; }
+.dv-side.clickable:hover, .dv-side.clickable:focus-visible { background: #22262f; outline: none; }
+.dv-team-head { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.dv-team-head .logo { width: 24px; height: 24px; }
+.dv-team-head .ha-tag { font-size: 9px; padding: 2px 5px; }
+.dv-score { margin-left: auto; font-size: 18px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.dv-score.won { color: var(--text); }
+.dv-chips { min-height: 6px; margin: 3px 0; }
+.dv-closers { list-style: none; margin: 0; padding: 0; }
+.dv-cd { font-size: 12px; margin-top: 4px; line-height: 1.7; }
+.dv-cd .dnp-tag { font-size: 10px; }
+.dv-legend { font-size: 11px; margin: 4px 0 0; }
+.dv-leaders h2 { font-size: 15px; margin: 0 0 6px; }
+.dv-leaders .ld-note { font-size: 12px; margin: 4px 0 8px; }
+.day-nav { display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; }
+.day-nav button.link:disabled { color: var(--muted); opacity: 0.5; cursor: default; text-decoration: none; }
 
 /* Player page: readout line with the display menu beside it */
 .pl-readout-bar { display: flex; align-items: stretch; gap: 8px; }

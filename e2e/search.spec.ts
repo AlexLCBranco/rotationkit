@@ -1,6 +1,7 @@
 // Header player search: on every tab, "/" and Ctrl+K, matching, keyboard and mouse, recent players, traded players.
 
 import { test, expect, type Page } from '@playwright/test';
+import { fold } from '../src/domain/players.ts';
 
 const box = (page: Page) => page.getByTestId('search-input');
 const results = (page: Page) => page.getByTestId('search-result');
@@ -37,11 +38,13 @@ test('"/" and Ctrl+K focus it from anywhere, but not while typing in another fie
 test('case- and accent-insensitive, any part of the name, initials; headshot, name, team; at most 8', async ({ page }) => {
   await page.goto('/#/team/DEN?s=2026-27');
   await box(page).fill('jok');
-  await expect(results(page).first()).toContainText('Nikola Jokić');
+  // Names compared accent-insensitively: the feed's spelling can change between games ("Jokić" / "Jokic") and the
+  // index keeps the latest (tests/players.test.ts).
+  await expect(results(page).first()).toContainText(/Nikola Joki[cć]/);
   await expect(results(page).first()).toContainText('DEN');
   await expect(results(page).first().locator('.headshot')).toBeVisible();
   await box(page).fill('JOKIC');
-  await expect(results(page).first()).toContainText('Nikola Jokić');
+  await expect(results(page).first()).toContainText(/Nikola Joki[cć]/);
   await box(page).fill('gilgeous');
   await expect(results(page).first()).toContainText('Shai Gilgeous-Alexander');
   await box(page).fill('sga');
@@ -108,7 +111,7 @@ test('empty box shows the last 5 players opened, most recent first; they open th
     const first = results(page).first();
     opened.push((await first.locator('.psearch-name').textContent())!);
     await first.click();
-    await expect(page.locator('h1')).toContainText(opened.at(-1)!);
+    await expect.poll(async () => fold((await page.locator('h1').textContent()) ?? '')).toContain(fold(opened.at(-1)!));
   }
   await box(page).focus();
   await expect(page.getByTestId('search-results')).toHaveAttribute('data-mode', 'recent');

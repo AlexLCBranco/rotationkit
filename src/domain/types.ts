@@ -124,6 +124,8 @@ export interface ScheduleEntry {
   home: string;
   away: string;
   status: 'scheduled' | 'live' | 'final' | 'unknown';
+  /** Tip-off time, UTC ISO (`gameDateTimeUTC`); absent while the time is TBD or when the feed was not cached. */
+  tip?: string;
   label?: string;
   /** National TV networks: `broadcasterAbbreviation` of the feed's `broadcasters.nationalBroadcasters` (in feed order). */
   tv?: string[];
