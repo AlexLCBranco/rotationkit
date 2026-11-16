@@ -456,4 +456,6 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
   merge step, labels and pop-up (calendarkit 7a1c7f7) line for line, with calendarkit's tests ported.
 - **2026-11-16 — games list narrower (owner).** The list now drags down to 334 px, where only date | team | @/vs |
   opponent | W/L show; under 410 px (badges would get under ~30 px) the badges and rest-days columns and the legend are
-  hidden. Replaces RK-2's 420 px minimum and its "rest column always visible".
+  hidden. Replaces RK-2's 420 px minimum and its "rest column always visible". Column widths are measured from the
+  text in the browser, not fixed px: the font is the system's (Inter / Segoe UI / DejaVu), and fixed widths clipped
+  "opener" and "W 114–110 ⚠" on the CI runner (Checks red on v0.2.0). 334 / 410 px are the values with Inter.

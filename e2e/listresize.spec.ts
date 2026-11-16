@@ -4,9 +4,10 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const MAX = 500;
-const MIN = 334;
-/** Below this width only date | team | @/vs | opponent | W/L show (badges and rest days hidden). */
-const NARROW = 410;
+/** The minimum (what date | team | @/vs | opponent | W/L need, measured in the page's font) and the width under which
+ *  only those show (badges and rest days hidden). */
+const minW = async (page: Page) => Number(await page.getByTestId('game-list').getAttribute('data-min'));
+const narrowW = async (page: Page) => Number(await page.getByTestId('game-list').getAttribute('data-narrow-below'));
 
 const width = (page: Page) => page.getByTestId('game-list').evaluate((e) => Math.round(e.getBoundingClientRect().width));
 const mainWidth = (page: Page) => page.locator('.gv-main').evaluate((e) => Math.round(e.getBoundingClientRect().width));
@@ -24,13 +25,13 @@ async function drag(page: Page, dx: number) {
 /** No horizontal overflow in the list, in the scroller or in any non-badge cell; the rest column is fully visible
  *  (narrow: badges and rest hidden, date / teams / W-L fully visible). */
 async function expectFits(page: Page) {
-  const narrow = (await width(page)) < NARROW;
+  const narrow = (await width(page)) < (await narrowW(page));
   const r = await page.evaluate((narrow) => {
     const box = document.querySelector('[data-testid=game-list-rows]')!;
     const list = document.querySelector('[data-testid=game-list]')!.getBoundingClientRect();
-    const clipped = [...document.querySelectorAll('.gl-table td:not(.gl-tags)')].filter((td) => td.scrollWidth > td.clientWidth + 1).map((td) => td.textContent);
+    const clipped = [...document.querySelectorAll('.gl-table td:not(.gl-tags)')].filter((td) => getComputedStyle(td).visibility !== 'hidden' && td.scrollWidth > td.clientWidth + 1).map((td) => td.textContent);
     const rest = [...document.querySelectorAll('.gl-table tbody tr td:last-child')].map((td) => td.getBoundingClientRect());
-    const hidden = [...document.querySelectorAll('.gl-table tbody tr td:nth-child(n + 6)')].every((td) => getComputedStyle(td).display === 'none');
+    const hidden = [...document.querySelectorAll('.gl-table tbody tr td:nth-child(n + 6)')].every((td) => getComputedStyle(td).visibility === 'hidden');
     const result = [...document.querySelectorAll('[data-testid=list-result]')].map((td) => td.getBoundingClientRect());
     return {
       sw: box.scrollWidth,
@@ -66,6 +67,8 @@ test('default width is the maximum; drag narrows it (game view widens), capped a
   expect(await width(page)).toBe(MAX);
   // Never narrower than the minimum.
   await drag(page, -400);
+  const MIN = await minW(page);
+  expect(MIN).toBeLessThan(400);
   expect(await width(page)).toBe(MIN);
   expect(await mainWidth(page)).toBe(main0 + MAX - MIN);
   await expectFits(page);
@@ -91,12 +94,15 @@ test('the width survives a reload; ↔ and double-click restore the default', as
 
 test('no horizontal overflow at default, mid and minimum widths, for several teams and both seasons', async ({ page }) => {
   for (const [t, s] of [['HOU', '2026-27'], ['ORL', '2025-26'], ['LAL', '2026-27'], ['BOS', '2025-26']] as const) {
+    await page.goto(`/#/game/latest?t=${t}&s=${s}`);
+    await expect(page.getByTestId('list-row').first()).toBeVisible();
+    const NARROW = await narrowW(page);
+    const MIN = await minW(page);
     for (const w of [MAX, 460, NARROW, NARROW - 1, MIN]) {
       await page.evaluate((w) => localStorage.setItem('rk.listWidth', String(w)), w);
-      await page.goto(`/#/game/latest?t=${t}&s=${s}`);
       await page.reload();
       await expect(page.getByTestId('list-row').first()).toBeVisible();
-      expect(await width(page)).toBe(w);
+      expect(await width(page)).toBe(Math.max(w, await minW(page)));
       await expectFits(page);
     }
   }
@@ -127,6 +133,7 @@ test('the collapse button still hides and shows the list, and the width is kept'
 
 test('narrowest: only date, game and W/L; badges and rest days come back when widened', async ({ page }) => {
   await drag(page, -400);
+  const MIN = await minW(page);
   expect(await width(page)).toBe(MIN);
   const row = page.getByTestId('list-row').last();
   await expect(row.locator('.gl-date')).toBeVisible();
@@ -135,7 +142,7 @@ test('narrowest: only date, game and W/L; badges and rest days come back when wi
   await expect(row.locator('td').last()).toBeHidden();
   await expect(page.getByTestId('tag-legend')).toBeHidden();
   await expectFits(page);
-  await drag(page, NARROW - MIN + 10);
+  await drag(page, (await narrowW(page)) - MIN + 10);
   await expect(row.locator('.gl-tags')).toBeVisible();
   await expect(row.locator('td').last()).toBeVisible();
   await expectFits(page);

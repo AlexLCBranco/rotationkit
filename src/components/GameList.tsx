@@ -1,7 +1,7 @@
 // Always-visible game list (left sidebar of the main screen), laid out like a game log: every finished game of the
 // team in the season, oldest at top. Click a row → that game; ↑ / ↓ while the list is focused → previous / next.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { remember } from '../app/hooks.ts';
 import { teamName } from '../app/teams.ts';
 import type { ScheduleTags } from '../domain/scheduleTags.ts';
@@ -47,17 +47,29 @@ export interface UpcomingGame {
   cup?: CupRound | undefined;
 }
 
-/** The panel's width (px): the default is the widest it gets; it can only be dragged narrower, down to LIST_MIN_WIDTH. */
+/**
+ * The panel's width (px): the default is the widest it gets; it can only be dragged narrower. The columns are sized from
+ * their measured text (the font is the system's, so widths differ between machines): the minimum is what date | team |
+ * @/vs | opponent | W/L need; under `narrow` (badges would get less than LIST_MIN_TAGS px) badges and rest days hide.
+ */
 export const LIST_MAX_WIDTH = 500;
-export const LIST_MIN_WIDTH = 334;
-/** Narrower than this, the badges and rest columns are hidden: only date | team | @/vs | opponent | W/L remain. */
-export const LIST_NARROW_WIDTH = 410;
+/** Used until the columns are measured. */
+const FALLBACK = { min: 334, narrow: 410 };
+export const LIST_MIN_TAGS = 30;
+/** Cell padding (4 + 4) + 1 px for rounding. */
+const CELL_PAD = 9;
 const WIDTH_KEY = 'rk.listWidth';
-const clampWidth = (w: number) => Math.round(Math.min(LIST_MAX_WIDTH, Math.max(LIST_MIN_WIDTH, w)));
+const clampWidth = (w: number, min: number) => Math.round(Math.min(LIST_MAX_WIDTH, Math.max(min, w)));
 const savedWidth = () => {
   const w = Number(remember(WIDTH_KEY));
-  return Number.isFinite(w) && w > 0 ? clampWidth(w) : LIST_MAX_WIDTH;
+  return Number.isFinite(w) && w > 0 ? Math.min(LIST_MAX_WIDTH, Math.round(w)) : LIST_MAX_WIDTH;
 };
+interface Fit {
+  /** Width per column (index 5, the badges, takes what is left). */
+  cols: number[];
+  min: number;
+  narrow: number;
+}
 
 /** m/d/yyyy */
 const usDate = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}/${d.slice(0, 4)}`;
@@ -81,9 +93,31 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
   const [q, setQ] = useState('');
   const scroller = useRef<HTMLDivElement>(null);
   // Drag the right border to resize (narrower only); remembered; double-click or ↺ restores the default width.
-  const [width, setWidth] = useState(savedWidth);
+  const table = useRef<HTMLTableElement>(null);
+  const [fit, setFit] = useState<Fit | null>(null);
+  const min = fit?.min ?? FALLBACK.min;
+  const [chosen, setWidth] = useState(savedWidth);
+  const width = clampWidth(chosen, min);
+  const narrow = width < (fit?.narrow ?? FALLBACK.narrow);
+  // Measure each column's widest text (ranges ignore clipping and hidden cells), then size the columns from it.
+  useLayoutEffect(() => {
+    const t = table.current;
+    if (!t) return;
+    const w = [0, 0, 0, 0, 0, 0, 0];
+    const r = document.createRange();
+    for (const tr of t.rows)
+      [...tr.cells].forEach((c, i) => {
+        if (i === 5 || c.colSpan > 1) return;
+        r.selectNodeContents(c);
+        w[i] = Math.max(w[i]!, Math.ceil(r.getBoundingClientRect().width));
+      });
+    const cols = w.map((x) => x + CELL_PAD);
+    const base = cols.slice(0, 5).reduce((a, b) => a + b, 0) + 2; // + the panel's borders
+    const next: Fit = { cols, min: Math.min(LIST_MAX_WIDTH, base), narrow: base + cols[6]! + LIST_MIN_TAGS };
+    setFit((f) => (f && f.min === next.min && f.narrow === next.narrow && f.cols.every((x, i) => x === cols[i]) ? f : next));
+  });
   const setSaved = (w: number) => {
-    const c = clampWidth(w);
+    const c = clampWidth(w, min);
     setWidth(c);
     remember(WIDTH_KEY, String(c));
   };
@@ -95,7 +129,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
     const handle = e.currentTarget;
     handle.setPointerCapture(e.pointerId);
     document.body.classList.add('gl-resizing');
-    const move = (ev: PointerEvent) => setWidth(clampWidth(w0 + ev.clientX - x0));
+    const move = (ev: PointerEvent) => setWidth(clampWidth(w0 + ev.clientX - x0, min));
     const up = (ev: PointerEvent) => {
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', up);
@@ -136,7 +170,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
     if (next) onSelect(next.id);
   };
   return (
-    <aside className={`gl${width < LIST_NARROW_WIDTH ? ' gl-narrow' : ''}`} data-testid="game-list" style={{ width }}>
+    <aside className={`gl${narrow ? ' gl-narrow' : ''}`} data-testid="game-list" style={{ width }} data-min={min} data-narrow-below={fit?.narrow ?? FALLBACK.narrow}>
       <div
         className="gl-resize"
         role="separator"
@@ -144,7 +178,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
         aria-label="Resize the game list (double-click: default width)"
         title="Drag to resize · double-click for the default width"
         aria-valuenow={width}
-        aria-valuemin={LIST_MIN_WIDTH}
+        aria-valuemin={min}
         aria-valuemax={LIST_MAX_WIDTH}
         onPointerDown={startDrag}
         onDoubleClick={() => setSaved(LIST_MAX_WIDTH)}
@@ -182,15 +216,11 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
         <ScheduleLegend />
       </div>
       <div className="gl-scroll" ref={scroller} tabIndex={0} onKeyDown={onKey} aria-label="Games (↑ ↓ to move)" data-testid="game-list-rows">
-        <table className="gl-table">
+        <table className="gl-table" ref={table}>
           <colgroup>
-            <col className="gl-c-date" />
-            <col className="gl-c-team" />
-            <col className="gl-c-at" />
-            <col className="gl-c-team" />
-            <col className="gl-c-result" />
-            <col />
-            <col className="gl-c-rest" />
+            {['gl-c-date', 'gl-c-team', 'gl-c-at', 'gl-c-team', 'gl-c-result', '', 'gl-c-rest'].map((c, i) => (
+              <col key={i} className={c || undefined} style={i === 5 || !fit ? undefined : { width: i === 6 && narrow ? 0 : fit.cols[i] }} />
+            ))}
           </colgroup>
           <thead>
             <tr>

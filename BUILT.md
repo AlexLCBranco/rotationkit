@@ -5,8 +5,10 @@ Entries dated before 2026-11-16 were backfilled from the git commit messages (da
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
 ## 2026-11-16
+- Games list columns fit any system font (v0.2.2)
+  Score and rest days no longer get cut off on machines whose font is wider (Windows, Linux).
 - Games list drags down to date, game and W/L only (v0.2.1)
-  The list now shrinks to 334 px; under 410 px the badges and rest days are hidden.
+  The list now shrinks to just date, game and W/L (about 334 px); badges and rest days hide when they no longer fit.
 - RK-3 — Merged schedule-density badges (match calendarkit) (v0.2.0)
   Overlapping 3-in-4 sets now show as one chip like calendarkit's ("4in6 · 2nd"), with its hover pop-up showing the stretch day by day.
 - RK-2 — Resizable games panel, no horizontal scroll (v0.2.0)
