@@ -9,7 +9,8 @@ Read PROJECT.md first (what the app is, data pipeline, testing). docs/DECISIONS.
   daily data update commits to `main`), `git pull --no-rebase origin main`, rerun the checks, push again. The same
   checks run on GitHub after each push (`.github/workflows/pr.yml`, "Checks"); if they go red, fix `main` at once.
   `main` deploys to production on every push.
-- Desktop only, dark mode only. There are no phone tests (removed 2026-11-14); don't add any. Automate every test
+- Dark mode only. Desktop first; phone support is planned (RK-4, owner decision 2026-11-16): until RK-4 ships
+  there are no phone tests, and RK-4 adds them and replaces this rule. Automate every test
   that can be automated.
 - Never invent data, ids, endpoints or field names; never patch data to pass a check.
 - Keep PROJECT.md updated with every behavior change (current state only, 150 lines or fewer; history goes to
