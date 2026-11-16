@@ -64,6 +64,7 @@ export function scheduleEntryOf(g: ScheduleGame): ScheduleEntry {
     home: g.homeTeam.teamTricode,
     away: g.awayTeam.teamTricode,
     status: g.status,
+    ...(g.startTimeUtc ? { tip: g.startTimeUtc } : {}),
     ...(g.gameLabel ? { label: [g.gameLabel, g.gameSubLabel].filter(Boolean).join(' · ') } : {}),
     ...(tv.length ? { tv } : {}),
     ...(g.isCupGroupGame ? { cup: 'group' as const } : g.isCupKnockout ? { cup: 'knockout' as const } : {}),
@@ -80,7 +81,7 @@ export function withScheduleTags(index: GameIndexEntry[], schedule: ScheduleEntr
 }
 
 export function scheduleChanges(before: ScheduleEntry[], after: ScheduleEntry[]): number {
-  const key = (e: ScheduleEntry) => `${e.date}|${e.home}|${e.away}|${e.status}|${e.label ?? ''}|${(e.tv ?? []).join(',')}|${e.cup ?? ''}`;
+  const key = (e: ScheduleEntry) => `${e.date}|${e.home}|${e.away}|${e.status}|${e.tip ?? ''}|${e.label ?? ''}|${(e.tv ?? []).join(',')}|${e.cup ?? ''}`;
   const b = new Map(before.map((e) => [e.id, key(e)]));
   const a = new Map(after.map((e) => [e.id, key(e)]));
   let n = 0;

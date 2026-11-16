@@ -26,6 +26,8 @@ import { Header } from './Header.tsx';
 import { TeamLogo } from './Headshot.tsx';
 import { remember } from '../app/hooks.ts';
 import { PlayerLink, TeamLink } from './Links.tsx';
+import { dayNeighbours, finishedOfDay } from '../domain/slate.ts';
+import { GamesModeSwitch } from './DayView.tsx';
 
 interface Props {
   seasons: string[];
@@ -141,9 +143,19 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   const pos = picker && current ? picker.games.findIndex((x) => x.id === current) : -1;
   const older = picker && pos > 0 ? picker.games[pos - 1] : undefined;
   const newer = picker && pos >= 0 ? picker.games[pos + 1] : undefined;
-  const open = (id: string) => nav({ ...route, game: id, team, season: gameSeason });
-  const pickTeam = (t: string) => nav({ ...route, game: 'latest', team: t, season: gameSeason });
-  const pickSeason = (x: string) => nav({ ...route, game: 'latest', team, season: x });
+  // Leaving the day's games (team list, ◀ ▶, team or season change) drops the By day context.
+  const open = (id: string) => nav({ ...route, game: id, team, season: gameSeason, day: null });
+  const pickTeam = (t: string) => nav({ ...route, game: 'latest', team: t, season: gameSeason, day: null });
+  const pickSeason = (x: string) => nav({ ...route, game: 'latest', team, season: x, day: null });
+  // Arrived from By day: walk that day's finished games (tip-time order), keeping the side (home / away) clicked.
+  const dayNav = useMemo(() => {
+    const date = route.day;
+    if (!date || meta.status !== 'ok' || !current) return null;
+    const day = finishedOfDay(meta.value[0], meta.value[1], date);
+    if (!day.some((x) => x.id === current)) return null;
+    return { date, ...dayNeighbours(day, current, selected ?? route.team) };
+  }, [route.day, route.team, meta, current, selected]);
+  const dayRoute = (date: string | null): Route => ({ view: 'day', team, season: gameSeason, filters: route.filters, day: { date, noBlowouts: false } });
   const [collapsed, setCollapsed] = useState(() => remember('rk.list') === 'collapsed');
   useEffect(() => void remember('rk.list', collapsed ? 'collapsed' : 'open'), [collapsed]);
   const seasonSelect = (
@@ -181,6 +193,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
         )}
         <div className="gv-main">
           <div className="game-nav">
+            {tab === 'games' && <GamesModeSwitch mode="team" onTeam={() => {}} onDay={() => nav(dayRoute(route.day ?? null))} />}
             {collapsed && (
               <>
                 <button className="gl-expand" onClick={() => setCollapsed(false)} title="Show the game list" data-testid="list-expand">
@@ -203,6 +216,20 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
                   </span>
                 )}
               </>
+            )}
+            {dayNav && (
+              <span className="day-nav" data-testid="day-nav">
+                <button className="link" disabled={!dayNav.prev} onClick={() => dayNav.prev && nav({ ...route, game: dayNav.prev.id, team: dayNav.prev.team, season: gameSeason, day: dayNav.date })} data-testid="day-prev">
+                  ← previous game
+                </button>
+                <span className="muted">|</span>
+                <button className="link" disabled={!dayNav.next} onClick={() => dayNav.next && nav({ ...route, game: dayNav.next.id, team: dayNav.next.team, season: gameSeason, day: dayNav.date })} data-testid="day-next">
+                  next game →
+                </button>
+                <a className="link" href={format(dayRoute(dayNav.date))} data-testid="day-back">
+                  Back to {shortDate(dayNav.date)} {dayNav.date.slice(0, 4)}
+                </a>
+              </span>
             )}
           </div>
           {!g && (meta.status === 'loading' || loaded.status === 'loading') && id !== null && <p className="muted">Loading…</p>}
