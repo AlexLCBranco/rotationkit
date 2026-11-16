@@ -423,6 +423,9 @@ body.gl-resizing { cursor: ew-resize; user-select: none; }
 .gl-table td { overflow: hidden; text-overflow: ellipsis; }
 .gl-table td, .gl-table thead th { padding-left: 4px; padding-right: 4px; }
 .gl-tags { padding-right: 2px !important; }
+/* Narrow list: badges and rest days hidden, only date | team | @/vs | opponent | W/L */
+.gl-narrow .gl-table col:nth-child(n + 6), .gl-narrow .gl-table th:nth-child(n + 6), .gl-narrow .gl-table td:nth-child(n + 6) { display: none; }
+.gl-narrow .sched-legend { display: none; }
 .gl-tags-in { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
 .gl-tags-in > .sched-chips, .gl-tags-in > .bc-tags { display: flex; gap: 4px; min-width: 0; flex: 0 1 auto; overflow: hidden; }
 .gl-tags-in .chip-tag, .gl-tags-in .chip-tif, .gl-tags-in .badge { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

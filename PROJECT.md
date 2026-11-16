@@ -57,8 +57,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 - **Games** (`#/game/<id>?t=ORL&s=2026-27`; `#/` = remembered team's latest game): left, the game list
   (`GameList.tsx`): every finished game of the team, oldest first, date | team | @/vs | opponent | W/L | schedule chips
   (B2B 1/2, 3-in-4, rest days; `scheduleTags.ts`) | ⚠ on flagged games; opponent filter; collapsible (remembered);
-  drag its right border narrower only (500 → 420 px, `rk.listWidth`; ↔ / double-click = 500); never scrolls sideways
-  (fixed columns, badges cut with "…"). **3-in-4 chip** (list, header, By day) = calendarkit's merged stretch (port of
+  drag its right border narrower only (500 → 334 px, `rk.listWidth`; ↔ / double-click = 500; under 410 px only date |
+  game | W/L); never scrolls sideways (fixed columns, badges cut with "…"). **3-in-4 chip** (list, header, By day) = calendarkit's merged stretch (port of
   7a1c7f7): chained overlapping sets, "4in6 · 2nd"; hover pop-up: one square per day, games link to hoopsjunkie;
   ↑/↓ moves; then the next 3 scheduled games, dimmed: ↑/↓ and ◀ ▶ skip them; a click opens Averages in matchup mode
   (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. Right: ◀ ▶, game header (score, game-type badge, TV / CUP tags (also in the list and player rows),

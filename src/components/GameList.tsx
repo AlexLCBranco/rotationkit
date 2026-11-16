@@ -49,7 +49,9 @@ export interface UpcomingGame {
 
 /** The panel's width (px): the default is the widest it gets; it can only be dragged narrower, down to LIST_MIN_WIDTH. */
 export const LIST_MAX_WIDTH = 500;
-export const LIST_MIN_WIDTH = 420;
+export const LIST_MIN_WIDTH = 334;
+/** Narrower than this, the badges and rest columns are hidden: only date | team | @/vs | opponent | W/L remain. */
+export const LIST_NARROW_WIDTH = 410;
 const WIDTH_KEY = 'rk.listWidth';
 const clampWidth = (w: number) => Math.round(Math.min(LIST_MAX_WIDTH, Math.max(LIST_MIN_WIDTH, w)));
 const savedWidth = () => {
@@ -134,7 +136,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
     if (next) onSelect(next.id);
   };
   return (
-    <aside className="gl" data-testid="game-list" style={{ width }}>
+    <aside className={`gl${width < LIST_NARROW_WIDTH ? ' gl-narrow' : ''}`} data-testid="game-list" style={{ width }}>
       <div
         className="gl-resize"
         role="separator"

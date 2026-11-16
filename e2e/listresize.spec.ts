@@ -4,7 +4,9 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const MAX = 500;
-const MIN = 420;
+const MIN = 334;
+/** Below this width only date | team | @/vs | opponent | W/L show (badges and rest days hidden). */
+const NARROW = 410;
 
 const width = (page: Page) => page.getByTestId('game-list').evaluate((e) => Math.round(e.getBoundingClientRect().width));
 const mainWidth = (page: Page) => page.locator('.gv-main').evaluate((e) => Math.round(e.getBoundingClientRect().width));
@@ -19,15 +21,24 @@ async function drag(page: Page, dx: number) {
   await page.mouse.move(x + dx, y, { steps: 4 });
   await page.mouse.up();
 }
-/** No horizontal overflow in the list, in the scroller or in any non-badge cell; the rest column is fully visible. */
+/** No horizontal overflow in the list, in the scroller or in any non-badge cell; the rest column is fully visible
+ *  (narrow: badges and rest hidden, date / teams / W-L fully visible). */
 async function expectFits(page: Page) {
-  const r = await page.evaluate(() => {
+  const narrow = (await width(page)) < NARROW;
+  const r = await page.evaluate((narrow) => {
     const box = document.querySelector('[data-testid=game-list-rows]')!;
     const list = document.querySelector('[data-testid=game-list]')!.getBoundingClientRect();
     const clipped = [...document.querySelectorAll('.gl-table td:not(.gl-tags)')].filter((td) => td.scrollWidth > td.clientWidth + 1).map((td) => td.textContent);
     const rest = [...document.querySelectorAll('.gl-table tbody tr td:last-child')].map((td) => td.getBoundingClientRect());
-    return { sw: box.scrollWidth, cw: box.clientWidth, clipped, restIn: rest.every((b) => b.right <= list.right + 0.5 && b.width > 30) };
-  });
+    const hidden = [...document.querySelectorAll('.gl-table tbody tr td:nth-child(n + 6)')].every((td) => getComputedStyle(td).display === 'none');
+    const result = [...document.querySelectorAll('[data-testid=list-result]')].map((td) => td.getBoundingClientRect());
+    return {
+      sw: box.scrollWidth,
+      cw: box.clientWidth,
+      clipped,
+      restIn: narrow ? hidden && result.every((b) => b.right <= list.right + 0.5) : !hidden && rest.every((b) => b.right <= list.right + 0.5 && b.width > 30),
+    };
+  }, narrow);
   expect(r.sw).toBeLessThanOrEqual(r.cw);
   expect(r.clipped).toEqual([]);
   expect(r.restIn).toBe(true);
@@ -80,7 +91,7 @@ test('the width survives a reload; ↔ and double-click restore the default', as
 
 test('no horizontal overflow at default, mid and minimum widths, for several teams and both seasons', async ({ page }) => {
   for (const [t, s] of [['HOU', '2026-27'], ['ORL', '2025-26'], ['LAL', '2026-27'], ['BOS', '2025-26']] as const) {
-    for (const w of [MAX, 460, MIN]) {
+    for (const w of [MAX, 460, NARROW, NARROW - 1, MIN]) {
       await page.evaluate((w) => localStorage.setItem('rk.listWidth', String(w)), w);
       await page.goto(`/#/game/latest?t=${t}&s=${s}`);
       await page.reload();
@@ -89,6 +100,9 @@ test('no horizontal overflow at default, mid and minimum widths, for several tea
       await expectFits(page);
     }
   }
+  await page.evaluate(() => localStorage.setItem('rk.listWidth', '440'));
+  await page.reload();
+  await expect(page.getByTestId('list-row').first()).toBeVisible();
   // A badge that doesn't fit is cut with "…" and keeps its full text for the tooltip / pop-up.
   const cut = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('.gl-tags-in .chip-tag, .gl-tags-in .badge, .gl-tags-in .chip-tif')]
@@ -109,4 +123,20 @@ test('the collapse button still hides and shows the list, and the width is kept'
   await page.getByTestId('list-expand').click();
   await expect(page.getByTestId('game-list')).toBeVisible();
   expect(await width(page)).toBe(MAX - 30);
+});
+
+test('narrowest: only date, game and W/L; badges and rest days come back when widened', async ({ page }) => {
+  await drag(page, -400);
+  expect(await width(page)).toBe(MIN);
+  const row = page.getByTestId('list-row').last();
+  await expect(row.locator('.gl-date')).toBeVisible();
+  await expect(row.getByTestId('list-result')).toBeVisible();
+  await expect(row.locator('.gl-tags')).toBeHidden();
+  await expect(row.locator('td').last()).toBeHidden();
+  await expect(page.getByTestId('tag-legend')).toBeHidden();
+  await expectFits(page);
+  await drag(page, NARROW - MIN + 10);
+  await expect(row.locator('.gl-tags')).toBeVisible();
+  await expect(row.locator('td').last()).toBeVisible();
+  await expectFits(page);
 });
