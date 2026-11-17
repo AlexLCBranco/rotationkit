@@ -35,3 +35,22 @@ Wanted, at widths < 768px:
 - Touch swipe over the collapsed games list scrolls the page.
 - Tap on the chart shows the lineup for that moment; tap on a tooltip trigger opens it, tap outside closes it.
 - Desktop e2e suite still passes unchanged.
+
+### RK-5 — Per-quarter minutes inside stints that cross a quarter break
+Stints that continue across a quarter break (e.g. end of Q2 into Q3) are merged into one bar (`mergeContinuousPts`)
+with one total label ("18:54"). The owner can't tell how much of that was in each quarter.
+
+Wanted (game chart, and anywhere else merged stint bars show labels):
+- Keep one continuous bar (it is one stint), but split it visually at each quarter break: a thin dark notch/gap
+  through the bar at the break, and each quarter's segment in a slightly different shade of the bar color
+  (alternating), so the pieces read as one stint in parts.
+- Split the label: each segment shows its own minutes, e.g. `6:54 │ 12:00` instead of `18:54`. Points (`· 17p`) stay
+  once, after the last segment. Works for stints crossing 2+ breaks (`2:10 │ 12:00 │ 3:05`).
+- If a segment is too narrow for its label, that segment shows no label (the notch still shows); if no segment fits,
+  fall back to the total as today.
+- Hover/tap tooltip shows the total plus the per-quarter split (`18:54 — Q2 6:54, Q3 12:00`).
+- Overtime breaks count as quarter breaks.
+
+**Tests (automated):** unit test for the split (stint crossing 1 and 2 breaks, segment widths/labels, narrow-segment
+fallback); e2e on a fixture game with a Q2→Q3 stint: bar has the notch, labels show the split, tooltip shows total +
+split.
