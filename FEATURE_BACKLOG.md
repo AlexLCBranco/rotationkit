@@ -54,3 +54,21 @@ Wanted (game chart, and anywhere else merged stint bars show labels):
 **Tests (automated):** unit test for the split (stint crossing 1 and 2 breaks, segment widths/labels, narrow-segment
 fallback); e2e on a fixture game with a Q2→Q3 stint: bar has the notch, labels show the split, tooltip shows total +
 split.
+
+### RK-6 — Team roster on the player page
+On a player page (e.g. Luka Dončić · LAL), the owner wants to jump to teammates and the team without going back.
+
+Wanted:
+- A roster panel for the selected player's team, placed on the left side of the player page (exact design open; owner
+  hasn't decided — pick something compact that doesn't push the chart down or narrow it much at 1280px).
+- Team name at the top of the panel, clickable → that team's rotations page (same target as other clickable team names).
+- Every roster player clickable → their player page, keeping the current filters (season, Last 5/10/Season,
+  Home/Away, rest, blowout toggle, game type) where they apply.
+- Current player highlighted in the list.
+- Uses the season selected on the page (traded players: show the team for that season; if the player had 2+ teams
+  that season, show the latest team, with the others as links).
+- Phone (< 768px, see RK-4): panel collapses into a "Roster" toggle above the chart, no horizontal scroll.
+
+**Tests (automated):** e2e on a fixture player: roster panel lists the team's players, current player highlighted;
+clicking a teammate opens their page with filters kept; clicking the team name opens the team page; phone project:
+toggle opens/closes the roster and no page-level horizontal scroll.
