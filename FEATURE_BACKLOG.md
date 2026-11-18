@@ -72,3 +72,7 @@ Wanted:
 **Tests (automated):** e2e on a fixture player: roster panel lists the team's players, current player highlighted;
 clicking a teammate opens their page with filters kept; clicking the team name opens the team page; phone project:
 toggle opens/closes the roster and no page-level horizontal scroll.
+
+### RK-7 — Usage rate (USG%)
+**What:** usage rate for every player: share of team plays a player finishes while on court, standard formula `100 × (FGA + 0.44×FTA + TOV) × (team MIN / 5) / (MIN × (team FGA + 0.44×team FTA + team TOV))`, from the box score data already fetched (if any field is missing, say which and where it would come from). Where it shows (owner hasn't decided the placement, keep it compact): a USG% column in Averages and Leaders (last 5 / last 10 / season like the other columns), and per game on the player page and the single-game view. Must work on desktop and phone (RK-4 rules).
+**Tests:** unit: USG% for a fixture game matches a hand-computed value; e2e: the column shows in Averages and sorts; phone project: no page-level horizontal scroll.
