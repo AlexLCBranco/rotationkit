@@ -6,6 +6,7 @@ import { availabilityFor, buildAppearances, type AppearanceIndex } from './avail
 import { seasonOf } from './season.ts';
 import { matchesRest, restForTeam, type RestFilter, type RestInfo } from './rest.ts';
 import { gameLength, periodEnd, periodStart, REGULATION_LEN } from './time.ts';
+import { usagePart, usageRate, type UsagePart } from './usage.ts';
 import type { Game, PlayerGame } from './types.ts';
 
 export type Window = 5 | 10 | 'season';
@@ -226,6 +227,8 @@ export interface QuarterAverages {
   /** Average personal fouls per game played: total and per period (same indexing). */
   pf: number;
   pfQ: number[];
+  /** Usage rate over the selection's games he played (whole games, `usage.ts`); null when none has the counts. */
+  usg: number | null;
 }
 
 /**
@@ -233,14 +236,15 @@ export interface QuarterAverages {
  * (garbage) time are left out; fouls always count.
  */
 export function quarterAverages(sel: Selection, cfg: BlowoutConfig = PATTERN_CONFIG.blowout): QuarterAverages[] {
-  const acc = new Map<number, { name: string; gp: number; minQ: number[]; pfQ: number[] }>();
+  const acc = new Map<number, { name: string; gp: number; minQ: number[]; pfQ: number[]; usage: (UsagePart | null)[] }>();
   for (const g of sel.games) {
     const excl = sel.filters.blowout ? blowoutIntervals(g, cfg) : [];
     for (const p of g.players) {
       if (p.team !== sel.team || !p.played || !p.stints.length) continue;
-      const a = acc.get(p.id) ?? { name: p.name, gp: 0, minQ: [0, 0, 0, 0, 0], pfQ: [0, 0, 0, 0, 0] };
+      const a = acc.get(p.id) ?? { name: p.name, gp: 0, minQ: [0, 0, 0, 0, 0], pfQ: [0, 0, 0, 0, 0], usage: [] };
       acc.set(p.id, a);
       a.gp++;
+      a.usage.push(usagePart(g, p));
       for (let q = 1; q <= g.periods; q++) {
         const [q0, q1] = [periodStart(q), periodEnd(q)];
         const i = Math.min(q, 5) - 1;
@@ -262,6 +266,7 @@ export function quarterAverages(sel: Selection, cfg: BlowoutConfig = PATTERN_CON
       minQ: a.minQ.map((x) => x / a.gp),
       pf: a.pfQ.reduce((x, y) => x + y, 0) / a.gp,
       pfQ: a.pfQ.map((x) => x / a.gp),
+      usg: usageRate(a.usage),
     }))
     .sort((x, y) => y.min - x.min);
 }

@@ -573,6 +573,7 @@ a.tif-sq:hover { background: #7c4dcc; }
 .ld-table .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; vertical-align: 1px; }
 .ld-table th.sortable .link { color: inherit; font: inherit; }
 .ld-table th.sorted { color: var(--text); }
+.avg-table th.sorted { color: var(--text); }
 .ld-leader { stroke: #8a8a8a; stroke-width: 1; }
 
 /* Game list: next scheduled games (not played yet) */

@@ -1,0 +1,58 @@
+# One-off backfill (RK-7): add FGA / FTA / TOV to every committed game file that predates them (usage rate), from
+# cdn.nba.com box scores (cdn.nba.com refuses Claude's cloud sessions, so it runs here). Only box scores are downloaded;
+# nothing else in the game files changes. Runs once when this file lands on main, and by hand (Actions → Run workflow).
+# Games that already have the counts are skipped, so a re-run only does what is left.
+name: Backfill usage counts
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ['.github/workflows/backfill-usage.yml']
+
+permissions:
+  contents: write
+
+# Same group as the daily data update: never two data commits at once.
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Download box scores and add the counts
+        # A game the script has to skip is listed in the log and makes the step fail AFTER every other game is done;
+        # the games that worked are still committed (the next steps run), and a re-run retries only the rest.
+        id: backfill
+        continue-on-error: true
+        run: npx tsx scripts/backfill-usage.ts --fetch
+      - name: Rebuild season files (quarters.json for Leaders)
+        run: npm run normalize
+      - run: npm run validate-all
+      - run: npm test
+      - name: Commit and push
+        env:
+          GIT_AUTHOR_NAME: ${{ vars.DATA_COMMIT_NAME || 'github-actions[bot]' }}
+          GIT_AUTHOR_EMAIL: ${{ vars.DATA_COMMIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+          GIT_COMMITTER_NAME: ${{ vars.DATA_COMMIT_NAME || 'github-actions[bot]' }}
+          GIT_COMMITTER_EMAIL: ${{ vars.DATA_COMMIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+        run: |
+          git add data ':!data/*/validation.json'
+          if git diff --cached --quiet; then echo "Nothing to commit."; exit 0; fi
+          git commit -m "data: FGA / FTA / TOV for usage rate (backfill)"
+          for i in 1 2 3 4; do git push && exit 0; git pull --no-rebase --no-edit origin main || exit 1; sleep $((i * 5)); done
+          exit 1
+      - name: Fail when games were skipped
+        if: steps.backfill.outcome == 'failure'
+        run: |
+          echo "Some games were skipped (see the backfill step's log); the rest were committed. Re-run to retry them."
+          exit 1

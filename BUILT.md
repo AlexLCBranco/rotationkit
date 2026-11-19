@@ -5,6 +5,8 @@ Entries dated before 2026-11-16 were backfilled from the git commit messages (da
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
 ## 2026-11-19
+- RK-7 — Usage rate (USG%) (v0.4.0)
+  A USG% column in Averages (click to sort), Leaders (also "Rank by USG%"), the player page's game log and the single-game table; older games fill in once the one-off GitHub backfill has run.
 - RK-4 — Phone-usable site (v0.3.0)
   On a phone the game comes first (games list behind "☰ Games"), nothing scrolls sideways, and taps replace hover on the chart and on every tooltip.
 - RK-5 — Per-quarter minutes inside stints that cross a quarter break (v0.3.0)

@@ -469,3 +469,11 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
   this one, plus inactive-only players; sorted by minutes per game; the player page widens to 1380 px so the 156 px
   panel costs the chart little at 1280. RK-7 blocked: FGA / FTA / TOV are not in the committed files and cdn.nba.com
   answers 403 to the cloud session, so the backfill can't run there.
+- **2026-11-19 — RK-7 USG% (v0.4.0).** Owner OK'd the backfill ("if it's free and won't kill the speed"): Actions is free
+  for this public repo; game files grow ~3.5% and quarters.json ~7% (fixture measurement). Counts stored per player and
+  team (zeros left out) with `Game.usg`; team MIN = game length × 5 (not summed player minutes). Team TOV =
+  `statistics.turnovers` (player turnovers; `turnoversTotal` also has team turnovers), as the spec named it. Several
+  games: Σ plays / Σ (team plays × MIN / game length), i.e. minutes-weighted, not a mean of per-game rates. Leaders take
+  minutes from stints (quarters.json has no box minutes). Box counts are whole-game, so USG% ignores the garbage-time
+  and Q4 / second-half settings. The 12 fixture games were backfilled locally from their committed raw box scores; the
+  rest by `.github/workflows/backfill-usage.yml` (runs once when it lands on main; re-runnable by hand).

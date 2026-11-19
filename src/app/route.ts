@@ -6,7 +6,7 @@
 //   #/game/0022500093?t=ORL&day=2026-11-12  same, opened from By day (previous / next game of that day, back link)
 //   #/games?view=day&date=2026-11-12&s=2026-27&nb=1   Games tab, By day (date; nb=1 → No blowouts on the leaders panel)
 //   #/q4/0022500093?t=ORL…               same game, Q4 tab (4th quarter + OT only)
-//   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts&lt=ORL&gt=1   Leaders tab (lt = team filter, gt=1 keeps garbage time)
+//   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts|usg&lt=ORL&gt=1   Leaders tab (lt = team filter, gt=1 keeps garbage time)
 //   #/fullq4?s=2026-27&th=11&nb=1   Full Q4 tab (th=11 → 11:00+, nb=1 → exclude blowouts)
 //   #/ (empty) → the main screen with the remembered team's latest game
 
@@ -46,7 +46,7 @@ export const DEFAULT_LEADERS: LeadersQuery = { part: 'q4', ot: false, sort: 'min
 export interface LeadersQuery {
   part: 'q4' | 'h2';
   ot: boolean;
-  sort: 'min' | 'pts';
+  sort: 'min' | 'pts' | 'usg';
   /** Only this team's players; null = all teams. */
   only: string | null;
   /** Leave out garbage time (default on; `gt=1` in the URL keeps it). */
@@ -90,7 +90,7 @@ export function parse(hash: string): Route {
       team: t,
       season,
       filters,
-      leaders: { part: q.get('part') === 'h2' ? 'h2' : 'q4', ot: q.get('ot') === '1', sort: q.get('sort') === 'pts' ? 'pts' : 'min', only: q.get('lt'), noGarbage: q.get('gt') !== '1' },
+      leaders: { part: q.get('part') === 'h2' ? 'h2' : 'q4', ot: q.get('ot') === '1', sort: q.get('sort') === 'pts' ? 'pts' : q.get('sort') === 'usg' ? 'usg' : 'min', only: q.get('lt'), noGarbage: q.get('gt') !== '1' },
     };
   if (parts[0] === 'fullq4') return { view: 'fullq4', team: t, season, filters, fullq4: { threshold: q.get('th') === '11' ? '11' : 'full', noBlowouts: q.get('nb') === '1' } };
   if (parts[0] === 'team') return { view: 'team', team: parts[1] ?? null, season, filters, vs: q.get('vs') };
@@ -122,7 +122,7 @@ export function format(r: Route): string {
     if (r.team) q.set('t', r.team);
     if (r.leaders.part === 'h2') q.set('part', 'h2');
     if (r.leaders.ot) q.set('ot', '1');
-    if (r.leaders.sort === 'pts') q.set('sort', 'pts');
+    if (r.leaders.sort !== 'min') q.set('sort', r.leaders.sort);
     if (r.leaders.only) q.set('lt', r.leaders.only);
     if (!r.leaders.noGarbage) q.set('gt', '1');
   }

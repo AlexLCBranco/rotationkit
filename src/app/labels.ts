@@ -53,3 +53,7 @@ export const formatMin = (sec: number) => formatDuration(sec);
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const shortDate = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;
+
+/** Hover text of every USG% column. */
+export const USG_TITLE =
+  'Usage rate: share of his team\'s plays he finishes while on court, 100 × (FGA + 0.44×FTA + TOV) × (team MIN / 5) / (MIN × team (FGA + 0.44×FTA + TOV)). Whole games (box score); over several games weighted by minutes.';

@@ -16,6 +16,8 @@ const ROUTES: [string, string][] = [
   ['averages-game-by-game', '/#/team/ORL?s=2025-26'],
   ['averages-matchup', '/#/team/ORL?s=2025-26&w=10&vs=BOS'],
   ['leaders', '/#/leaders?s=2025-26'],
+  ['leaders-by-usage', '/#/leaders?s=2025-26&sort=usg'],
+  ['averages-with-usage', '/#/team/PHI?s=2025-26'],
   ['full-q4', '/#/fullq4?s=2025-26'],
   ['player', '/#/player/ORL/1631094?s=2025-26'],
   ['player-with-dnp-reasons', '/#/player/IND/1630174?s=2025-26'],

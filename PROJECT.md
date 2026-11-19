@@ -15,6 +15,9 @@ scripts fetch and normalize the data. Production: **https://rotationkit.vercel.a
   **Points per stint** (`ptsS`, parallel to `stints`; `Game.stintPts` marks files that have them): same events, each in
   the scorer's stint by log order, else the one ending (then starting) at that clock — FTs after a same-clock sub
   (`stintIndexFor`). Older files lack them until `scripts/backfill-stint-points.ts [--fetch]` (only when stints match).
+- **USG%** (`src/domain/usage.ts`): FGA / FTA / TOV per player and team from the box score (`Game.usg` marks files with
+  them; absent = 0); `100 × plays × (team MIN/5) / (MIN × team plays)`, plays = FGA + 0.44·FTA + TOV; several games =
+  minutes-weighted; whole games only. Older files: `scripts/backfill-usage.ts --fetch` (GitHub: `backfill-usage.yml`).
 - **TV / Cup / tip** (`tv`, `cup` on `schedule.json` and `index.json`; `tip` = `gameDateTimeUTC` on `schedule.json`,
   absent while TBD): only for seasons whose feed is cached (none for 2025-26).
 - **Inactive / DNP** (`Game.inactive`, `inactiveSource`): box-score list with reasons (2025-26), else the
@@ -81,7 +84,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
     a faint dashed outline behind each player's bars = `typicalStints` over his team's previous 10 games of the season
     (this game excluded, blowout rule on, regulation only); none under 3 games in that window. No pointer events, never
     moves bars/labels/ticks; hovering on an outline adds "usually on court here (7 of 10)";
-  - below: minutes & fouls by quarter (sortable) and the lineup list per team.
+  - below: minutes & fouls by quarter (sortable, with USG%) and the lineup list per team.
 - **By day** tab (`#/games?view=day&date=YYYY-MM-DD&s=&nb=1`, `DayView.tsx`, `src/domain/slate.ts`; from a game opened
   from By day the tab returns to that day): `DateBar.tsx` (◀ ▶ / ← → = previous / next day with games, date input, "No games on X; showing Y"; default
   latest day with finished games). Cards in tip-time order (no tip → id order): score, TV / CUP, schedule chips; per team
@@ -98,13 +101,13 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   (`GameByGame.tsx`, `src/domain/gameByGame.ts`: per player, one thin strip per game of his actual regulation stints in
   the selection's last 5 games, newest on top, date + opponent; a missed game = empty strip with the DNP / inactive
   reason or "Not with the team"; click → that game), same player order and shared "Rarely used" group; "Minutes &
-  fouls per game" table with "when does he sit?"; **Closers** table (`src/domain/closers.ts`): over the selection's
+  fouls per game" table (sortable by MIN / USG% / PF) with "when does he sit?"; **Closers** table (`src/domain/closers.ts`): over the selection's
   close games (`CLOSE_GAME` in config: margin ≤ 5 at some point in the last 5:00 of Q4 or in OT), per player close
   games played, times on court at the final buzzer (the Q4 tab's closer), share, average Q4+OT minutes; sorted by
   times closed; "based on N close games". Matchup mode `vs=` stacks the opponent.
 - **Player page** (`#/player/ORL/<id>?…`, `PlayerView.tsx`): one row per game with actual stints (a "Q4" marker on
   games he played the full 4th; "Full Q4s: X of Y games" over the selection's games he played), minutes trend,
-  "when he sits", game log, games missed (DNP rows and the missed list use the same DNP labels). Click a game → that
+  "when he sits", game log (USG% per game and on the average row), games missed (DNP rows and the missed list use the same DNP labels). Click a game → that
   game. His name, headshot and team sit on the readout line right above the rows; a player with several teams in the
   season (season-wide `appearances.json`, `teamsOf`) gets a switch between them there. A stint across a quarter / OT break:
   one bar, a notch + a shade per quarter, each part labelled ("6:54 │ 12:00", pts after the last; too narrow → none; none
@@ -115,7 +118,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   page, no TM column / resize, folds after a pick); wide charts and tables scroll in their own box (name sticky); hover
   texts open on tap, close on a tap outside (`TapTips.tsx`, `useTapOutside`); chart: tap = cursor + readout, drag the handle.
 - **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 / second-half min and
-  pts per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table; `LEADER_MIN_GAMES`.
+  pts per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table; `LEADER_MIN_GAMES`;
+  USG% column / "Rank by USG%" (`sort=usg`; whole games, from `quarters.json`'s usage counts, minutes from stints).
 - **Full Q4** (`#/fullq4?s=&th=11&nb=1`, `FullQ4View.tsx`, `src/domain/fullQ4.ts` on `quarters.json`): whole regulation
   4th on court (Q4 minutes = 12:00; back-to-back stints count; OT never counts): season leaderboard (full Q4s, GP, %);
   "11:00+" (`th=11`); "Exclude blowouts" (`nb=1`: games with 4th-quarter garbage time leave both counts). Per date: By day tab.
@@ -133,18 +137,14 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   swipe, taps). No console errors; By day date 2025-11-10. `E2E_ALL_GAMES=1`: all games. Shots → `screenshots/`.
 - **Checks** (`.github/workflows/pr.yml`, every push to `main`): `npm ci`, `npm test`, `npm run build`, `npm run e2e`. Work goes straight to `main` (no PRs); run the same locally before pushing.
 
-## Daily data update (`.github/workflows/data-update.yml` → `scripts/ci-update.ts`)
+## Data updates — daily (`.github/workflows/data-update.yml` → `scripts/ci-update.ts`)
 - 11:00 UTC daily (and manual): probe cdn.nba.com → `fetch-season --cdn-only --strict` → `normalize` → `validate-all`
   → `RK_TEST_GAMES=<new ids> npm test` (sweeps over the new games only) → commit `data/` to `main` ("data: N new games
   through YYYY-MM-DD", or a schedule-only update) → redeploy.
 - Every run writes `data/update-status.json`; a failing step commits **only** that file ("data: update FAILED at <step>",
   `scripts/record-failure.ts`). A game failing a validate-all check is still committed with its warning; reviewed
   problems go to `data/known-issues.json`; data is never patched. `claude/**` pushes touching the pipeline: dry run.
-
-## Updating data by hand
-`npm run update-data` (fetch-season → normalize → validate-all; `-- --season 2025-26 --cdn-only` for a past season); one
-game: `npm run fetch-game -- <id> [--force] [--cdn-only]`. Cache: `cache/`. **Deploy** (Vercel): `npm run build` per push.
-
-## Open problems
-- stats.nba.com is slow/flaky (optional). 2026-27 box scores have no inactive reasons, so DNP – CD is rare there. The
+- **By hand**: `npm run update-data` (fetch-season → normalize → validate-all; `-- --season 2025-26 --cdn-only` for a past
+  season); one game: `npm run fetch-game -- <id> [--force] [--cdn-only]`. Cache: `cache/`. **Deploy** (Vercel): per push.
+- **Open problems**: stats.nba.com is slow/flaky (optional). 2026-27 box scores have no inactive reasons, so DNP – CD is rare there. The
   appearance rule misjudges some fringe two-way / G-League players.

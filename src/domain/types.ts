@@ -13,6 +13,10 @@ export interface TeamInfo {
   name: string;
   city: string;
   score: number;
+  /** Team field-goal attempts, free-throw attempts, turnovers (box score `statistics`). Only in games with `Game.usg`; absent = 0. */
+  fga?: number;
+  fta?: number;
+  tov?: number;
 }
 
 export interface PlayerGame {
@@ -31,6 +35,10 @@ export interface PlayerGame {
   ast: number;
   pf: number;
   pm: number;
+  /** Field-goal attempts, free-throw attempts, turnovers (box score). Only in games with `Game.usg`; absent = 0. */
+  fga?: number;
+  fta?: number;
+  tov?: number;
   /** Not-playing reason code + detail when the box score has them, e.g. "DND_INJURY", "Left Ankle; Sprain". */
   reason?: string;
   reasonDetail?: string;
@@ -83,6 +91,8 @@ export interface Game {
   quality?: QualityNote[];
   /** Points per stint (`PlayerGame.ptsS`) were computed for this game (absent in files normalized before they existed). */
   stintPts?: true;
+  /** FGA / FTA / TOV (players and teams) are in this file, for usage rate (absent in files normalized before them). */
+  usg?: true;
   /** Personal fouls that could not be matched to one of the player's stints (should be empty). */
   orphanFouls: { player: number; t: number }[];
 }

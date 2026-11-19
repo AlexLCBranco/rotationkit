@@ -4,6 +4,7 @@
 import type { RawGame, RawRotation } from './raw.ts';
 import { toEvents, type Ev, type RawStint } from './pbp.ts';
 import { stintsFromPbp, type PlayerRef } from './stintsPbp.ts';
+import { compactCounts, countsOf } from './usage.ts';
 import type { Game, InactivePlayer, PlayerFoul, PlayerGame, Stint, TeamInfo } from './types.ts';
 import { parseIsoDuration, periodAt, periodEnd, r1 } from './time.ts';
 import { blowoutIntervals } from './patterns.ts';
@@ -242,6 +243,15 @@ export function normalizeGame(raw: RawGame): Game {
   }
   if (unplaced.length) rebuilt.notes.push(`points outside every stint of the scorer (not in ptsS): ${unplaced.join('; ')}`);
 
+  // FGA / FTA / TOV for usage rate: kept only when the box score has them for both teams and every player.
+  const counts = new Map([...box.values()].map(({ p }) => [p.personId, countsOf(p.statistics)]));
+  const teamCounts = { home: countsOf(bg.homeTeam.statistics), away: countsOf(bg.awayTeam.statistics) };
+  const usg = !!teamCounts.home && !!teamCounts.away && [...counts.values()].every(Boolean);
+  if (usg) {
+    Object.assign(home, compactCounts(teamCounts.home!));
+    Object.assign(away, compactCounts(teamCounts.away!));
+  }
+
   const players: PlayerGame[] = [...box.values()].map(({ side, p }) => {
     return {
       id: p.personId,
@@ -256,6 +266,7 @@ export function normalizeGame(raw: RawGame): Game {
       ast: p.statistics.assists,
       pf: p.statistics.foulsPersonal,
       pm: p.statistics.plusMinusPoints,
+      ...(usg ? compactCounts(counts.get(p.personId)!) : {}),
       ...reasonOf(p),
       stints: stintsBy.get(p.personId) ?? [],
       ...(foulsBy.has(p.personId) ? { fouls: foulsBy.get(p.personId)! } : {}),
@@ -313,6 +324,7 @@ export function normalizeGame(raw: RawGame): Game {
     score,
     orphanFouls,
     stintPts: true,
+    ...(usg ? { usg: true as const } : {}),
   };
 
   // Points scored in garbage time (blowout rule), per period. A basket at the moment the margin reaches the

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { appearanceIndex, loadSchedule, loadTeamGames } from '../app/data.ts';
 import { restForTeam } from '../domain/rest.ts';
 import { useAsync } from '../app/hooks.ts';
-import { basedOn, describeSelection, formatMin } from '../app/labels.ts';
+import { basedOn, describeSelection, formatMin, USG_TITLE } from '../app/labels.ts';
+import { formatUsg } from '../domain/usage.ts';
 import { shortNames } from '../app/names.ts';
 import type { Route } from '../app/route.ts';
 import { teamName } from '../app/teams.ts';
@@ -324,6 +325,14 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
   const ot = sel.games.some((g) => g.periods > 4);
   const qs = ot ? ['Q1', 'Q2', 'Q3', 'Q4', 'OT'] : ['Q1', 'Q2', 'Q3', 'Q4'];
   const f1 = (x: number) => x.toFixed(1);
+  // Sortable columns: MIN (default), USG%, PF; always biggest first, ties by minutes.
+  const [sort, setSort] = useState<'min' | 'usg' | 'pf'>('min');
+  const rows = useMemo(() => [...qa].sort((a, b) => (sort === 'usg' ? (b.usg ?? -1) - (a.usg ?? -1) : sort === 'pf' ? b.pf - a.pf : 0) || b.min - a.min), [qa, sort]);
+  const th = (key: typeof sort, label: string, title?: string) => (
+    <th className={`num sortable${sort === key ? ' sorted' : ''}`} aria-sort={sort === key ? 'descending' : 'none'} title={title}>
+      <button onClick={() => setSort(key)}>{label}</button>
+    </th>
+  );
   return (
     <details className="avg-table" open>
       <summary>
@@ -333,7 +342,7 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
         <table className="tbl" data-testid="averages-table">
           <thead>
             <tr>
-              <th colSpan={3} />
+              <th colSpan={4} />
               <th colSpan={qs.length} className="qgroup qgroup-start">MIN per quarter</th>
               <th colSpan={qs.length + 1} className="qgroup qgroup-start">PF per quarter</th>
               <th />
@@ -341,7 +350,8 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
             <tr>
               <th className="name-col">Player</th>
               <th className="num">GP</th>
-              <th className="num">MIN</th>
+              {th('min', 'MIN')}
+              {th('usg', 'USG%', USG_TITLE)}
               {qs.map((q, i) => (
                 <th key={`m${q}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
                   {q}
@@ -352,12 +362,12 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
                   {q}
                 </th>
               ))}
-              <th className="num">PF</th>
+              {th('pf', 'PF')}
               <th title="Median game clock of his first sub-out / first entry per quarter (games it happened in); shown when seen in 3+ games">When he sits</th>
             </tr>
           </thead>
           <tbody>
-            {qa.map((p) => (
+            {rows.map((p) => (
               <tr key={p.id} data-testid="avg-row">
                 <td className="name-cell">
                   <PlayerLink id={p.id} team={sel.team} season={sel.season}>
@@ -366,6 +376,9 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
                 </td>
                 <td className="num">{p.gamesPlayed}</td>
                 <td className="num strong">{formatMin(p.min)}</td>
+                <td className="num" data-testid="avg-usg">
+                  {formatUsg(p.usg)}
+                </td>
                 {qs.map((_, i) => (
                   <td key={`m${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
                     {formatMin(p.minQ[i]!)}

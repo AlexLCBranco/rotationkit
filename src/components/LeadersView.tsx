@@ -9,7 +9,9 @@ import { formatMin } from '../app/labels.ts';
 import type { LeadersQuery, Nav, Route } from '../app/route.ts';
 import { tabRoute } from '../app/tabs.ts';
 import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
-import { LEADER_MIN_GAMES, leaders, type LeaderRow, type LeaderWindow } from '../domain/leaders.ts';
+import { LEADER_MIN_GAMES, leaders, type LeaderOpts, type LeaderRow, type LeaderWindow } from '../domain/leaders.ts';
+import { formatUsg } from '../domain/usage.ts';
+import { USG_TITLE } from '../app/labels.ts';
 import type { Window } from '../domain/patterns.ts';
 import { PATTERN_CONFIG } from '../domain/config.ts';
 import { Header } from './Header.tsx';
@@ -92,7 +94,7 @@ export function LeadersView({ seasons, season, team, route, nav }: Props) {
             ))}
           </select>
         </label>
-        {seg('Rank by', q.sort, [['min', 'Minutes'], ['pts', 'Points']], (v) => set({ sort: v }))}
+        {seg('Rank by', q.sort, [['min', 'Minutes'], ['pts', 'Points'], ['usg', 'USG%']], (v) => set({ sort: v }))}
       </div>
       <p className="muted ld-note" data-testid="leaders-note">
         {partName}
@@ -134,7 +136,7 @@ function Scatter({
   partName,
 }: {
   rows: LeaderRow[];
-  sort: 'min' | 'pts';
+  sort: LeaderOpts['sort'];
   hover: number | null;
   setHover: (id: number | null) => void;
   maxMin: number;
@@ -234,7 +236,7 @@ function Scatter({
         )}
       </svg>
       <figcaption className="muted">
-        Each dot is a player; the top {TOP_LABELS} by {sort === 'min' ? 'minutes' : 'points'} are named. Dashed lines = median. Click a dot for his page.
+        Each dot is a player; the top {TOP_LABELS} by {sort === 'min' ? 'minutes' : sort === 'pts' ? 'points' : 'usage rate'} are named. Dashed lines = median. Click a dot for his page.
       </figcaption>
     </figure>
   );
@@ -248,13 +250,13 @@ function Table({
   onSort,
 }: {
   rows: LeaderRow[];
-  sort: 'min' | 'pts';
+  sort: LeaderOpts['sort'];
   hover: number | null;
   setHover: (id: number | null) => void;
-  onSort: (s: 'min' | 'pts') => void;
+  onSort: (s: LeaderOpts['sort']) => void;
 }) {
-  const th = (key: 'min' | 'pts', label: string) => (
-    <th className={`num sortable${sort === key ? ' sorted' : ''}`} aria-sort={sort === key ? 'descending' : 'none'}>
+  const th = (key: LeaderOpts['sort'], label: string, title?: string) => (
+    <th className={`num sortable${sort === key ? ' sorted' : ''}`} aria-sort={sort === key ? 'descending' : 'none'} title={title}>
       <button className="link" onClick={() => onSort(key)}>
         {label}
       </button>
@@ -276,6 +278,7 @@ function Table({
             <th className="num" title="Points per 12 minutes played in this part of the game">
               PTS/12
             </th>
+            {th('usg', 'USG%', USG_TITLE)}
           </tr>
         </thead>
         <tbody>
@@ -312,6 +315,9 @@ function Table({
                 <strong>{r.pts.toFixed(1)}</strong>
               </td>
               <td className="num muted">{r.per12 === null ? '—' : r.per12.toFixed(1)}</td>
+              <td className="num" data-testid="leaders-usg">
+                {formatUsg(r.usg)}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -17,6 +17,9 @@ export interface RawBoxPlayer {
     assists: number;
     foulsPersonal: number;
     plusMinusPoints: number;
+    fieldGoalsAttempted?: number;
+    freeThrowsAttempted?: number;
+    turnovers?: number;
   };
 }
 
@@ -27,6 +30,8 @@ export interface RawBoxTeam {
   teamTricode: string;
   score: number;
   players: RawBoxPlayer[];
+  /** Team totals (only the fields we read). */
+  statistics?: { fieldGoalsAttempted?: number; freeThrowsAttempted?: number; turnovers?: number };
 }
 
 export interface RawBoxscore {

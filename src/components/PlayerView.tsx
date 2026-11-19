@@ -6,7 +6,8 @@ import { teamsOf } from '../domain/players.ts';
 import { TeamLink, useLinkContext } from './Links.tsx';
 import { restForTeam } from '../domain/rest.ts';
 import { useAsync } from '../app/hooks.ts';
-import { formatMin, shortDate } from '../app/labels.ts';
+import { formatMin, shortDate, USG_TITLE } from '../app/labels.ts';
+import { formatUsg, usagePart, usageRate } from '../domain/usage.ts';
 import { format, type Route } from '../app/route.ts';
 import { teamColor, teamName } from '../app/teams.ts';
 import { playerGames, selectGames, type Filters as F } from '../domain/patterns.ts';
@@ -240,7 +241,7 @@ function GameLog({ sel, player, team, opp, onOpen }: { sel: Selection; player: n
       if (!p) return [];
       const q = quarterStats(p, g.periods);
       const fold = (f: (r: (typeof q)[number]) => number) => [0, 1, 2, 3].map((i) => f(q[i]!)).concat([q.slice(4).reduce((x, r) => x + f(r), 0)]);
-      return [{ g, p, min: p.stints.reduce((x, [s, e]) => x + e - s, 0), minQ: fold((r) => r.min), pfQ: fold((r) => r.pf) }];
+      return [{ g, p, min: p.stints.reduce((x, [s, e]) => x + e - s, 0), minQ: fold((r) => r.min), pfQ: fold((r) => r.pf), usage: usagePart(g, p) }];
     });
   const ot = rows.some((r) => r.g.periods > 4);
   const qi = ot ? [0, 1, 2, 3, 4] : [0, 1, 2, 3];
@@ -259,6 +260,9 @@ function GameLog({ sel, player, team, opp, onOpen }: { sel: Selection; player: n
             <th>Game</th>
             <th>Starter</th>
             <th className="num">MIN</th>
+            <th className="num" title={USG_TITLE}>
+              USG%
+            </th>
             {qi.map((i) => (
               <th key={`m${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
                 {qn[i]} MIN
@@ -277,6 +281,9 @@ function GameLog({ sel, player, team, opp, onOpen }: { sel: Selection; player: n
             <td colSpan={4}>Average · {n} game{n === 1 ? '' : 's'}</td>
             <td className="num">{Math.round(avg((r) => (r.p.starter ? 1 : 0)) * n)}/{n}</td>
             <td className="num">{formatMin(avg((r) => r.min))}</td>
+            <td className="num" data-testid="game-log-usg">
+              {formatUsg(usageRate(rows.map((r) => r.usage)))}
+            </td>
             {qi.map((i) => (
               <td key={`m${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
                 {formatMin(avg((r) => r.minQ[i]!))}
@@ -301,6 +308,9 @@ function GameLog({ sel, player, team, opp, onOpen }: { sel: Selection; player: n
                 </td>
                 <td>{r.p.starter ? 'Yes' : 'No'}</td>
                 <td className="num strong">{formatMin(r.min)}</td>
+                <td className="num" data-testid="game-log-usg">
+                  {formatUsg(usageRate([r.usage]))}
+                </td>
                 {qi.map((i) => (
                   <td key={`m${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>
                     {r.minQ[i]! > 0 ? formatMin(r.minQ[i]!) : '—'}

@@ -1,7 +1,8 @@
 // Panels around the game chart: lineup cursor readout, lineup list, minutes & fouls by quarter.
 
 import { useMemo, useState } from 'react';
-import { formatMin, signed } from '../app/labels.ts';
+import { formatMin, signed, USG_TITLE } from '../app/labels.ts';
+import { formatUsg, gameUsage } from '../domain/usage.ts';
 import { shortNames } from '../app/names.ts';
 import { clockLabel, cursorInfo, lineupSegments, periodName, quarterStats, troubleLevel, type LineupSegment } from '../domain/gameChart.ts';
 import { periodAt } from '../domain/time.ts';
@@ -125,7 +126,7 @@ export function QuarterTable({ g, team }: { g: Game; team: string }) {
     () =>
       g.players
         .filter((p) => p.team === team && p.played && p.stints.length)
-        .map((p) => ({ p, q: quarterStats(p, g.periods), min: totalPlayed(p) })),
+        .map((p) => ({ p, q: quarterStats(p, g.periods), min: totalPlayed(p), usg: gameUsage(g, p) })),
     [g, team],
   );
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'min', dir: -1 });
@@ -134,6 +135,7 @@ export function QuarterTable({ g, team }: { g: Game; team: string }) {
     if (key === 'starter') return r.p.starter ? 1 : 0;
     if (key === 'min') return r.min;
     if (key === 'pf') return r.p.pf;
+    if (key === 'usg') return r.usg ?? -1;
     const [kind, qs] = key.split(':');
     const q = r.q[Number(qs) - 1]!;
     return kind === 'qmin' ? q.min : kind === 'qpf' ? q.pf : q.cum;
@@ -142,8 +144,8 @@ export function QuarterTable({ g, team }: { g: Game; team: string }) {
     const [x, y] = [value(a, sort.key), value(b, sort.key)];
     return (typeof x === 'string' ? x.localeCompare(String(y)) : x - (y as number)) * sort.dir || b.min - a.min;
   });
-  const th = (key: SortKey, label: string, cls = 'num') => (
-    <th className={`${cls} sortable`} aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+  const th = (key: SortKey, label: string, cls = 'num', title?: string) => (
+    <th className={`${cls} sortable`} title={title} aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
       <button onClick={() => setSort({ key, dir: sort.key === key ? ((-sort.dir) as 1 | -1) : key === 'name' ? 1 : -1 })}>{label}</button>
     </th>
   );
@@ -153,7 +155,7 @@ export function QuarterTable({ g, team }: { g: Game; team: string }) {
       <table className="tbl quarter-table" data-testid="quarter-table" data-team={team}>
         <thead>
           <tr>
-            <th colSpan={3} />
+            <th colSpan={4} />
             {periods.map((q) => (
               <th key={q} colSpan={3} className="qgroup">
                 {periodName(q)}
@@ -165,6 +167,7 @@ export function QuarterTable({ g, team }: { g: Game; team: string }) {
             {th('name', 'Player', '')}
             {th('starter', 'Starter')}
             {th('min', 'MIN')}
+            {th('usg', 'USG%', 'num', USG_TITLE)}
             {periods.flatMap((q) => [
               <th key={`m${q}`} className="num sortable qgroup-start" aria-sort={sort.key === `qmin:${q}` ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
                 <button onClick={() => setSort({ key: `qmin:${q}`, dir: sort.key === `qmin:${q}` ? ((-sort.dir) as 1 | -1) : -1 })}>MIN</button>
@@ -189,6 +192,9 @@ export function QuarterTable({ g, team }: { g: Game; team: string }) {
               </td>
               <td className="num">{r.p.starter ? '✓' : ''}</td>
               <td className="num strong">{formatMin(r.min)}</td>
+              <td className="num" data-testid="q-usg">
+                {formatUsg(r.usg)}
+              </td>
               {r.q.flatMap((q) => [
                 <td key={`m${q.period}`} className="num qgroup-start">
                   {q.min > 0 ? formatMin(q.min) : '—'}
