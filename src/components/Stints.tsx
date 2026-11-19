@@ -4,9 +4,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatClock, periodAt, periodEnd, periodStart, REG_PERIODS } from '../domain/time.ts';
 import type { Stint } from '../domain/types.ts';
-import { mergeContinuousPts, ptsText } from '../domain/stints.ts';
+import { barLabels, mergeContinuousPts, ptsText, stintSplitText } from '../domain/stints.ts';
 import { periodLabel } from './Axis.tsx';
-import { signed, formatMin } from '../app/labels.ts';
+import { signed } from '../app/labels.ts';
 
 export const clockAt = (t: number, entering: boolean) => {
   const p = periodAt(entering ? t + 0.05 : t);
@@ -16,7 +16,8 @@ export const clockAt = (t: number, entering: boolean) => {
 /** Stint in words; `pts` = points in it (null = the game file has no points per stint). */
 export function describeStint(s: Stint, pts: number | null = null): string {
   const fouls = s[3]?.length ? ` · foul${s[3].length > 1 ? 's' : ''} at ${s[3].map((t) => clockAt(t, false)).join(', ')}` : ' · no fouls';
-  return `In ${clockAt(s[0], true)} → out ${clockAt(s[1], false)} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${ptsText(pts)}${fouls}`;
+  // Across a quarter break (RK-5): the total and each quarter's part, "18:54 — Q2 6:54, Q3 12:00".
+  return `In ${clockAt(s[0], true)} → out ${clockAt(s[1], false)} · ${stintSplitText(s)} · +/- ${signed(s[2])}${ptsText(pts)}${fouls}`;
 }
 
 function useWidth<T extends HTMLElement>() {
@@ -73,15 +74,18 @@ export function StintBars({ stints: raw, total, periods, blowout = [], labels = 
       ))}
       <TrackGrid periods={periods} total={total} />
       {stints.map((s, i) => {
-        const px = ((s[1] - s[0]) / total) * width;
         const p = pts ? pts[i]! : null;
-        const withPts = barPoints && p !== null ? `${formatMin(s[1] - s[0])} · ${p}p` : null;
-        const text = withPts && px >= textPx(withPts) ? withPts : formatMin(s[1] - s[0]);
+        // RK-5: a stint across a quarter break stays one bar, cut by a notch at each break, each quarter's part in its
+        // own shade with its own minutes; the total only when no part has room.
+        const lab = barLabels(s, total > 0 ? width / total : 0, barPoints ? p : null, textPx, LABEL_PX);
+        const dur = s[1] - s[0] || 1;
+        const rel = (t: number) => `${((t - s[0]) / dur) * 100}%`;
+        const split = lab.parts.length > 1;
         return (
           <button
             key={i}
             type="button"
-            className={`bar${active && active[0] === s[0] && active[1] === s[1] ? ' active' : ''}${s[1] === s[0] ? ' zero' : ''}`}
+            className={`bar${active && active[0] === s[0] && active[1] === s[1] ? ' active' : ''}${s[1] === s[0] ? ' zero' : ''}${split ? ' split' : ''}`}
             style={{ left: pct(s[0]), width: `max(3px, ${pct(s[1] - s[0])})` }}
             onPointerEnter={() => onHover?.(s, p)}
             onFocus={() => onHover?.(s, p)}
@@ -91,9 +95,21 @@ export function StintBars({ stints: raw, total, periods, blowout = [], labels = 
             }}
             aria-label={describeStint(s, p)}
             data-testid="pl-stint"
+            data-parts={lab.parts.length}
             {...(p !== null ? { 'data-pts': p } : {})}
           >
-            {labels && px >= LABEL_PX && <span data-testid="pl-stint-label">{text}</span>}
+            {split &&
+              lab.parts.map((part, j) => (
+                <span key={j} className={`bar-part${j % 2 ? ' alt' : ''}`} style={{ left: rel(part.a), width: rel(s[0] + part.b - part.a) }} data-testid="pl-stint-part" data-period={part.period}>
+                  {labels && part.text && !lab.total && <span data-testid="pl-stint-label">{part.text}</span>}
+                </span>
+              ))}
+            {split && lab.parts.slice(1).map((part) => <i key={`n${part.a}`} className="bar-notch" style={{ left: rel(part.a) }} data-testid="pl-stint-notch" />)}
+            {labels && lab.total && (
+              <span className={split ? 'bar-total' : undefined} data-testid="pl-stint-label">
+                {lab.total}
+              </span>
+            )}
           </button>
         );
       })}

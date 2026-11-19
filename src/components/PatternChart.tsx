@@ -3,6 +3,7 @@
 // inside (same layout rules as the game chart). Bright green = on court in 75%+ of games, darker = 50–75%.
 // Hover/tap anywhere on a row: "on court in 7 of 10 games" at that moment.
 
+import { usePhone } from '../app/phone.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatMin } from '../app/labels.ts';
 import { CHART } from '../domain/config.ts';
@@ -27,16 +28,6 @@ function useWidth<T extends HTMLElement>() {
   return [ref, w] as const;
 }
 
-const usePhone = () => {
-  const [phone, setPhone] = useState(() => matchMedia('(max-width: 640px)').matches);
-  useEffect(() => {
-    const m = matchMedia('(max-width: 640px)');
-    const on = () => setPhone(m.matches);
-    m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
-  }, []);
-  return phone;
-};
 
 export const STRONG_SHARE = 0.75;
 // GP column ("10/10") is wider than the game chart's PF column.

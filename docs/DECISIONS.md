@@ -459,3 +459,13 @@ Scripts route through `HTTPS_PROXY` automatically when it is set (cloud session)
   hidden. Replaces RK-2's 420 px minimum and its "rest column always visible". Column widths are measured from the
   text in the browser, not fixed px: the font is the system's (Inter / Segoe UI / DejaVu), and fixed widths clipped
   "opener" and "W 114–110 ⚠" on the CI runner (Checks red on v0.2.0). 334 / 410 px are the values with Inter.
+- **2026-11-19 — RK-4 / RK-5 / RK-6 (v0.3.0).** Phone: one breakpoint (< 768 px, `src/app/phone.ts`); the old 640 px
+  rules now apply up to 767 px. Desktop (≥ 768 px) unchanged. The phone games list is folded by default and never
+  remembered (desktop keeps `rk.list`); the Playwright `phone` project runs only `e2e/phone*.spec.ts` (the desktop specs
+  assume a mouse and 1280 px). Hover texts: one global tap handler for `title` texts (not on links / buttons / labels,
+  which act on tap) plus the shared `useTapOutside` rule. RK-5: the game chart already draws one bar per quarter (stints
+  are stored per period), so there the per-quarter split goes into the readout ("in a row: …"); the notched, shaded bar
+  is the player page's merged bar. RK-6: roster = everyone in the team's box scores whose latest team of the season is
+  this one, plus inactive-only players; sorted by minutes per game; the player page widens to 1380 px so the 156 px
+  panel costs the chart little at 1280. RK-7 blocked: FGA / FTA / TOV are not in the committed files and cdn.nba.com
+  answers 403 to the cloud session, so the backfill can't run there.

@@ -99,11 +99,12 @@ export function DayView({ seasons, season, team, route, nav }: Props) {
                 No finished games.
               </p>
             ) : (
+              <div className="table-wrap">
               <table className="tbl" data-testid="dv-leaders">
                 <thead>
                   <tr>
                     <th className="num">#</th>
-                    <th>Player</th>
+                    <th className="name-col">Player</th>
                     <th>Team</th>
                     <th className="num">Q4 MIN</th>
                     <th>Game</th>
@@ -137,6 +138,7 @@ export function DayView({ seasons, season, team, route, nav }: Props) {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </section>
         </div>

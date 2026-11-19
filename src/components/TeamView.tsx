@@ -339,7 +339,7 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
               <th />
             </tr>
             <tr>
-              <th>Player</th>
+              <th className="name-col">Player</th>
               <th className="num">GP</th>
               <th className="num">MIN</th>
               {qs.map((q, i) => (
@@ -407,7 +407,7 @@ function ClosersTable({ games, sel, names }: { games: G[]; sel: Selection; names
           <table className="tbl" data-testid="closers-table">
             <thead>
               <tr>
-                <th>Player</th>
+                <th className="name-col">Player</th>
                 <th className="num" title="Close games he played">
                   Close GP
                 </th>

@@ -87,9 +87,11 @@ interface Props {
   onCollapse: () => void;
   /** Link to the matchup view for an upcoming game (Averages, this team vs that opponent, last 10). */
   matchupHref?: (opp: string) => string;
+  /** Phone (RK-4): full width in the page, no drag-to-resize, no scroll box of its own, badges wrap instead of "…". */
+  phone?: boolean;
 }
 
-export function GameList({ games, upcoming = [], selected, onSelect, seasons, season, onSeason, onCollapse, matchupHref }: Props) {
+export function GameList({ games, upcoming = [], selected, onSelect, seasons, season, onSeason, onCollapse, matchupHref, phone = false }: Props) {
   const [q, setQ] = useState('');
   const scroller = useRef<HTMLDivElement>(null);
   // Drag the right border to resize (narrower only); remembered; double-click or ↺ restores the default width.
@@ -99,7 +101,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
   const min = fit?.min ?? FALLBACK.min;
   const [chosen, setWidth] = useState(savedWidth);
   const width = clampWidth(chosen, min);
-  const narrow = width < (fit?.narrow ?? FALLBACK.narrow);
+  const narrow = !phone && width < (fit?.narrow ?? FALLBACK.narrow);
   // Measure each column's widest text (ranges ignore clipping and hidden cells), then size the columns from it.
   useLayoutEffect(() => {
     const t = table.current;
@@ -175,8 +177,8 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
     if (next) onSelect(next.id);
   };
   return (
-    <aside className={`gl${narrow ? ' gl-narrow' : ''}`} data-testid="game-list" style={{ width }} data-min={min} data-narrow-below={fit?.narrow ?? FALLBACK.narrow}>
-      <div
+    <aside className={`gl${narrow ? ' gl-narrow' : ''}${phone ? ' gl-phone' : ''}`} data-testid="game-list" style={phone ? undefined : { width }} data-min={min} data-narrow-below={fit?.narrow ?? FALLBACK.narrow}>
+      {!phone && <div
         className="gl-resize"
         role="separator"
         aria-orientation="vertical"
@@ -188,7 +190,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
         onPointerDown={startDrag}
         onDoubleClick={() => setSaved(LIST_MAX_WIDTH)}
         data-testid="list-resize"
-      />
+      />}
       <div className="gl-top">
         <div className="gl-bar">
           <label className="field">
@@ -209,7 +211,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          {width < LIST_MAX_WIDTH && (
+          {!phone && width < LIST_MAX_WIDTH && (
             <button className="gl-collapse" onClick={() => setSaved(LIST_MAX_WIDTH)} title="Default width" aria-label="Restore the default width" data-testid="list-reset">
               ↔
             </button>

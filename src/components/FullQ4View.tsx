@@ -82,7 +82,7 @@ export function FullQ4View({ seasons, season, team, route, nav }: Props) {
                 <thead>
                   <tr>
                     <th className="num">#</th>
-                    <th>Player</th>
+                    <th className="name-col">Player</th>
                     <th>Team</th>
                     <th className="num" title="Full 4th quarters">
                       Full Q4

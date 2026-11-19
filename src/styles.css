@@ -118,7 +118,7 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .missed ul { margin: 6px 0; padding-left: 18px; }
 
 /* Phone: compact columns; in the game chart, stats move to the name line and bars get the full width. */
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   body { font-size: 14px; }
   .page { padding: 8px 16px 32px; }
   .team-grid { grid-template-columns: 84px minmax(0, 1fr) 34px 44px; column-gap: 6px; }
@@ -251,7 +251,7 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .lineups { margin-top: 8px; }
 .lineups summary { cursor: pointer; color: var(--accent); }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .gc-left { width: 160px; gap: 5px; padding-right: 6px; }
   .gc-pf { width: 32px; font-size: 13px; }
   /* Phone: short names may wrap to two lines (at hyphens, or hyphenated) instead of being cut off. */
@@ -309,7 +309,7 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .tp-strip svg .cursor { fill: none; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .tp-legend .ramp { width: 90px; background: linear-gradient(90deg, #101010, #22c55e); }
 .tp-legend i.excluded-swatch { background: repeating-linear-gradient(90deg, #3a3a3a 0 2px, #101010 2px 4px); }
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .tp-row { grid-template-columns: 108px 40px minmax(0, 1fr) 34px; column-gap: 6px; }
   .tp-name { font-size: 13px; white-space: normal; line-height: 1.15; overflow-wrap: anywhere; text-overflow: clip; }
   .tp-name.long { font-size: 10.5px; }
@@ -334,14 +334,14 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .view-seg { margin: 6px 0 2px; }
 .gc-gp { width: 52px; }
 .gc-none { position: absolute; left: 8px; display: flex; align-items: center; font-size: 12px; color: var(--muted); pointer-events: none; white-space: nowrap; }
-@media (max-width: 640px) { .gc-gp { width: 46px; } }
+@media (max-width: 767px) { .gc-gp { width: 46px; } }
 .gc-rare-toggle { position: sticky; left: 0; display: block; margin: 10px 0 4px; padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--text, #e6e6e6); font-size: 13px; cursor: pointer; text-align: left; }
 .gc-row.rare .gc-bar { opacity: 0.4; }
 .gc-row.rare .gc-label { opacity: 0.7; }
 .gc-row.rare .gc-gp { color: #f5c542; font-weight: 700; font-size: 15px; }
 .gc-row.rare .gc-gp .muted { color: #f5c542; opacity: 0.8; }
 .tp-legend-row { height: auto; min-height: 30px; padding: 4px 0; }
-@media (max-width: 640px) { .gc-rare-toggle { max-width: calc(100vw - 32px); white-space: normal; } }
+@media (max-width: 767px) { .gc-rare-toggle { max-width: calc(100vw - 32px); white-space: normal; } }
 .tp-row.rare .tp-strip { opacity: 0.45; }
 .tp-row.rare .tp-gp { color: #f5c542; font-weight: 700; font-size: 15px; }
 .tp-row.rare .tp-gp .muted { color: #f5c542; opacity: 0.8; }
@@ -370,7 +370,7 @@ svg .cursor { fill: none; stroke: #fff; stroke-width: 2; vector-effect: non-scal
 .head-tags { display: flex; gap: 22px; align-items: center; font-size: 13px; }
 .head-team-tags { display: inline-flex; gap: 8px; align-items: center; }
 /* Not designed for phones (desktop only); just keep the page from scrolling sideways. */
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .gv-layout { display: block !important; }
   .gl { position: static !important; width: auto !important; height: auto !important; }
   .gl-scroll { max-height: 50vh !important; }
@@ -749,3 +749,100 @@ a.plain-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 1
 .pl-title { flex: none; max-width: 48%; }
 .pl-title .headshot { width: 30px; height: 30px; }
 .missed .dnp-inline { margin-left: 6px; }
+
+/* Tap pop-up for hover text on touch screens (RK-4, TapTips.tsx): same look as the 3-in-4 pop-up. */
+.tap-tip { position: fixed; z-index: 80; left: 0; top: 0; max-width: min(320px, calc(100vw - 16px)); background: #05070a; color: var(--text); border: 1px solid #2a2f3a; border-radius: 5px; padding: 4px 9px; font-size: 12.5px; line-height: 1.45; white-space: pre-line; pointer-events: auto; }
+
+/* Phone (RK-4): below 768 px. Desktop (>= 768 px) is untouched by everything in this block.
+   No page-level sideways scroll: wide content scrolls inside its own box; tap targets at least ~36 px. */
+@media (max-width: 767px) {
+  .topbar { gap: 8px 10px; }
+  .topbar .psearch { flex: 1 1 160px; min-width: 0; }
+  .psearch-input, .psearch-input:focus { width: 100%; min-height: 36px; }
+  .psearch-list { width: min(340px, calc(100vw - 32px)); }
+  /* Tabs: two rows of three instead of one clipped strip */
+  .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .tabs button { min-height: 40px; padding: 6px 4px; white-space: nowrap; }
+  .tabs button + button { border-left: 0; }
+  .tabs button:not(:nth-child(3n + 1)) { border-left: 1px solid var(--line); }
+  .tabs button:nth-child(n + 4) { border-top: 1px solid var(--line); }
+  .ck-picker, .ck-picker-button { max-width: 100%; }
+  .seg button { min-height: 36px; }
+  .toggle { min-height: 32px; }
+  .toggle input { width: 20px; height: 20px; }
+  .link, .plain-link { min-height: 24px; }
+  select { min-height: 36px; }
+  .back { min-height: 36px; }
+
+  /* Games: the game first (list folded behind "☰ Games", GameView); unfolded, the list lies in the page. */
+  .gl.gl-phone { position: static; width: auto; height: auto; min-height: 0; margin-bottom: 10px; }
+  .gl-phone .gl-scroll { max-height: none !important; overflow: visible; flex: none; }
+  .gl-phone .gl-table { table-layout: auto; font-size: 13px; }
+  .gl-phone .gl-table col { width: auto !important; }
+  .gl-phone .gl-table tr > :nth-child(2) { display: none; } /* TM: always the selected team */
+  .gl-phone .gl-table td { overflow: visible; height: 40px; }
+  .gl-phone .gl-tags { white-space: normal; }
+  .gl-phone .gl-tags-in, .gl-phone .gl-tags-in > .sched-chips, .gl-phone .gl-tags-in > .bc-tags { flex-wrap: wrap; overflow: visible; }
+  .gl-phone .gl-tags-in .chip-tag, .gl-phone .gl-tags-in .chip-tif, .gl-phone .gl-tags-in .badge { flex: none; overflow: visible; }
+  .gl-phone .gl-collapse { height: 36px; min-width: 36px; }
+  .gl-expand { height: 38px; }
+  .game-nav { margin: 8px 0 4px; }
+  .day-nav { margin-left: 0; flex-wrap: wrap; }
+  .head-tags { flex-wrap: wrap; gap: 6px 16px; }
+  .gc-controls { gap: 6px 12px; }
+  .gc-pfq { min-width: 12px; }
+  .gc-foul-n { min-width: 14px; }
+
+  /* By day: one card per row, the leaders panel under the cards */
+  .dv-layout { grid-template-columns: minmax(0, 1fr); }
+  .dv-cards { grid-template-columns: minmax(0, 1fr); }
+
+  /* Leaders: scatter scales to the screen, table under it */
+  .ld-layout { grid-template-columns: minmax(0, 1fr); }
+  .ld-scatter { position: static; }
+  .ld-scatter svg { width: 100%; height: auto; display: block; }
+
+  /* Tables scroll inside their own box with the player name frozen on the left */
+  .table-wrap { max-width: 100%; }
+  .table-wrap th.name-col, .table-wrap td.ld-player, .table-wrap td.name-cell,
+  .quarter-table tbody td:first-child, .quarter-table thead tr:last-child th:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--bg);
+  }
+  .tbl tr.avg td.name-cell { background: #161b26; }
+
+  /* Player page: title, readout and menu stack */
+  .pl-readout-bar { flex-wrap: wrap; }
+  .pl-title { max-width: 100%; }
+  .pl-readout-bar .readout { flex: 1 1 100%; order: 2; }
+  .dnp-inline { white-space: normal; flex-wrap: wrap; row-gap: 2px; max-width: 100%; }
+  .dnp-detail { min-width: 0; overflow-wrap: anywhere; }
+}
+
+/* RK-5: a stint across a quarter break: one bar, a dark notch at each break, alternating shades per quarter */
+.bar.split { justify-content: flex-start; }
+.bar-part { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.bar-part.alt { background: rgba(0, 0, 0, 0.16); }
+.bar-notch { position: absolute; top: -1px; bottom: -1px; width: 3px; margin-left: -1.5px; background: var(--bg); pointer-events: none; }
+.bar-total { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+/* RK-6: team roster beside the player page (desktop: a narrow column on the left; phone: a "Roster" toggle on top) */
+.page.player-page { max-width: 1380px; }
+.pl-layout { display: grid; grid-template-columns: 156px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pl-main { min-width: 0; }
+.pl-roster { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 6px 6px; font-size: 13px; }
+.pl-roster-team { display: flex; align-items: center; gap: 6px; font-size: 14px; margin: 0 0 4px; padding: 0 4px; line-height: 1.2; }
+.pl-roster-team .logo { width: 22px; height: 22px; flex: none; }
+.pl-roster-others { font-size: 11px; margin: 0 4px 4px; }
+.pl-roster-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.pl-roster-list li { display: flex; align-items: baseline; gap: 4px; padding: 2px 4px; border-radius: 4px; }
+.pl-roster-list li a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.pl-roster-list li[aria-current='true'] { background: #24324a; box-shadow: inset 3px 0 0 var(--accent); font-weight: 600; }
+.pl-roster-min { font-size: 11px; font-variant-numeric: tabular-nums; }
+.pl-roster-note { font-size: 10.5px; margin: 6px 4px 0; }
+.pl-roster-toggle { width: 100%; text-align: left; background: none; border: 0; color: var(--text); font-size: 14px; font-weight: 600; min-height: 36px; padding: 0 6px; cursor: pointer; }
+@media (max-width: 767px) {
+  .pl-layout { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pl-roster { position: static; max-height: none; overflow: visible; padding: 2px 6px; }
+  .pl-roster-list { columns: 2; column-gap: 12px; }
+  .pl-roster-list li { break-inside: avoid; min-height: 32px; align-items: center; }
+}

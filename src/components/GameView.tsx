@@ -25,6 +25,7 @@ import { CursorPanel, LineupList, QuarterTable, segmentsByTeam, useGameNames } f
 import { Header } from './Header.tsx';
 import { TeamLogo } from './Headshot.tsx';
 import { remember } from '../app/hooks.ts';
+import { usePhone } from '../app/phone.ts';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { dayNeighbours, finishedOfDay } from '../domain/slate.ts';
 
@@ -143,7 +144,10 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   const older = picker && pos > 0 ? picker.games[pos - 1] : undefined;
   const newer = picker && pos >= 0 ? picker.games[pos + 1] : undefined;
   // Leaving the day's games (team list, ◀ ▶, team or season change) drops the By day context.
-  const open = (id: string) => nav({ ...route, game: id, team, season: gameSeason, day: null });
+  const open = (id: string) => {
+    setPhoneList(false);
+    nav({ ...route, game: id, team, season: gameSeason, day: null });
+  };
   const pickTeam = (t: string) => nav({ ...route, game: 'latest', team: t, season: gameSeason, day: null });
   const pickSeason = (x: string) => nav({ ...route, game: 'latest', team, season: x, day: null });
   // Arrived from By day: walk that day's finished games (tip-time order), keeping the side (home / away) clicked.
@@ -157,6 +161,12 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   const dayRoute = (date: string | null): Route => ({ view: 'day', team, season: gameSeason, filters: route.filters, day: { date, noBlowouts: false } });
   const [collapsed, setCollapsed] = useState(() => remember('rk.list') === 'collapsed');
   useEffect(() => void remember('rk.list', collapsed ? 'collapsed' : 'open'), [collapsed]);
+  // Phone (RK-4): the game comes first; the list stays folded behind "☰ Games" until tapped, and folds again once a
+  // game is picked. It then lies in the page (no scroll box of its own). Desktop keeps its remembered state.
+  const phone = usePhone();
+  const [phoneList, setPhoneList] = useState(false);
+  const listShown = phone ? phoneList : !collapsed;
+  const setListShown = (on: boolean) => (phone ? setPhoneList(on) : setCollapsed(!on));
   const seasonSelect = (
     <label className="field">
       <span>Season</span>
@@ -176,8 +186,8 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
         <Tabs active={tab} go={(x) => nav(tabRoute(x, { team: team ?? null, season: gameSeason, filters: route.filters, game: current ?? route.game, day: route.day }))} />
         <TeamPicker team={team} onChange={pickTeam} />
       </Header>
-      <div className={`gv-layout${collapsed ? ' collapsed' : ''}`}>
-        {!collapsed && picker && (
+      <div className={`gv-layout${listShown ? '' : ' collapsed'}`}>
+        {listShown && picker && (
           <GameList
             games={picker.games}
             upcoming={picker.upcoming}
@@ -186,16 +196,17 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
             seasons={seasons}
             season={gameSeason}
             onSeason={pickSeason}
-            onCollapse={() => setCollapsed(true)}
+            onCollapse={() => setListShown(false)}
+            phone={phone}
             matchupHref={(opp) => format({ view: 'team', team, season: gameSeason, filters: { ...route.filters, window: 10 }, vs: opp })}
           />
         )}
         <div className="gv-main">
           <div className="game-nav">
-            {collapsed && (
+            {!listShown && (
               <>
-                <button className="gl-expand" onClick={() => setCollapsed(false)} title="Show the game list" data-testid="list-expand">
-                  ☰ Games
+                <button className="gl-expand" onClick={() => setListShown(true)} title={phone ? undefined : 'Show the game list'} data-testid="list-expand">
+                  ☰ Games{phone && picker ? ` (${picker.games.length})` : ''}
                 </button>
                 {seasonSelect}
               </>
@@ -257,7 +268,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
 function GameHeader({ g, team, entry, ours, theirs }: { g: Game; team: string; entry: GameIndexEntry | undefined; ours: ScheduleTags | undefined; theirs: ScheduleTags | undefined }) {
   const opp = g.home.tri === team ? g.away.tri : g.home.tri;
   return (
-    <div className="game-head">
+    <div className="game-head" data-testid="game-head">
       <h1 className="title game-title">
         <TeamLogo teamId={g.away.id} tri={g.away.tri} />
         <TeamLink team={g.away.tri} season={seasonOf(g.id)} title={teamName(g.away.tri)}>
@@ -313,6 +324,7 @@ function GameBody({
   first: string | null;
 }) {
   const segments = useMemo(() => segmentsByTeam(g), [g]);
+  const phone = usePhone();
   // Compact (both teams): remembered per browser (remember() swallows storage errors).
   const [compact, setCompact] = useState(() => remember('rk.compact') === '1');
   useEffect(() => void remember('rk.compact', compact ? '1' : '0'), [compact]);
@@ -359,7 +371,7 @@ function GameBody({
             saveReadout(r);
           }}
         />
-        <span className="muted">Hover a row for both lineups at that moment; click to pin the lineup cursor.</span>
+        <span className="muted">{phone ? 'Tap a row for both lineups at that moment; drag the clock handle to move it.' : 'Hover a row for both lineups at that moment; click to pin the lineup cursor.'}</span>
       </div>
       {cursor?.pinned && (
         <div className="gc-sticky-panel">

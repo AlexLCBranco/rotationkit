@@ -4,6 +4,14 @@ Shipped work only, newest first. Planned work is in `FEATURE_BACKLOG.md`, never 
 Entries dated before 2026-11-16 were backfilled from the git commit messages (data, docs, test-only, merge and
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
+## 2026-11-19
+- RK-4 — Phone-usable site (v0.3.0)
+  On a phone the game comes first (games list behind "☰ Games"), nothing scrolls sideways, and taps replace hover on the chart and on every tooltip.
+- RK-5 — Per-quarter minutes inside stints that cross a quarter break (v0.3.0)
+  On the player page a stint across a quarter break shows each quarter's minutes ("6:54 │ 12:00") with a notch at the break, and the readout gives the split.
+- RK-6 — Team roster on the player page (v0.3.0)
+  A roster panel on the left of the player page links to every teammate (filters kept) and to the team.
+
 ## 2026-11-16
 - Games list columns fit any system font (v0.2.2)
   Score and rest days no longer get cut off on machines whose font is wider (Windows, Linux).

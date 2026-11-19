@@ -27,6 +27,7 @@ import { Headshot } from './Headshot.tsx';
 import { ReadoutMenu } from './ReadoutMenu.tsx';
 import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { playerFullQ4 } from '../domain/fullQ4.ts';
+import { RosterPanel } from './RosterPanel.tsx';
 
 interface Props {
   seasons: string[];
@@ -105,8 +106,11 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
         </h1>
   );
   return (
-    <div className="page">
+    <div className="page player-page">
       <Header back={{ label: teamName(team), onClick: () => nav({ view: 'team', team, season, filters: route.filters }) }} />
+      <div className="pl-layout">
+      <RosterPanel season={season} team={team} player={player} />
+      <div className="pl-main">
       <Filters
         seasons={seasons}
         season={season}
@@ -221,6 +225,8 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
           )}
         </>
       )}
+      </div>
+      </div>
     </div>
   );
 }

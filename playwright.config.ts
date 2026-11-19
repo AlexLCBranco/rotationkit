@@ -16,7 +16,9 @@ export default defineConfig({
   use: { baseURL: 'http://localhost:4173', trace: 'off' },
   webServer: { command: 'npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 60_000 },
   projects: [
-    // Desktop only (phone tests removed 2026-11-14).
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 }, launchOptions } },
+    // Desktop (1280 × 900): every spec except the phone ones.
+    { name: 'desktop', testIgnore: /phone.*\.spec\.ts$/, use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 }, launchOptions } },
+    // Phone (RK-4): Pixel 7 with touch at 390 × 844, the phone specs (e2e/phone*.spec.ts).
+    { name: 'phone', testMatch: /phone.*\.spec\.ts$/, use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, launchOptions } },
   ],
 });

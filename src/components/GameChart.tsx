@@ -5,6 +5,7 @@
 // Name + MIN are frozen on the left and PF on the right; the timeline scrolls sideways inside its own box when
 // the screen is narrower than the minimum scale.
 
+import { usePhone, useTapOutside } from '../app/phone.ts';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatMin, signed } from '../app/labels.ts';
 import { dnpLabel } from '../app/dnp.ts';
@@ -23,7 +24,7 @@ import { PlayerLink, TeamLink } from './Links.tsx';
 import { MarginLabel, MarginSvg } from './MarginStrip.tsx';
 import { usualAt, usualLine, usualStintAt, type Usual } from '../domain/usual.ts';
 import { seasonOf } from '../domain/season.ts';
-import { ptsText } from '../domain/stints.ts';
+import { mergeContinuous, ptsText, stintSplitText } from '../domain/stints.ts';
 
 export interface Cursor {
   t: number;
@@ -32,18 +33,6 @@ export interface Cursor {
 
 /** Frozen column widths (must match styles.css .gc-left / .gc-pf). */
 export const COLS = { desktop: { left: 230, pf: 40 }, phone: { left: 160, pf: 32 } } as const;
-
-function usePhone() {
-  const q = '(max-width: 640px)';
-  const [phone, setPhone] = useState(() => matchMedia(q).matches);
-  useEffect(() => {
-    const m = matchMedia(q);
-    const on = () => setPhone(m.matches);
-    m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
-  }, []);
-  return phone;
-}
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -60,10 +49,13 @@ function useWidth<T extends HTMLElement>() {
 export const totalPlayed = (p: PlayerGame) => p.stints.reduce((x, [s, e]) => x + e - s, 0);
 
 /** "Maxey: in Q1 12:00 → out Q1 6:12 · 5:48 · +/- +4 · 8 pts", or "Maxey (off court)". Points only with data. */
-export const stintLine = (name: string, s: Stint | null, pts: number | null = null) => {
+export const stintLine = (name: string, s: Stint | null, pts: number | null = null, all: Stint[] = []) => {
   if (!s) return `${name} (off court)`;
   const fouls = s[3]?.length ? ` · ${s[3].length} foul${s[3].length > 1 ? 's' : ''}` : '';
-  return `${name}: in ${clockLabel(s[0], true)} → out ${clockLabel(s[1])} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${ptsText(pts)}${fouls}`;
+  // RK-5: on court straight through a quarter break: the whole run, with each quarter's part.
+  const run = mergeContinuous(all).find((x) => x[0] <= s[0] && x[1] >= s[1]);
+  const across = run && (run[0] < s[0] || run[1] > s[1]) ? ` · in a row: ${stintSplitText(run)}` : '';
+  return `${name}: in ${clockLabel(s[0], true)} → out ${clockLabel(s[1])} · ${formatMin(s[1] - s[0])} · +/- ${signed(s[2])}${ptsText(pts)}${fouls}${across}`;
 };
 
 function ReadoutCard({ r, names, settings, season, usual }: { r: HoverReadout; names: Map<number, string>; settings: ReadoutSettings; season: string; usual: string | null }) {
@@ -104,7 +96,7 @@ function ReadoutCard({ r, names, settings, season, usual }: { r: HoverReadout; n
       {settings.lineups === 'both' && lineup(theirs, true)}
       {settings.stint && (
         <div className="rd-stint" data-testid="readout-stint">
-          {stintLine(name(r.player), r.stint, r.stintPts)}
+          {stintLine(name(r.player), r.stint, r.stintPts, r.player.stints)}
         </div>
       )}
       {usual && (
@@ -154,6 +146,7 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
   // Text of the hovered item (stint / foul tick / DNP); a ref so the move handler sees it in the same event.
   const item = useRef<string | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   // A new game: drop the readout (it may point at a player of the previous game).
   useEffect(() => {
     setTip(null);
@@ -192,8 +185,12 @@ export function GameChart({ g, trouble, cursor, setCursor, names, segments, read
     if (id !== null && t !== null) return { ...anchor(e), content: { kind: 'player', id, t } };
     return t !== null ? { ...anchor(e), content: { kind: 'text', text: cursorText(t) } } : null;
   };
+  // Touch: a tapped readout stays until the next tap outside the chart (shared rule, useTapOutside).
+  useTapOutside(!!tip, () => [tipRef.current, contentRef.current], () => {
+    setTip(null);
+    item.current = null;
+  });
   // Place the card: beside the pointer, above the hovered row (below if no room), always inside the window.
-  const tipRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = tipRef.current;
     if (!el || !tip) return;
@@ -603,6 +600,10 @@ function PlayerRow({
             style={{ left: b.box.x, width: b.box.w, height: geo.laneTopPx - 3 }}
             data-testid="pf-badge"
             title={`${b.n} foul${b.n > 1 ? 's' : ''} in ${periodName(b.period)}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              show(`${b.n} foul${b.n > 1 ? 's' : ''} in ${periodName(b.period)}`)(e);
+            }}
           >
             {b.n}
           </span>

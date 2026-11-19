@@ -266,7 +266,7 @@ function Table({
         <thead>
           <tr>
             <th className="num">#</th>
-            <th>Player</th>
+            <th className="name-col">Player</th>
             <th>Team</th>
             <th className="num" title="Games he played in the window / team games in the window">
               GP

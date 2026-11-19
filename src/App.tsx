@@ -13,12 +13,14 @@ import { LeadersView } from './components/LeadersView.tsx';
 import { FullQ4View } from './components/FullQ4View.tsx';
 import { DayView } from './components/DayView.tsx';
 import { LinkCtx } from './components/Links.tsx';
+import { TapTips } from './components/TapTips.tsx';
 
 export function App() {
   return (
     <>
       <StaleBanner />
       <Screen />
+      <TapTips />
     </>
   );
 }
