@@ -46,7 +46,7 @@ test('filters update the URL and the table; team filter; clicking a player opens
   await expect(page).toHaveURL(/sort=pts/);
   await page.getByRole('checkbox', { name: 'Include overtime' }).check();
   await expect(page).toHaveURL(/ot=1/);
-  await page.getByLabel('Only this team').selectOption('ORL');
+  await page.getByTestId('leaders-team').locator('[data-value=ORL]').click();
   await expect(page).toHaveURL(/lt=ORL/);
   const exp = want('2025-26', { part: 'h2', ot: true, window: 10, sort: 'pts', team: 'ORL' });
   await expect(page.getByTestId('leaders-row')).toHaveCount(exp.length);
@@ -56,7 +56,7 @@ test('filters update the URL and the table; team filter; clicking a player opens
   await expect(page).toHaveURL(/#\/leaders\?(?!.*sort=pts)/);
   // Reload keeps everything.
   await page.reload();
-  await expect(page.getByLabel('Only this team')).toHaveValue('ORL');
+  await expect(page.getByTestId('leaders-team')).toHaveAttribute('data-team', 'ORL');
   await expect(page.getByRole('button', { name: 'Second half' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('leaders-row').first()).toBeVisible();
   const first = (await rows(page))[0]!;

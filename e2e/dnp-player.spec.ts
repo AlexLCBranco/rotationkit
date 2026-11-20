@@ -67,5 +67,5 @@ test('player page: name, headshot and team on the readout line, right above his 
   expect(gap).toBeGreaterThanOrEqual(0);
   expect(gap).toBeLessThan(24);
   // The page header no longer carries the name.
-  await expect(page.locator('header.topbar h1')).toHaveCount(0);
+  await expect(page.locator('header.rk-header h1')).toHaveCount(0);
 });

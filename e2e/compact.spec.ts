@@ -89,7 +89,7 @@ test('the selected team shows first, home or away; HOME / AWAY tags; the team st
   await page.reload();
   await expect(page.getByTestId('game-team').first()).toContainText('Atlanta Hawks');
   // Q4 tab: same order.
-  await page.getByTestId('tab-q4').click();
+  await page.getByTestId('how-q4').click();
   await expect(page.getByTestId('q4-team').first()).toHaveAttribute('data-team', 'ATL');
   await expect(page.getByTestId('q4-team').first().getByTestId('home-away-tag')).toHaveText('AWAY');
 });

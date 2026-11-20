@@ -53,7 +53,7 @@ test('loads on the current season with no console errors', async ({ page }, info
   await expect(page.getByTestId('game-list')).toBeVisible();
   await page.getByTestId('tab-averages').click();
   await expect(page.getByTestId('player-row').first()).toBeVisible();
-  await expect(page.getByLabel('Season')).toHaveValue('2026-27');
+  await expect(page.getByTestId('season-chips').locator('[aria-checked=true]')).toHaveText('2026-27');
   await expect(label(page)).toContainText('based on');
   await noHorizontalScroll(page);
   await shot(page, 'team-current-season', info.project.name);
@@ -91,8 +91,8 @@ test('filters change the "based on N games" count and the plain-words label', as
   await page.getByRole('button', { name: 'Home' }).click();
   await expect(label(page)).toHaveText('Last 10 home games · based on 10 games');
   await page.getByRole('button', { name: 'All', exact: true }).click();
-  await page.getByLabel('With or without').selectOption('without');
-  await page.getByLabel('Player', { exact: true }).selectOption({ label: 'F. Wagner' });
+  await page.getByTestId('ww-mode').getByRole('tab', { name: 'Without…' }).click();
+  await page.getByTestId('ww-player').getByRole('radio', { name: 'F. Wagner', exact: true }).click();
   // Two Wagners on ORL → first initial.
   await expect(label(page)).toHaveText('Last 10 games without F. Wagner · based on 10 games');
   await expect(page.getByTestId('ww-groups')).toContainText('With F. Wagner: 34 games · Without: 48 games');
@@ -123,7 +123,7 @@ test('few games in the current season: note + one-click switch to 2025-26 keeps 
   await expect(page.getByTestId('low-sample')).toBeVisible();
   await shot(page, 'low-sample', info.project.name);
   await page.getByRole('button', { name: 'Show the same view for 2025-26' }).click();
-  await expect(page.getByLabel('Season')).toHaveValue('2025-26');
+  await expect(page.getByTestId('season-chips').locator('[aria-checked=true]')).toHaveText('2025-26');
   await expect(page.getByTestId('team-picker')).toHaveAttribute('data-team', 'ORL');
   await expect(label(page)).toContainText('with F. Wagner');
   const q = new URLSearchParams(new URL(page.url()).hash.split('?')[1]);

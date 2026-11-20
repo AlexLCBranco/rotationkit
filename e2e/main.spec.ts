@@ -69,7 +69,7 @@ test('opening the app shows the main screen: team + game list + the latest game 
   const errors = trackErrors(page);
   await page.goto('/');
   await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByLabel('Season')).toHaveValue('2026-27');
+  await expect(page.getByTestId('season-chips').locator('[aria-checked=true]')).toHaveText('2026-27');
   await expect(page.getByTestId('game-list')).toBeVisible();
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
   // Default team ATL (first), its most recent 2026-27 game; the URL names team and game.
@@ -216,7 +216,7 @@ test('collapse / expand the list; the state is remembered', async ({ page }) => 
   await page.reload();
   await expect(page.getByTestId('list-expand')).toBeVisible();
   await expect(page.getByTestId('game-list')).toHaveCount(0);
-  await page.getByLabel('Season').selectOption('2026-27'); // season stays reachable while collapsed
+  await page.getByTestId('season-chips').getByRole('radio', { name: '2026-27' }).click(); // season stays reachable while collapsed
   await expect(page).toHaveURL(/s=2026-27/);
   await page.getByTestId('list-expand').click();
   await expect(page.getByTestId('game-list')).toBeVisible();
@@ -260,12 +260,11 @@ test('minute labels keep their size with the sidebar open; the chart scrolls ins
 
 test('team picker and season picker → that team\'s latest game; the opponent\'s view lists its own games', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
-  await page.getByTestId('team-picker').click();
-  await page.locator('[data-testid=team-picker-list] [data-tri=BOS]').click();
+  await page.getByTestId('team-picker').locator('[data-value=BOS]').click();
   const bos = index('2025-26').filter((e) => e.home === 'BOS' || e.away === 'BOS');
   await expect(page).toHaveURL(new RegExp(`#/game/${bos.at(-1)!.id}\\?.*t=BOS`));
   await expect(rows(page)).toHaveCount(bos.length);
-  await page.getByLabel('Season').selectOption('2026-27');
+  await page.getByTestId('season-chips').getByRole('radio', { name: '2026-27' }).click();
   const bos27 = index('2026-27').filter((e) => e.home === 'BOS' || e.away === 'BOS');
   await expect(page).toHaveURL(new RegExp(`#/game/${bos27.at(-1)!.id}\\?.*t=BOS`));
 });

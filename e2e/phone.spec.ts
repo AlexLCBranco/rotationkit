@@ -35,7 +35,7 @@ function trackErrors(page: Page) {
 const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 /** Wait until the screen has its data (no "Loading…" left). */
 async function settle(page: Page) {
-  await expect(page.locator('header.topbar')).toBeVisible();
+  await expect(page.locator('header.rk-header')).toBeVisible();
   await expect(page.getByText('Loading…')).toHaveCount(0, { timeout: 20_000 });
   await page.waitForTimeout(300);
 }

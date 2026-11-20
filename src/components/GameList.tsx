@@ -81,9 +81,7 @@ interface Props {
   upcoming?: UpcomingGame[];
   selected: string | null;
   onSelect: (id: string) => void;
-  seasons: string[];
   season: string;
-  onSeason: (s: string) => void;
   onCollapse: () => void;
   /** Link to the matchup view for an upcoming game (Averages, this team vs that opponent, last 10). */
   matchupHref?: (opp: string) => string;
@@ -91,7 +89,7 @@ interface Props {
   phone?: boolean;
 }
 
-export function GameList({ games, upcoming = [], selected, onSelect, seasons, season, onSeason, onCollapse, matchupHref, phone = false }: Props) {
+export function GameList({ games, upcoming = [], selected, onSelect, season, onCollapse, matchupHref, phone = false }: Props) {
   const [q, setQ] = useState('');
   const scroller = useRef<HTMLDivElement>(null);
   // Drag the right border to resize (narrower only); remembered; double-click or ↺ restores the default width.
@@ -193,16 +191,6 @@ export function GameList({ games, upcoming = [], selected, onSelect, seasons, se
       />}
       <div className="gl-top">
         <div className="gl-bar">
-          <label className="field">
-            <span>Season</span>
-            <select value={season} aria-label="Season" onChange={(e) => onSeason(e.target.value)}>
-              {[...seasons].reverse().map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
           <input
             className="gl-search"
             type="search"

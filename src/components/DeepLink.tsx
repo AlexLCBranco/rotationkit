@@ -9,7 +9,6 @@ import { teamName } from '../app/teams.ts';
 import { DEFAULT_FILTERS } from '../domain/patterns.ts';
 import { seasonOf } from '../domain/season.ts';
 import type { ScheduleEntry } from '../domain/types.ts';
-import { Header } from './Header.tsx';
 
 type Resolution = { found: true; season: string } | { found: false; entry?: ScheduleEntry };
 
@@ -38,7 +37,6 @@ export function DeepLink({ id, seasons, nav }: { id: string; seasons: string[]; 
   const team = (tri: string) => (tri ? teamName(tri) : 'TBD');
   return (
     <div className="page">
-      <Header />
       <div className="unavailable" data-testid="deeplink-unavailable">
         <h1>Rotation data not available for this game yet</h1>
         {entry ? (

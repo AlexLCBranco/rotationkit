@@ -167,11 +167,12 @@ test('garbage time is shaded in Q4 like in Games', async ({ page }) => {
 test('the tab is in the URL; Games ↔ Q4 keep the same game; the list and arrows keep the tab', async ({ page }) => {
   const orl = index('2025-26').filter((e) => e.home === 'ORL' || e.away === 'ORL');
   const g = await openQ4(page, orl[10]!.id, 'ORL');
-  await expect(page.getByTestId('tab-q4')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('how-q4')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
   await page.getByTestId('tab-games').click();
   await expect(page).toHaveURL(new RegExp(`#/game/${g.id}\\?`));
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
-  await page.getByTestId('tab-q4').click();
+  await page.getByTestId('how-q4').click();
   await expect(page).toHaveURL(new RegExp(`#/q4/${g.id}\\?.*t=ORL`));
   await page.getByTestId('next-game').click();
   await expect(page).toHaveURL(new RegExp(`#/q4/${orl[11]!.id}\\?`));
@@ -182,7 +183,8 @@ test('the tab is in the URL; Games ↔ Q4 keep the same game; the list and arrow
   await page.goto('/#/q4?t=ORL&s=2025-26');
   await expect(page).toHaveURL(new RegExp(`#/q4/${orl.at(-1)!.id}\\?`));
   await page.getByTestId('tab-averages').click();
-  await page.getByTestId('tab-q4').click();
+  await page.getByTestId('tab-games').click();
+  await page.getByTestId('how-q4').click();
   await expect(page).toHaveURL(new RegExp(`#/q4/${orl.at(-1)!.id}\\?`));
 });
 

@@ -188,7 +188,9 @@ test('the readout stays on screen at 1280px and never covers the hovered row', a
         if (where !== 'as-is')
           await r.evaluate((el, w) => {
             const b = el.getBoundingClientRect();
-            scrollBy(0, w === 'top' ? b.top - 2 : b.bottom - innerHeight + 2);
+            // the top of the window is under the pinned header (RK-8)
+            const head = document.querySelector('[data-testid=header]')!.getBoundingClientRect().bottom;
+            scrollBy(0, w === 'top' ? b.top - head - 2 : b.bottom - innerHeight + 2);
           }, where);
         const box = page.locator('.gc-box').first();
         const vb = (await box.boundingBox())!;

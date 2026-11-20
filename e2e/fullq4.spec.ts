@@ -17,7 +17,8 @@ function trackErrors(page: Page) {
 test('tab opens with the season leaderboard (= computed from the data) and no by-date section (moved to Games › By day)', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/#/game/latest?t=ORL&s=2026-27');
-  await page.getByTestId('tab-fullq4').click();
+  await page.getByTestId('tab-leaders').click();
+  await page.getByTestId('how-fullq4').click();
   await expect(page).toHaveURL(/#\/fullq4\?s=2026-27/);
   const o: FullQ4Opts = { threshold: 'full', noBlowouts: false };
   const board = leaderboard(seasonCounts(file('2026-27'), o));

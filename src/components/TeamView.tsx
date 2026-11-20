@@ -11,13 +11,10 @@ import { describeSit, isRarelyUsed, quarterAverages, selectGames, sitPattern, te
 import { formatClock, periodAt, periodEnd } from '../domain/time.ts';
 import type { Game } from '../domain/types.ts';
 import { Filters } from './Filters.tsx';
-import { Header } from './Header.tsx';
 import { HeatDefs, HeatStrip } from './HeatStrip.tsx';
 import { Headshot, TeamLogo } from './Headshot.tsx';
 import { PatternChart, RareToggle } from './PatternChart.tsx';
-import { Tabs } from './Tabs.tsx';
-import { tabRoute } from '../app/tabs.ts';
-import { TeamPicker } from './TeamPicker.tsx';
+import { PageRows, Row, SeasonChips, TeamStrip } from './PageRows.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { GameByGame } from './GameByGame.tsx';
 import { closersTable, type CloserRow } from '../domain/closers.ts';
@@ -104,25 +101,24 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
   return (
     <div className="page">
       <HeatDefs />
-      <Header>
-        <Tabs active="averages" go={(x) => nav(tabRoute(x, { team, season, filters: route.filters }))} />
-        <TeamPicker team={team} onChange={(t) => go({ team: t })} />
-        <span className="muted">vs</span>
-        <TeamPicker team={vs} onChange={(t) => go({ vs: t })} placeholder="No matchup" label="Matchup opponent" testId="vs-picker" />
-        {vs && (
-          <button className="back" onClick={() => go({ vs: null })} title="Remove the matchup" data-testid="vs-clear">
-            ✕ No matchup
-          </button>
-        )}
-      </Header>
-      <Filters
-        seasons={seasons}
-        season={season}
-        filters={route.filters}
-        {...(roster.status === 'ok' ? { teammates: roster.value.teammates } : {})}
-        onSeason={(s) => go({ season: s })}
-        onFilters={(f) => go({ filters: f })}
+      <PageRows
+        line={
+          <>
+            <Row label="What">
+              <SeasonChips seasons={seasons} season={season} onChange={(s) => go({ season: s })} />
+            </Row>
+            <Row label="Team" grow>
+              <TeamStrip team={team} onChange={(t) => go({ team: t, vs: vs === t ? null : vs })} />
+            </Row>
+          </>
+        }
+        wide={[
+          <Row key="vs" label="Versus" wide>
+            <TeamStrip team={vs} onChange={(t) => go({ vs: t || null })} label="Matchup opponent" testId="vs-picker" none={['No matchup', 'Just this team']} skip={team} />
+          </Row>,
+        ]}
       />
+      <Filters filters={route.filters} {...(roster.status === 'ok' ? { teammates: roster.value.teammates } : {})} onFilters={(f) => go({ filters: f })} />
       <TeamBlock seasons={seasons} season={season} team={team} filters={route.filters} nav={nav} go={go} />
       {vs && (
         <TeamBlock
@@ -144,6 +140,9 @@ const withoutWW = (f: F): F => {
   const { withWithout: _, ...rest } = f;
   return rest;
 };
+
+type Computed = ReturnType<typeof rosterOf> & { sel: Selection; tp: ReturnType<typeof teamPattern>; qa: QuarterAverages[] };
+const computedCache = new WeakMap<object, Map<string, Computed>>();
 
 function TeamBlock({
   seasons,
@@ -180,9 +179,15 @@ function TeamBlock({
   const computed = useMemo(() => {
     if (data.status !== 'ok') return null;
     const { games, idx, rest } = data.value;
-    const roster = rosterOf(games, team);
-    const sel = selectGames(games, season, team, filters, idx, rest);
-    return { ...roster, sel, tp: teamPattern(sel), qa: quarterAverages(sel) };
+    // Each selection is computed once per loaded data (RK-8: going back to one is instant).
+    const cache = computedCache.get(data.value) ?? computedCache.set(data.value, new Map()).get(data.value)!;
+    const key = JSON.stringify([season, team, filters]);
+    let c = cache.get(key);
+    if (!c) {
+      const sel = selectGames(games, season, team, filters, idx, rest);
+      cache.set(key, (c = { ...rosterOf(games, team), sel, tp: teamPattern(sel), qa: quarterAverages(sel) }));
+    }
+    return c;
   }, [data, season, team, filters]);
 
   const hp = hover && computed?.tp.players.find((p) => p.id === hover.player);

@@ -5,14 +5,13 @@ import { useMemo, useState } from 'react';
 import { loadQuarters } from '../app/data.ts';
 import { useAsync } from '../app/hooks.ts';
 import { type FullQ4Query, type Nav, type Route } from '../app/route.ts';
-import { tabRoute } from '../app/tabs.ts';
 import { teamColor } from '../app/teams.ts';
 import { leaderboard, seasonCounts, type FullQ4Threshold } from '../domain/fullQ4.ts';
 import { NoBlowoutsToggle } from './DateBar.tsx';
-import { Header } from './Header.tsx';
+import { PageRows, Row, SeasonChips, Switch } from './PageRows.tsx';
+import { LEADERS_HOWS, leadersHowRoute } from '../app/nav.ts';
 import { Headshot } from './Headshot.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
-import { Tabs } from './Tabs.tsx';
 
 interface Props {
   seasons: string[];
@@ -25,7 +24,7 @@ interface Props {
 const TOP_ROWS = 50;
 const thLabel = (t: FullQ4Threshold) => (t === 'full' ? '12:00' : '11:00+');
 
-export function FullQ4View({ seasons, season, team, route, nav }: Props) {
+export function FullQ4View({ seasons, season, route, nav }: Props) {
   const q = route.fullq4;
   const data = useAsync(() => loadQuarters(season), [season]);
   const set = (patch: Partial<FullQ4Query>, s?: string) => nav({ ...route, season: s ?? season, fullq4: { ...q, ...patch } });
@@ -48,20 +47,19 @@ export function FullQ4View({ seasons, season, team, route, nav }: Props) {
   );
   return (
     <div className="page wide">
-      <Header>
-        <Tabs active="fullq4" go={(x) => nav(tabRoute(x, { team, season, filters: route.filters }))} />
-      </Header>
+      <PageRows
+        line={
+          <>
+            <Row label="What">
+              <SeasonChips seasons={seasons} season={season} onChange={(s) => set({}, s)} />
+            </Row>
+            <Row label="How">
+              <Switch label="How" testId="how" idPrefix="how" value="fullq4" options={LEADERS_HOWS} onChange={(h) => nav(leadersHowRoute({ ...route, season }, h))} />
+            </Row>
+          </>
+        }
+      />
       <div className="filters fq-filters">
-        <label className="field">
-          <span>Season</span>
-          <select value={season} aria-label="Season" onChange={(e) => set({}, e.target.value)}>
-            {[...seasons].reverse().map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
         {seg('Minutes in the 4th', q.threshold, [['full', '12:00 exact'], ['11', '11:00+']], (v) => set({ threshold: v }))}
         <NoBlowoutsToggle checked={q.noBlowouts} onChange={(b) => set({ noBlowouts: b })} />
       </div>

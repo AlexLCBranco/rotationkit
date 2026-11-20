@@ -15,7 +15,7 @@ import { periodEnd } from '../domain/time.ts';
 import type { Stint } from '../domain/types.ts';
 import { AxisLabels } from './Axis.tsx';
 import { Filters } from './Filters.tsx';
-import { Header } from './Header.tsx';
+import { PageRows, Row, SeasonChips } from './PageRows.tsx';
 import { describeStint, StintBars } from './Stints.tsx';
 import { rosterOf, SelectionSummary } from './TeamView.tsx';
 import { BroadcastTags, GameBadge } from './GameBadge.tsx';
@@ -108,18 +108,17 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
   );
   return (
     <div className="page player-page">
-      <Header back={{ label: teamName(team), onClick: () => nav({ view: 'team', team, season, filters: route.filters }) }} />
+      <PageRows
+        line={
+          <Row label="What">
+            <SeasonChips seasons={seasons} season={season} onChange={(s) => go({ season: s })} />
+          </Row>
+        }
+      />
       <div className="pl-layout">
       <RosterPanel season={season} team={team} player={player} />
       <div className="pl-main">
-      <Filters
-        seasons={seasons}
-        season={season}
-        filters={route.filters}
-        {...(c ? { teammates: c.teammates } : {})}
-        onSeason={(s) => go({ season: s })}
-        onFilters={(f) => go({ filters: f })}
-      />
+      <Filters filters={route.filters} {...(c ? { teammates: c.teammates } : {})} onFilters={(f) => go({ filters: f })} />
       {!c && <div className="pl-readout-bar">{nameBlock}</div>}
       {data.status === 'loading' && <p className="muted">Loading…</p>}
       {data.status === 'error' && <p className="error">Could not load games: {data.error}</p>}

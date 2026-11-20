@@ -7,18 +7,17 @@ import { loadQuarters } from '../app/data.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin } from '../app/labels.ts';
 import type { LeadersQuery, Nav, Route } from '../app/route.ts';
-import { tabRoute } from '../app/tabs.ts';
-import { TEAM_CODES, teamColor, teamName } from '../app/teams.ts';
+import { teamColor } from '../app/teams.ts';
 import { LEADER_MIN_GAMES, leaders, type LeaderOpts, type LeaderRow, type LeaderWindow } from '../domain/leaders.ts';
 import { formatUsg } from '../domain/usage.ts';
 import { USG_TITLE } from '../app/labels.ts';
 import type { Window } from '../domain/patterns.ts';
 import { PATTERN_CONFIG } from '../domain/config.ts';
-import { Header } from './Header.tsx';
+import { PageRows, Row, SeasonChips, Switch, TeamStrip } from './PageRows.tsx';
+import { LEADERS_HOWS, leadersHowRoute } from '../app/nav.ts';
 import { Headshot } from './Headshot.tsx';
 import { PlayerLink, TeamLink, useLinkContext } from './Links.tsx';
 import { playerHref } from '../app/links.ts';
-import { Tabs } from './Tabs.tsx';
 
 interface Props {
   seasons: string[];
@@ -34,7 +33,7 @@ const B = PATTERN_CONFIG.blowout;
 export const GARBAGE_RULE = `In the 4th quarter and overtime, with under ${B.underSecondsLeft / 60}:00 left in the period, while the margin is ${B.margin}+ (its minutes and the points scored in it). The 3rd quarter never counts as garbage time.`;
 const TABLE_ROWS = 50;
 
-export function LeadersView({ seasons, season, team, route, nav }: Props) {
+export function LeadersView({ seasons, season, route, nav }: Props) {
   const q = route.leaders;
   const window: LeaderWindow = route.filters.window as Window;
   const file = useAsync(() => loadQuarters(season), [season]);
@@ -59,20 +58,22 @@ export function LeadersView({ seasons, season, team, route, nav }: Props) {
 
   return (
     <div className="page wide">
-      <Header>
-        <Tabs active="leaders" go={(x) => nav(tabRoute(x, { team, season, filters: route.filters }))} />
-      </Header>
+      <PageRows
+        line={
+          <>
+            <Row label="What">
+              <SeasonChips seasons={seasons} season={season} onChange={(s) => set({}, undefined, s)} />
+            </Row>
+            <Row label="How">
+              <Switch label="How" testId="how" idPrefix="how" value="leaders" options={LEADERS_HOWS} onChange={(h) => nav(leadersHowRoute({ ...route, season }, h))} />
+            </Row>
+            <Row label="Team" grow>
+              <TeamStrip team={q.only} onChange={(t) => set({ only: t || null })} label="Only this team" testId="leaders-team" none={['All teams', "Every team's players"]} />
+            </Row>
+          </>
+        }
+      />
       <div className="filters ld-filters">
-        <label className="field">
-          <span>Season</span>
-          <select value={season} aria-label="Season" onChange={(e) => set({}, undefined, e.target.value)}>
-            {[...seasons].reverse().map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
         {seg('Part of the game', q.part, [['q4', '4th quarter'], ['h2', 'Second half']], (v) => set({ part: v }))}
         <label className="toggle">
           <input type="checkbox" checked={q.ot} onChange={(e) => set({ ot: e.target.checked })} />
@@ -83,17 +84,6 @@ export function LeadersView({ seasons, season, team, route, nav }: Props) {
           <span>Hide garbage time</span>
         </label>
                 {seg('Games', window as Window, [[5, 'Last 5'], [10, 'Last 10'], ['season', 'Season']], (v) => set({}, v))}
-        <label className="field">
-          <span>Team</span>
-          <select value={q.only ?? ''} aria-label="Only this team" onChange={(e) => set({ only: e.target.value || null })}>
-            <option value="">All teams</option>
-            {TEAM_CODES.map((t) => (
-              <option key={t} value={t}>
-                {teamName(t)}
-              </option>
-            ))}
-          </select>
-        </label>
         {seg('Rank by', q.sort, [['min', 'Minutes'], ['pts', 'Points'], ['usg', 'USG%']], (v) => set({ sort: v }))}
       </div>
       <p className="muted ld-note" data-testid="leaders-note">

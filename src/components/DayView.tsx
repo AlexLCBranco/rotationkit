@@ -7,7 +7,6 @@ import { loadGame, loadIndex, loadQuarters, loadSchedule } from '../app/data.ts'
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, shortDate } from '../app/labels.ts';
 import { format, type DayQuery, type Nav, type Route } from '../app/route.ts';
-import { tabRoute } from '../app/tabs.ts';
 import { teamColor } from '../app/teams.ts';
 import { TEAM_BY_TRI } from '../data/teams.ts';
 import { scheduleTags } from '../domain/scheduleTags.ts';
@@ -16,12 +15,10 @@ import { REG_PERIODS } from '../domain/time.ts';
 import type { Game } from '../domain/types.ts';
 import { DateBar, NoBlowoutsToggle } from './DateBar.tsx';
 import { BroadcastTags } from './GameBadge.tsx';
-import { Header } from './Header.tsx';
 import { Headshot, TeamLogo } from './Headshot.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { ScheduleChips } from './ScheduleChips.tsx';
-import { Tabs } from './Tabs.tsx';
-import { TeamPicker } from './TeamPicker.tsx';
+import { PageRows, Row, SeasonChips } from './PageRows.tsx';
 
 interface Props {
   seasons: string[];
@@ -34,7 +31,7 @@ interface Props {
 /** Game page link from By day: that team first, the day kept for previous / next game and the back link. */
 export const dayGameRoute = (id: string, team: string, season: string, date: string, filters: Route['filters']): Route => ({ view: 'game', game: id, team, season, filters, day: date });
 
-export function DayView({ seasons, season, team, route, nav }: Props) {
+export function DayView({ seasons, season, route, nav }: Props) {
   const q = route.day;
   const meta = useAsync(() => Promise.all([loadIndex(season), loadSchedule(season).catch(() => null), loadQuarters(season)]), [season]);
   const set = useCallback((patch: Partial<DayQuery>, s?: string) => nav({ ...route, season: s ?? season, day: { ...q, ...patch } }), [nav, route, season, q]);
@@ -59,23 +56,20 @@ export function DayView({ seasons, season, team, route, nav }: Props) {
 
   return (
     <div className="page wide">
-      <Header>
-        <Tabs active="day" go={(x) => nav(tabRoute(x, { team, season, filters: route.filters }))} />
-        <TeamPicker team={team} onChange={(t) => nav({ view: 'game', game: 'latest', team: t, season, filters: route.filters })} />
-      </Header>
-      <div className="filters dv-filters">
-        <label className="field">
-          <span>Season</span>
-          <select value={season} aria-label="Season" onChange={(e) => set({ date: null }, e.target.value)}>
-            {[...seasons].reverse().map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
-        {c && <DateBar dates={c.dates} date={c.date} asked={q.date} onDate={onDate} arrowKeys testPrefix="dv" />}
-      </div>
+      <PageRows
+        line={
+          <>
+            <Row label="What">
+              <SeasonChips seasons={seasons} season={season} onChange={(s) => set({ date: null }, s)} />
+            </Row>
+            {c && (
+              <Row label="Day">
+                <DateBar dates={c.dates} date={c.date} asked={q.date} onDate={onDate} arrowKeys testPrefix="dv" />
+              </Row>
+            )}
+          </>
+        }
+      />
       {meta.status === 'loading' && <p className="muted">Loading…</p>}
       {meta.status === 'error' && <p className="error">Could not load: {meta.error}</p>}
       {c && (

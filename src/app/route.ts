@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Filters, Venue, Window } from '../domain/patterns.ts';
+import { expect as expectHash, onHashChange } from './pageHistory.ts';
 
 export type Route =
   | { view: 'team'; team: string | null; season: string | null; filters: Filters; vs?: string | null }
@@ -146,7 +147,10 @@ export type Nav = (r: Route, opts?: { replace?: boolean }) => void;
 export function useRoute(): [Route, Nav] {
   const [route, setRoute] = useState(() => parse(location.hash));
   useEffect(() => {
-    const on = () => setRoute(parse(location.hash));
+    const on = () => {
+      onHashChange(location.hash);
+      setRoute(parse(location.hash));
+    };
     addEventListener('hashchange', on);
     return () => removeEventListener('hashchange', on);
   }, []);
@@ -156,8 +160,10 @@ export function useRoute(): [Route, Nav] {
     (r, opts) => {
       setRoute(r);
       // replace: fix up the URL (e.g. "latest" → the game id) without adding a history entry.
-      if (opts?.replace) location.replace(format(r));
-      else location.hash = format(r);
+      const hash = format(r);
+      expectHash(hash, opts?.replace ? 'replace' : 'push');
+      if (opts?.replace) location.replace(hash);
+      else location.hash = hash;
     },
   ];
 }

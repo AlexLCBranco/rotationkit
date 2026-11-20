@@ -8,7 +8,6 @@ import { useAsync } from '../app/hooks.ts';
 import type { Nav, Route } from '../app/route.ts';
 import { nameCandidates, pickCandidate, tiedCandidates, type NameCandidate } from '../domain/playerByName.ts';
 import type { PlayerIndexEntry } from '../domain/players.ts';
-import { Header } from './Header.tsx';
 
 async function resolve(name: string, seasons: string[], preferred: string): Promise<NameCandidate | null> {
   const bySeason = Object.fromEntries(await Promise.all(seasons.map(async (s) => [s, await loadPlayers(s)] as const))) as Record<string, PlayerIndexEntry[]>;
@@ -36,7 +35,6 @@ export function PlayerByName({ route, seasons, season, nav }: { route: Extract<R
   if (r.status === 'loading' || (r.status === 'ok' && r.value)) return <div className="page muted">Looking up {route.name || 'player'}…</div>;
   return (
     <div className="page">
-      <Header />
       <div className="unavailable" data-testid="player-name-unavailable">
         <h1>No rotation data for '{route.name}'</h1>
         <p className="muted">

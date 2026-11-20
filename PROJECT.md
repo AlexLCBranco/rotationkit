@@ -46,12 +46,13 @@ scripts fetch and normalize the data. Production: **https://rotationkit.vercel.a
 
 ## App (`src/App.tsx`, `src/components/`, `src/app/`)
 State lives in the URL hash (`src/app/route.ts`), so every view is linkable and the back button works.
-- **Header**: logo, tabs Games | By day | Q4 | Averages | Leaders | Full Q4, team picker (`TeamPicker.tsx`, by division,
-  keyboard), **player search** (`PlayerSearch.tsx`, "/" or Ctrl+K): case/accent-insensitive, any part, initials ("sga"); 8
-  results (selected season first); ↑/↓, Enter, Esc; empty = last 5 opened (`rk.recent`); opens his page, filters kept.
+- **Layout** (RK-8, backlogkit's NAV_PATTERN.md, footykit FK-65's look): pinned **header** (`Header.tsx`, `app/nav.ts`; 92 px, phone 100):
+  logo, ← → (own history, `pageHistory.ts`), breadcrumb (each part lists its siblings), **Go anywhere** (`GoAnywhere.tsx`; button,
+  "/", Ctrl+K: places, teams ("bos"), then 8 players, accent-insensitive, initials, empty = last 5 `rk.recent`), places **Games · By
+  day · Averages · Leaders** (Q4 / Full Q4 = How of Games / Leaders). **Page rows** (`PageRows.tsx`): season chips, team strips, How.
 - **Name links** (`Links.tsx`: `PlayerLink`, `TeamLink`; `src/app/links.ts`): every player / team name is a real `<a>`
   (his page / its Averages; that season, current filters, with/without only for its own team); a click never reaches the
-  row under it. **Every new name in a table, list or chart must use them.** Not linked: Q4 sentences, tooltips, `<select>`.
+  row under it. **Every new name in a table, list or chart must use them.** Not linked: Q4 sentences, tooltips, chips.
 - **Stale banner** (`StaleBanner.tsx`): when the last update failed or the last success is older than 36 h.
 - **Games** (`#/game/<id>?t=ORL&s=2026-27`; `#/` = remembered team's latest game): left, the game list
   (`GameList.tsx`): every finished game of the team, oldest first, date | team | @/vs | opponent | W/L | schedule chips
@@ -60,11 +61,11 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   = 500); columns sized from their measured text (system font); badges cut with "…", hidden with rest days when < 30 px. **3-in-4 chip** (list, header, By day) = calendarkit's merged stretch (port of
   7a1c7f7): chained overlapping sets, "4in6 · 2nd"; hover pop-up: one square per day, games link to hoopsjunkie;
   ↑/↓ moves; then the next 3 scheduled games, dimmed: ↑/↓ and ◀ ▶ skip them; a click opens Averages in matchup mode
-  (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. Right: ◀ ▶, game header (score, game-type badge, TV / CUP tags (also in the list and player rows),
+  (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. ◀ ▶ in the rows. Right: game header (score, game-type badge, TV / CUP tags (also in the list and player rows),
   garbage-time chip, hoopsjunkie / calendarkit icon links, both teams' schedule chips) and the **game chart**
   (`GameChart.tsx`, layout in `src/domain/gameChart.ts`):
   - team order: the selected team (`t=`, else the remembered team, when it played) first, home or away; none →
-    away first and no `t=` in the URL. Each team header has a HOME / AWAY tag and the score (Q4 tab: same order/tags);
+    away first and no `t=` in the URL. Each team header has a HOME / AWAY tag and the score (Q4 view: same order/tags);
   - per team: one row per player (starters, divider, bench, then DNP/inactive rows with the reason on the row:
     `src/app/dnp.ts` from the source codes only — `*_COACH` "DNP – CD", injury / concussion "OUT – injury/illness",
     others neutral in words, no code = plain "DNP" / "Inactive"; + the source's detail), headshot, name,
@@ -85,8 +86,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
     (this game excluded, blowout rule on, regulation only); none under 3 games in that window. No pointer events, never
     moves bars/labels/ticks; hovering on an outline adds "usually on court here (7 of 10)";
   - below: minutes & fouls by quarter (sortable, with USG%) and the lineup list per team.
-- **By day** tab (`#/games?view=day&date=YYYY-MM-DD&s=&nb=1`, `DayView.tsx`, `src/domain/slate.ts`; from a game opened
-  from By day the tab returns to that day): `DateBar.tsx` (◀ ▶ / ← → = previous / next day with games, date input, "No games on X; showing Y"; default
+- **By day** (`#/games?view=day&date=YYYY-MM-DD&s=&nb=1`, `DayView.tsx`, `src/domain/slate.ts`; from a game opened
+  from By day the By day place returns to that day): `DateBar.tsx` (◀ ▶ / ← → = previous / next day with games, date input, "No games on X; showing Y"; default
   latest day with finished games). Cards in tip-time order (no tip → id order): score, TV / CUP, schedule chips; per team
   the 5 on court at the end of regulation ("Q4" mark = Full Q4 rule) and DNP – CD players only (`*_COACH`); games not in
   `index.json` dimmed with tip time, not clickable. A team's half → its game, that team first, `day=` (game page:
@@ -103,7 +104,7 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   reason or "Not with the team"; click → that game), same player order and shared "Rarely used" group; "Minutes &
   fouls per game" table (sortable by MIN / USG% / PF) with "when does he sit?"; **Closers** table (`src/domain/closers.ts`): over the selection's
   close games (`CLOSE_GAME` in config: margin ≤ 5 at some point in the last 5:00 of Q4 or in OT), per player close
-  games played, times on court at the final buzzer (the Q4 tab's closer), share, average Q4+OT minutes; sorted by
+  games played, times on court at the final buzzer (the Q4 view's closer), share, average Q4+OT minutes; sorted by
   times closed; "based on N close games". Matchup mode `vs=` stacks the opponent.
 - **Player page** (`#/player/ORL/<id>?…`, `PlayerView.tsx`): one row per game with actual stints (a "Q4" marker on
   games he played the full 4th; "Full Q4s: X of Y games" over the selection's games he played), minutes trend,
@@ -114,17 +115,15 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   fits → total), readout "18:54 — Q2 6:54, Q3 12:00" (`domain/stints.ts`; the game chart readout adds "in a row: …").
   **Roster panel** (`RosterPanel.tsx`, `domain/roster.ts`), left: his latest team of the season (earlier ones as links),
   current roster by min/game, links keep the filters, him highlighted; phone: a "Roster" toggle on top.
-- **Phone** (< 768 px, `src/app/phone.ts`): tabs in 2 rows; the game first, its list folded behind "☰ Games (N)" (in the
+- **Phone** (< 768 px, `src/app/phone.ts`): places as icons with labels under, breadcrumb's last 2 parts; the game first, its list folded behind "☰ Games (N)" (in the
   page, no TM column / resize, folds after a pick); wide charts and tables scroll in their own box (name sticky); hover
   texts open on tap, close on a tap outside (`TapTips.tsx`, `useTapOutside`); chart: tap = cursor + readout, drag the handle.
 - **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 / second-half min and
   pts per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table; `LEADER_MIN_GAMES`;
   USG% column / "Rank by USG%" (`sort=usg`; whole games, from `quarters.json`'s usage counts, minutes from stints).
-- **Full Q4** (`#/fullq4?s=&th=11&nb=1`, `FullQ4View.tsx`, `src/domain/fullQ4.ts` on `quarters.json`): whole regulation
-  4th on court (Q4 minutes = 12:00; back-to-back stints count; OT never counts): season leaderboard (full Q4s, GP, %);
-  "11:00+" (`th=11`); "Exclude blowouts" (`nb=1`: games with 4th-quarter garbage time leave both counts). Per date: By day tab.
-- **Deep link** `https://rotationkit.vercel.app/?game=<NBA gameId>` → that game; unknown / future / not yet added
-  → "Rotation data not available for this game yet" with what the schedule knows (`DeepLink.tsx`).
+- **Full Q4** (`#/fullq4?s=&th=11&nb=1`, `FullQ4View.tsx`, `domain/fullQ4.ts`): whole regulation 4th on court (12:00; back-to-back stints
+  count; OT never): season leaderboard (full Q4s, GP, %); "11:00+" (`th=11`); "Exclude blowouts" (`nb=1`). Per date: By day.
+- **Deep link** `/?game=<NBA gameId>` → that game; unknown / future / not added → "Rotation data not available…" + the schedule (`DeepLink.tsx`).
 - **Player by name** `/#/player?name=<full name>[&s=&w=…]` (`PlayerByName.tsx`, `domain/playerByName.ts`; for statmuse-builder):
   exact name, ignoring case, accents, `.'-`, Jr./Sr./II–IV; same name → latest appearance; team = his latest in `s=` / current
   / last season with data; then history.replace → `#/player/<TEAM>/<id>`, params kept. None → "No rotation data for '<name>'".
@@ -134,7 +133,8 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   every committed game (`WHOLE_DATA_TIMEOUT`, `tests/data.ts`; `RK_TEST_GAMES=id,id` limits them, for the daily update).
 - `npm run build && npm run e2e` — Playwright on the build (`vite preview`): **desktop** (1280 × 900, compact 1920 × 1080)
   and **phone** (Pixel 7 390 × 844 touch, `e2e/phone*.spec.ts`: no sideways scroll + screenshot per route, game first,
-  swipe, taps). No console errors; By day date 2025-11-10. `E2E_ALL_GAMES=1`: all games. Shots → `screenshots/`.
+  swipe, taps). `e2e/nav.spec.ts` / `phone-nav.spec.ts`: NAV_PATTERN §6 (header, URL round-trips, < 100 ms clicks, layout
+  shift, no `<select>`). No console errors; By day date 2025-11-10. `E2E_ALL_GAMES=1`: all games. Shots → `screenshots/`.
 - **Checks** (`.github/workflows/pr.yml`, every push to `main`): `npm ci`, `npm test`, `npm run build`, `npm run e2e`. Work goes straight to `main` (no PRs); run the same locally before pushing.
 
 ## Data updates — daily (`.github/workflows/data-update.yml` → `scripts/ci-update.ts`)

@@ -32,7 +32,15 @@ export const DEFAULT_FILTERS: Filters = { window: 'season', venue: 'all', blowou
 type Interval = [number, number];
 
 /** Time excluded as blowout: Q4/OT, |margin| ≥ threshold, under N seconds left in the period. */
+// Cached per game for the default rule (RK-8: Averages under 100 ms); game objects are never changed after loading.
+const blowoutCache = new WeakMap<Game, Interval[]>();
 export function blowoutIntervals(g: Game, cfg: BlowoutConfig = PATTERN_CONFIG.blowout): Interval[] {
+  if (cfg !== PATTERN_CONFIG.blowout) return computeBlowoutIntervals(g, cfg);
+  let v = blowoutCache.get(g);
+  if (!v) blowoutCache.set(g, (v = computeBlowoutIntervals(g, cfg)));
+  return v;
+}
+function computeBlowoutIntervals(g: Game, cfg: BlowoutConfig): Interval[] {
   const out: Interval[] = [];
   const marginAt = (i: number) => g.margin[i]![1];
   for (let p = cfg.fromPeriod; p <= g.periods; p++) {
@@ -180,14 +188,23 @@ export function teamPattern(sel: Selection, bucketSeconds: number = PATTERN_CONF
       a.games++;
       a.boxSum += p.min;
       for (const [s, e] of p.stints) a.minSum += e - s - overlapAll(s, Math.min(e, full), excl);
+      // Each stint visits only the buckets it touches (RK-8: Averages must update in under 100 ms); same sums, same
+      // order of additions as walking every bucket × every stint.
+      const on = new Array<number>(n).fill(0);
+      const atMid = new Array<boolean>(n).fill(false);
+      for (const [s, e] of p.stints) {
+        const last = Math.min(n - 1, Math.ceil(Math.min(e, REGULATION_LEN) / bucketSeconds) - 1);
+        for (let b = Math.max(0, Math.floor(s / bucketSeconds)); b <= last; b++) {
+          on[b]! += overlap(s, e, bStart(b), bEnd(b)) - overlapAll(Math.max(s, bStart(b)), Math.min(e, bEnd(b)), excl);
+          if (s <= mid(b) && mid(b) < e) atMid[b] = true;
+        }
+      }
       for (let b = 0; b < n; b++) {
         a.elig[b]! += eligible[b]!;
-        let on = 0;
-        for (const [s, e] of p.stints) on += overlap(s, e, bStart(b), bEnd(b)) - overlapAll(Math.max(s, bStart(b)), Math.min(e, bEnd(b)), excl);
-        a.on[b]! += Math.max(0, on);
+        a.on[b]! += Math.max(0, on[b]!);
         if (!exclMid[b]) {
           a.eligMid[b]!++;
-          if (p.stints.some(([s, e]) => s <= mid(b) && mid(b) < e)) a.onMid[b]!++;
+          if (atMid[b]) a.onMid[b]!++;
         }
       }
     }
@@ -438,7 +455,14 @@ export function isRarelyUsed(gamesPlayed: number, games: number, cfg: TeamPatter
 }
 
 /** Team-page rows: bars to draw per player, and whether he goes in the "Rarely used" group (vs the window's game count). */
+const rowsCache = new WeakMap<TeamPattern, PatternRow[]>();
 export function teamPatternRows(tp: TeamPattern, cfg: TeamPatternConfig = TEAM_PATTERN, blowoutCfg: BlowoutConfig = PATTERN_CONFIG.blowout): PatternRow[] {
+  if (cfg !== TEAM_PATTERN || blowoutCfg !== PATTERN_CONFIG.blowout) return computeTeamPatternRows(tp, cfg, blowoutCfg);
+  let v = rowsCache.get(tp);
+  if (!v) rowsCache.set(tp, (v = computeTeamPatternRows(tp, cfg, blowoutCfg)));
+  return v;
+}
+function computeTeamPatternRows(tp: TeamPattern, cfg: TeamPatternConfig, blowoutCfg: BlowoutConfig): PatternRow[] {
   // With one game every real stint is drawn (matches the game chart); the 1:00 minimum only applies to 2+ games.
   const minBar = tp.games >= 2 ? cfg.minBarSeconds : 0;
   return tp.players.map((player) => ({

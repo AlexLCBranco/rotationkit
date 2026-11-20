@@ -9,11 +9,10 @@ import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
 import { GameList, UPCOMING_GAMES, type ListGame, type UpcomingGame } from './GameList.tsx';
 import { TEAM_BY_TRI } from '../data/teams.ts';
 import { ScheduleChips } from './ScheduleChips.tsx';
-import { Tabs } from './Tabs.tsx';
-import { tabRoute } from '../app/tabs.ts';
 import { Q4View } from './Q4View.tsx';
 import { GameLinks } from './GameLinks.tsx';
-import { TeamPicker } from './TeamPicker.tsx';
+import { PageRows, Row, SeasonChips, Switch, TeamStrip } from './PageRows.tsx';
+import { GAME_HOWS } from '../app/nav.ts';
 import { ReadoutMenu } from './ReadoutMenu.tsx';
 import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { seasonOf } from '../domain/season.ts';
@@ -22,7 +21,6 @@ import type { Game, GameIndexEntry, QualityNote } from '../domain/types.ts';
 import { BroadcastTags, GameBadge } from './GameBadge.tsx';
 import { GameChart, totalPlayed, type Cursor } from './GameChart.tsx';
 import { CursorPanel, LineupList, QuarterTable, segmentsByTeam, useGameNames } from './GamePanels.tsx';
-import { Header } from './Header.tsx';
 import { TeamLogo } from './Headshot.tsx';
 import { remember } from '../app/hooks.ts';
 import { usePhone } from '../app/phone.ts';
@@ -167,80 +165,76 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   const [phoneList, setPhoneList] = useState(false);
   const listShown = phone ? phoneList : !collapsed;
   const setListShown = (on: boolean) => (phone ? setPhoneList(on) : setCollapsed(!on));
-  const seasonSelect = (
-    <label className="field">
-      <span>Season</span>
-      <select value={gameSeason} aria-label="Season" onChange={(e) => pickSeason(e.target.value)}>
-        {[...seasons].reverse().map((x) => (
-          <option key={x} value={x}>
-            {x}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
 
   return (
     <div className={`page main-screen${tab === 'q4' ? ' q4-page' : ''}`}>
-      <Header>
-        <Tabs active={tab} go={(x) => nav(tabRoute(x, { team: team ?? null, season: gameSeason, filters: route.filters, game: current ?? route.game, day: route.day }))} />
-        <TeamPicker team={team} onChange={pickTeam} />
-      </Header>
+      <PageRows
+        line={
+          <>
+            <Row label="What">
+              <SeasonChips seasons={seasons} season={gameSeason} onChange={pickSeason} />
+            </Row>
+            <Row label="How">
+              <Switch label="How" testId="how" idPrefix="how" value={tab} options={GAME_HOWS} onChange={(h) => nav({ ...route, game: current ?? route.game, tab: h })} />
+            </Row>
+            <span className="game-nav" data-testid="game-nav">
+                {!listShown && (
+                  <>
+                    <button className="gl-expand" onClick={() => setListShown(true)} title={phone ? undefined : 'Show the game list'} data-testid="list-expand">
+                      ☰ Games{phone && picker ? ` (${picker.games.length})` : ''}
+                    </button>
+                  </>
+                )}
+                {/* always there (disabled while the list loads), so nothing in the row moves when it arrives */}
+                {(
+                  <>
+                    <button className="gp-arrow" disabled={!older} onClick={() => older && open(older.id)} title="Previous (older) game" data-testid="prev-game">
+                      ◀
+                    </button>
+                    <button className="gp-arrow" disabled={!newer} onClick={() => newer && open(newer.id)} title="Next (newer) game" data-testid="next-game">
+                      ▶
+                    </button>
+                    <span className="muted game-count" data-testid={picker && pos >= 0 ? 'game-count' : undefined}>
+                      {picker && pos >= 0 ? `Game ${pos + 1} of ${picker.games.length} · ${gameSeason}` : ''}
+                    </span>
+                  </>
+                )}
+                {dayNav && (
+                  <span className="day-nav" data-testid="day-nav">
+                    <button className="link" disabled={!dayNav.prev} onClick={() => dayNav.prev && nav({ ...route, game: dayNav.prev.id, team: dayNav.prev.team, season: gameSeason, day: dayNav.date })} data-testid="day-prev">
+                      ← previous game
+                    </button>
+                    <span className="muted">|</span>
+                    <button className="link" disabled={!dayNav.next} onClick={() => dayNav.next && nav({ ...route, game: dayNav.next.id, team: dayNav.next.team, season: gameSeason, day: dayNav.date })} data-testid="day-next">
+                      next game →
+                    </button>
+                    <a className="link" href={format(dayRoute(dayNav.date))} data-testid="day-back">
+                      Back to {shortDate(dayNav.date)} {dayNav.date.slice(0, 4)}
+                    </a>
+                  </span>
+                )}
+            </span>
+            <Row label="Team" grow>
+              <TeamStrip team={team} onChange={pickTeam} />
+            </Row>
+          </>
+        }
+      />
       <div className={`gv-layout${listShown ? '' : ' collapsed'}`}>
-        {listShown && picker && (
+        {/* the list's place is kept while it loads (no layout shift) */}
+        {listShown && (
           <GameList
-            games={picker.games}
-            upcoming={picker.upcoming}
+            games={picker?.games ?? []}
+            upcoming={picker?.upcoming ?? []}
             selected={current}
             onSelect={open}
-            seasons={seasons}
             season={gameSeason}
-            onSeason={pickSeason}
             onCollapse={() => setListShown(false)}
             phone={phone}
             matchupHref={(opp) => format({ view: 'team', team, season: gameSeason, filters: { ...route.filters, window: 10 }, vs: opp })}
           />
         )}
         <div className="gv-main">
-          <div className="game-nav">
-            {!listShown && (
-              <>
-                <button className="gl-expand" onClick={() => setListShown(true)} title={phone ? undefined : 'Show the game list'} data-testid="list-expand">
-                  ☰ Games{phone && picker ? ` (${picker.games.length})` : ''}
-                </button>
-                {seasonSelect}
-              </>
-            )}
-            {picker && (
-              <>
-                <button className="gp-arrow" disabled={!older} onClick={() => older && open(older.id)} title="Previous (older) game" data-testid="prev-game">
-                  ◀
-                </button>
-                <button className="gp-arrow" disabled={!newer} onClick={() => newer && open(newer.id)} title="Next (newer) game" data-testid="next-game">
-                  ▶
-                </button>
-                {pos >= 0 && (
-                  <span className="muted" data-testid="game-count">
-                    Game {pos + 1} of {picker.games.length} · {gameSeason}
-                  </span>
-                )}
-              </>
-            )}
-            {dayNav && (
-              <span className="day-nav" data-testid="day-nav">
-                <button className="link" disabled={!dayNav.prev} onClick={() => dayNav.prev && nav({ ...route, game: dayNav.prev.id, team: dayNav.prev.team, season: gameSeason, day: dayNav.date })} data-testid="day-prev">
-                  ← previous game
-                </button>
-                <span className="muted">|</span>
-                <button className="link" disabled={!dayNav.next} onClick={() => dayNav.next && nav({ ...route, game: dayNav.next.id, team: dayNav.next.team, season: gameSeason, day: dayNav.date })} data-testid="day-next">
-                  next game →
-                </button>
-                <a className="link" href={format(dayRoute(dayNav.date))} data-testid="day-back">
-                  Back to {shortDate(dayNav.date)} {dayNav.date.slice(0, 4)}
-                </a>
-              </span>
-            )}
-          </div>
           {!g && (meta.status === 'loading' || loaded.status === 'loading') && id !== null && <p className="muted">Loading…</p>}
           {id === null && (
             <p className="muted" data-testid="no-games">

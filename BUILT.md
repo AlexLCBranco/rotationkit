@@ -4,6 +4,10 @@ Shipped work only, newest first. Planned work is in `FEATURE_BACKLOG.md`, never 
 Entries dated before 2026-11-16 were backfilled from the git commit messages (data, docs, test-only, merge and
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
+## 2026-11-20
+- RK-8 — Shared layout: pinned header menu, chips instead of dropdowns (v0.5.0)
+  A header that stays at the top of every page (back / forward, a breadcrumb whose parts jump to their neighbours, "Go anywhere" on Ctrl+K for players, teams and places) over four places (Games · By day · Averages · Leaders); under it season and team chips and a How switch (Whole game | 4th quarter, Minutes & points | Full 4th quarters) replace every dropdown, and old links still open the same pages.
+
 ## 2026-11-19
 - RK-7 — Usage rate (USG%) (v0.4.0)
   A USG% column in Averages (click to sort), Leaders (also "Rank by USG%"), the player page's game log and the single-game table; older games fill in once the one-off GitHub backfill has run.
