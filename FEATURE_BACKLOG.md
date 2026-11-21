@@ -47,8 +47,9 @@ Tests: e2e that the footer text is present on every place in the menu, desktop a
 ### RK-11 — "Report a problem" link
 **In short:** A "Report a problem" link in the footer and on games with a data warning opens a short form already filled with the page's address.
 
-Blocked: needs the owner to create a free Tally form (https://tally.so) and give its link. Fields: "What's wrong?"
-(long text, required), "Page" (filled in automatically), "Your email (optional)".
+**Answered (2026-11-21):** Which form does the link open? → https://tally.so/r/Vpz5KM (the owner's Tally form "Hoop
+Rotations: report a problem"). Its fields: "What's wrong?" (long answer, required), "Page" (short answer, optional;
+the site fills it in), "Your email (optional)" (email, optional).
 
 - Decided 2026-11-21: a Tally form, not an email link (keeps the owner's address off a public site).
 - The form URL lives in one config constant. While it is empty, no link is rendered anywhere.
