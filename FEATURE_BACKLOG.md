@@ -145,3 +145,21 @@ hoopsjunkie, so a public site should not send people there.
 Tests: update `e2e/links.spec.ts` and `e2e/main.spec.ts`; e2e that no element on Games, Q4, By day or a player page
 has an `href` containing "hoopsjunkie"; e2e that a played game's square in the pop-up opens that game here, on desktop
 and phone.
+
+### RK-16 — Show the site as "Hoop Rotations" (placeholder name)
+**In short:** Everywhere a visitor sees the site's name, it says "Hoop Rotations" instead of "rotationkit".
+
+Why (owner, 2026-11-21): "rotationkit" made sense as one of his tools, not to the public. "Hoop Rotations" is a
+placeholder; the owner may pick a better name before the site is promoted, so changing it again must be trivial.
+
+- One constant for the display name (and one for the one-line description, "who was on the court, and when" style,
+  plain words). Every visible use reads from them: tab titles (the dynamic-title rule keeps its page part), the
+  header logo text, the footer (RK-10), "How to read this" and the social tags (RK-9), the web app manifest if any.
+  `index.html` gets the name at build time from the same constant, not typed a second time.
+- Not changed: the repo name, the `RK-` prefix, `rk.*` storage keys, file and folder names, and the address
+  (`rotationkit.vercel.app` stays until the name is final, so shared links don't break twice).
+- The logo mark (stint bars) stays.
+
+Tests: a unit test that fails if the old name appears in any built HTML or in visible text rendered by the app
+(search the `dist` output and the main screens for "rotationkit", allowing the address and repo link only); e2e
+titles updated on desktop and phone.
