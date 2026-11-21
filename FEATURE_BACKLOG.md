@@ -127,3 +127,21 @@ Tests: unit tests on the generator (one page per game / player / team in the dat
 known games); e2e that loading a path address directly shows the right view, that old hash and `?game=` links land on
 it, that back / forward work, on desktop and phone; a build-size check so the generated pages stay small (report the
 total).
+
+### RK-15 — Remove the hoopsjunkie links
+**In short:** The site no longer links to hoopsjunkie anywhere; in the schedule pop-up, a played game opens its rotation page here instead.
+
+Why (owner, 2026-11-21): the links made sense while this was his personal tool; he is not associated with
+hoopsjunkie, so a public site should not send people there.
+
+- Score line (`GameLinks.tsx`, Games and Q4): remove the hoopsjunkie icon link. The calendarkit icon link stays
+  until the owner says otherwise.
+- 3-in-4 chip pop-up (`ScheduleChips.tsx`): each game square links to hoopsjunkie today. Change: a game that is in
+  our data links to its rotation page here (same tab, that team first, like every other game link); a game not yet
+  played or not in our data is a plain square with no link. Titles and aria-labels reworded to match.
+- Remove `hoopsjunkieUrl` and `HOOPSJUNKIE_BASE_URL` (`src/app/gameLinks.ts`) and their tests once nothing uses them.
+- PROJECT.md and "How to read this" (RK-9, if built) must not mention hoopsjunkie afterwards.
+
+Tests: update `e2e/links.spec.ts` and `e2e/main.spec.ts`; e2e that no element on Games, Q4, By day or a player page
+has an `href` containing "hoopsjunkie"; e2e that a played game's square in the pop-up opens that game here, on desktop
+and phone.
