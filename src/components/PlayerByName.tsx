@@ -8,6 +8,7 @@ import { useAsync } from '../app/hooks.ts';
 import type { Nav, Route } from '../app/route.ts';
 import { nameCandidates, pickCandidate, tiedCandidates, type NameCandidate } from '../domain/playerByName.ts';
 import type { PlayerIndexEntry } from '../domain/players.ts';
+import { SITE_NAME } from '../app/site.ts';
 
 async function resolve(name: string, seasons: string[], preferred: string): Promise<NameCandidate | null> {
   const bySeason = Object.fromEntries(await Promise.all(seasons.map(async (s) => [s, await loadPlayers(s)] as const))) as Record<string, PlayerIndexEntry[]>;
@@ -38,10 +39,10 @@ export function PlayerByName({ route, seasons, season, nav }: { route: Extract<R
       <div className="unavailable" data-testid="player-name-unavailable">
         <h1>No rotation data for '{route.name}'</h1>
         <p className="muted">
-          {r.status === 'error' ? `Could not load the player list: ${r.error}` : 'No player with that full name in any season rotationkit has.'}
+          {r.status === 'error' ? `Could not load the player list: ${r.error}` : 'We have no player with that full name in any season.'}
         </p>
         <p>
-          <a href="#/">Open rotationkit</a>
+          <a href="#/">Open {SITE_NAME}</a>
         </p>
       </div>
     </div>

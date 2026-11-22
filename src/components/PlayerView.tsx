@@ -15,7 +15,8 @@ import { periodEnd } from '../domain/time.ts';
 import type { Stint } from '../domain/types.ts';
 import { AxisLabels } from './Axis.tsx';
 import { Filters } from './Filters.tsx';
-import { PageRows, Row, SeasonChips } from './PageRows.tsx';
+import { PageRows, Row, SeasonChips, SetChips } from './PageRows.tsx';
+import { withSet } from '../domain/patterns.ts';
 import { describeStint, StintBars } from './Stints.tsx';
 import { rosterOf, SelectionSummary } from './TeamView.tsx';
 import { BroadcastTags, GameBadge } from './GameBadge.tsx';
@@ -29,6 +30,7 @@ import { ReadoutMenu } from './ReadoutMenu.tsx';
 import { loadReadout, saveReadout } from '../app/readoutSettings.ts';
 import { playerFullQ4 } from '../domain/fullQ4.ts';
 import { RosterPanel } from './RosterPanel.tsx';
+import { HelpLink } from './HelpLink.tsx';
 
 interface Props {
   seasons: string[];
@@ -112,6 +114,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
         line={
           <Row label="What">
             <SeasonChips seasons={seasons} season={season} onChange={(s) => go({ season: s })} />
+            <SetChips season={season} value={route.filters.set ?? 'regular'} onChange={(s) => go({ filters: withSet(route.filters, s) })} />
           </Row>
         }
       />
@@ -133,6 +136,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
           <p className="fq-counter" data-testid="fq-counter">
             <strong>Full Q4s:</strong> {c.fullQ4.full.size} of {c.fullQ4.played} game{c.fullQ4.played === 1 ? '' : 's'}
             <span className="muted"> · on court for the whole regulation 4th quarter (12:00) · games of this selection he played</span>
+            <HelpLink section="fullq4" />
           </p>
           <div className="pl-readout-bar" data-testid="player-bar">
             {nameBlock}
@@ -173,7 +177,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
                       const g = c.sel.games.find((x) => x.id === r.gameId);
                       return g ? <GameBadge g={g} compact /> : null;
                     })()}
-                    <BroadcastTags tv={data.status === 'ok' ? data.value.sched.get(r.gameId)?.tv : undefined} cup={data.status === 'ok' ? data.value.sched.get(r.gameId)?.cup : undefined} />
+                    <BroadcastTags tv={data.status === 'ok' ? data.value.sched.get(r.gameId)?.tv : undefined} cup={data.status === 'ok' ? data.value.sched.get(r.gameId)?.cup : undefined} id={r.gameId} label={data.status === 'ok' ? data.value.sched.get(r.gameId)?.label : undefined} />
                     {c.fullQ4.full.has(r.gameId) && (
                       <span className="fq-mark" title="Played the full 4th quarter (12:00)" data-testid="fq-mark">
                         Q4
@@ -212,7 +216,7 @@ export function PlayerView({ seasons, season, route, nav }: Props) {
           {c.missed.length > 0 && (
             <details className="missed">
               <summary>
-                Missed {c.missed.length} game{c.missed.length === 1 ? '' : 's'} in this selection
+                Missed {c.missed.length} game{c.missed.length === 1 ? '' : 's'} in this selection <HelpLink section="dnp" />
               </summary>
               <ul>
                 {c.missed.map(({ g, label }) => (
@@ -260,7 +264,7 @@ function GameLog({ sel, player, team, opp, onOpen }: { sel: Selection; player: n
             <th>Starter</th>
             <th className="num">MIN</th>
             <th className="num" title={USG_TITLE}>
-              USG%
+              USG% <HelpLink section="usg" />
             </th>
             {qi.map((i) => (
               <th key={`m${i}`} className={`num${i === 0 ? ' qgroup-start' : ''}`}>

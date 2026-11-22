@@ -9,7 +9,7 @@ import { TEAM_CODES, teamName } from './teams.ts';
 import { seasonOf } from '../domain/season.ts';
 import type { GameIndexEntry } from '../domain/types.ts';
 
-export type Where = 'games' | 'day' | 'averages' | 'leaders';
+export type Where = 'games' | 'day' | 'averages' | 'leaders' | 'help';
 
 /** The header's places: id, label, hover text. Q4 is a How of Games, Full Q4 a How of Leaders, the player page lives
  * under Averages. */
@@ -18,12 +18,14 @@ export const WHERE: [Where, string, string][] = [
   ['day', 'By day', 'Every game of one day'],
   ['averages', 'Averages', "A team's usual rotation over many games, and its players' pages"],
   ['leaders', 'Leaders', 'League-wide 4th-quarter and second-half leaders, and full 4th quarters'],
+  ['help', 'How to read this', 'What the bars, colors, tags and numbers mean'],
 ];
 
 export function whereOf(r: Route): Where {
   if (r.view === 'game') return 'games';
   if (r.view === 'day') return 'day';
   if (r.view === 'leaders' || r.view === 'fullq4') return 'leaders';
+  if (r.view === 'help') return 'help';
   return 'averages';
 }
 
@@ -53,6 +55,7 @@ export function navContext(r: Route, season: string, rememberedTeam: string | nu
 /** Where a place tab goes from here. Games keeps the open game (back from Q4 = the whole game). */
 export function whereRoute(w: Where, c: NavContext): Route {
   if (w === 'games') return tabRoute('games', c);
+  if (w === 'help') return { view: 'help', team: c.team, season: c.season, filters: c.filters, section: null };
   return tabRoute(w, { ...c, game: undefined });
 }
 
@@ -119,7 +122,7 @@ export function crumbs(r: Route, season: string, d: CrumbData): Crumb[] {
       items: WHERE.map(([w, label]) => ({ label, route: whereRoute(w, c), on: w === where })),
     },
   ];
-  if (r.view === 'playerName') return out;
+  if (r.view === 'playerName' || r.view === 'help') return out;
   out.push({ label: c.season, items: [...d.seasons].reverse().map((s) => ({ label: s, route: withSeason(r, s), on: s === c.season })) });
   const teamPart = (t: string) => ({ label: teamName(t), items: TEAM_CODES.map((x) => ({ label: teamName(x), route: withTeam(r, x, c.season), on: x === t })) });
   if (r.view === 'game') {
@@ -164,6 +167,7 @@ export function goEntries(c: NavContext): GoEntry[] {
     { label: 'Averages', kind: 'Place', route: whereRoute('averages', c), words: words('averages typical stints usual rotation') },
     { label: 'Leaders', kind: 'Place', route: whereRoute('leaders', c), words: words('leaders 4th quarter q4 second half minutes points') },
     { label: 'Full 4th quarters', kind: 'Place', route: tabRoute('fullq4', c), words: words('full q4 4th quarter whole fourth') },
+    { label: 'How to read this', kind: 'Place', route: whereRoute('help', c), words: words('how to read this help guide explain what means') },
   ];
   const teams = TEAM_CODES.flatMap((t): GoEntry[] => [
     { label: `${teamName(t)} · games`, kind: 'Team', route: { view: 'game', game: 'latest', team: t, season: c.season, filters: c.filters }, words: [...words(`${t} ${teamName(t)}`), ...words('games rotations rotation chart')] },

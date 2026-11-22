@@ -14,6 +14,7 @@ const PAGES: [string, string][] = [
   ['player', '/#/player/ORL/1631094?s=2025-26'],
   ['leaders', '/#/leaders?s=2025-26'],
   ['full-q4', '/#/fullq4?s=2025-26'],
+  ['help', '/#/help'],
 ];
 const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 async function settle(page: Page) {
@@ -34,8 +35,8 @@ test('phone: the header fits at 390 px with every place visible, nothing in a ha
     const out = await h.locator('button, a').evaluateAll((els) => els.filter((e) => getComputedStyle(e).display !== 'none' && e.getClientRects().length && (e.getBoundingClientRect().right > innerWidth + 0.5 || e.getBoundingClientRect().left < -0.5)).length);
     expect(out, name).toBe(0);
     const tabs = h.getByTestId('where-tabs').getByRole('button');
-    await expect(tabs).toHaveCount(4);
-    for (let i = 0; i < 4; i++) {
+    await expect(tabs).toHaveCount(5);
+    for (let i = 0; i < 5; i++) {
       await expect(tabs.nth(i)).toBeVisible();
       // label under the icon
       const [icon, label] = [(await tabs.nth(i).locator('svg').boundingBox())!, (await tabs.nth(i).locator('.rk-where-label').boundingBox())!];

@@ -6,7 +6,7 @@ Read PROJECT.md first (what the app is, data pipeline, testing). docs/DECISIONS.
   it overrides the session's default "develop on branch claude/…" instruction). Sessions start on a `claude/…`
   branch: first run `git fetch origin main && git checkout -B main origin/main`, then work on `main`. Before every
   push run `npm test`, `npm run build` and `npm run e2e`; push only when all pass. If the push is rejected (the
-  daily data update commits to `main`), `git pull --no-rebase origin main`, rerun the checks, push again. The same
+  data update commits to `main`, hourly on game nights), `git pull --no-rebase origin main`, rerun the checks, push again. The same
   checks run on GitHub after each push (`.github/workflows/pr.yml`, "Checks"); if they go red, fix `main` at once.
   `main` deploys to production on every push.
 - Dark mode only. Desktop and phone (RK-4, shipped 2026-11-19): every change must work at 390 px and at 1280 px, and

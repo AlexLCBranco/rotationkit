@@ -11,7 +11,7 @@ const SEASON = '2026-27';
 const GAME = '0022600200'; // BOS @ MIL, blowout with garbage time and lead changes early
 const load = (id: string) => JSON.parse(readFileSync(`data/${SEASON}/games/${id}.json`, 'utf8')) as Game;
 const teamGames = (team: string) =>
-  (JSON.parse(readFileSync(`data/${SEASON}/index.json`, 'utf8')) as GameIndexEntry[]).filter((e) => e.home === team || e.away === team).map((e) => load(e.id));
+  (JSON.parse(readFileSync(`data/${SEASON}/index.json`, 'utf8')) as GameIndexEntry[]).filter((e) => e.id.startsWith('002') && (e.home === team || e.away === team)).map((e) => load(e.id));
 
 /** x of every vertical edge in an SVG step path (pairs of points with the same x). */
 const edges = (d: string) => {

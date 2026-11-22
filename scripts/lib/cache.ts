@@ -37,7 +37,7 @@ export const isFetched = (id: string) =>
   (Object.keys(SOURCES) as Source[]).every((s) => !SOURCES[s].required || existsSync(sourcePath(id, s)));
 
 /** Sanity checks so a valid-looking but empty response is not cached as a real game. */
-function checkShape(s: Source, json: any): string | undefined {
+export function checkShape(s: Source, json: any): string | undefined {
   switch (s) {
     case 'boxscore':
       return json?.game?.gameStatus === 3 ? undefined : `boxscore gameStatus=${json?.game?.gameStatus}, expected 3 (final)`;

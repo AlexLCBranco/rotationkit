@@ -25,6 +25,8 @@ export interface SlateGame {
   entry?: GameIndexEntry;
   tv?: string[];
   cup?: ScheduleEntry['cup'];
+  /** The schedule feed's own label (round, game number), when it gave one. */
+  label?: string;
 }
 
 /** Tip-time order; games without a time after those with one; then game id. */
@@ -37,11 +39,11 @@ export function slateDay(index: GameIndexEntry[], schedule: ScheduleEntry[] | nu
   for (const e of index) {
     if (e.date !== date || !slateGame(e.id)) continue;
     const s = sched.get(e.id);
-    out.set(e.id, { id: e.id, date, home: e.home, away: e.away, ...(s?.tip ? { tip: s.tip } : {}), finished: true, status: 'final', entry: e, ...(e.tv ? { tv: e.tv } : {}), ...(e.cup ? { cup: e.cup } : {}) });
+    out.set(e.id, { id: e.id, date, home: e.home, away: e.away, ...(s?.tip ? { tip: s.tip } : {}), finished: true, status: 'final', entry: e, ...(e.tv ? { tv: e.tv } : {}), ...(e.cup ? { cup: e.cup } : {}), ...(s?.label ? { label: s.label } : {}) });
   }
   for (const s of schedule ?? []) {
     if (s.date !== date || !slateGame(s.id) || out.has(s.id) || !s.home || !s.away) continue;
-    out.set(s.id, { id: s.id, date, home: s.home, away: s.away, ...(s.tip ? { tip: s.tip } : {}), finished: false, status: s.status, ...(s.tv ? { tv: s.tv } : {}), ...(s.cup ? { cup: s.cup } : {}) });
+    out.set(s.id, { id: s.id, date, home: s.home, away: s.away, ...(s.tip ? { tip: s.tip } : {}), finished: false, status: s.status, ...(s.tv ? { tv: s.tv } : {}), ...(s.cup ? { cup: s.cup } : {}), ...(s.label ? { label: s.label } : {}) });
   }
   return [...out.values()].sort(byTip);
 }

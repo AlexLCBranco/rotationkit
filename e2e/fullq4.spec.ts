@@ -7,7 +7,11 @@ import { leaderboard, playerFullQ4, seasonCounts, type FullQ4Opts } from '../src
 import type { QuartersFile } from '../src/domain/leaders.ts';
 import type { Game, GameIndexEntry } from '../src/domain/types.ts';
 
-const file = (s: string) => JSON.parse(readFileSync(`data/${s}/quarters.json`, 'utf8')) as QuartersFile;
+// Regular-season games (ids 002…): what Full Q4 counts by default (RK-13).
+const file = (s: string) => {
+  const f = JSON.parse(readFileSync(`data/${s}/quarters.json`, 'utf8')) as QuartersFile;
+  return { ...f, games: f.games.filter((g) => g[0].startsWith('002')) };
+};
 function trackErrors(page: Page) {
   const errors: string[] = [];
   page.on('console', (m) => m.type() === 'error' && !m.location().url.includes('cdn.nba.com') && errors.push(m.text()));
@@ -52,7 +56,7 @@ test('options live in the URL; show all; a player name opens his page', async ({
 test('player page: "Full Q4s: X of Y games" and a marker on each full-4th row', async ({ page }) => {
   const season = '2025-26';
   const index = JSON.parse(readFileSync(`data/${season}/index.json`, 'utf8')) as GameIndexEntry[];
-  const games = index.filter((e) => e.home === 'ORL' || e.away === 'ORL').map((e) => JSON.parse(readFileSync(`data/${season}/games/${e.id}.json`, 'utf8')) as Game);
+  const games = index.filter((e) => e.id.startsWith('002') && (e.home === 'ORL' || e.away === 'ORL')).map((e) => JSON.parse(readFileSync(`data/${season}/games/${e.id}.json`, 'utf8')) as Game);
   const top = leaderboard(seasonCounts(file(season), { threshold: 'full', noBlowouts: false })).find((r) => r.team === 'ORL')!;
   const mine = playerFullQ4(games, top.id, 'ORL');
   await page.goto(`/#/player/ORL/${top.id}?s=${season}`);

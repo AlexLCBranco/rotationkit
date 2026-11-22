@@ -11,6 +11,7 @@ import type { Cursor } from './GameChart.tsx';
 import { totalPlayed } from './GameChart.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { seasonOf } from '../domain/season.ts';
+import { HelpLink } from './HelpLink.tsx';
 
 export function useGameNames(g: Game) {
   return useMemo(() => {
@@ -147,6 +148,7 @@ export function QuarterTable({ g, team }: { g: Game; team: string }) {
   const th = (key: SortKey, label: string, cls = 'num', title?: string) => (
     <th className={`${cls} sortable`} title={title} aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
       <button onClick={() => setSort({ key, dir: sort.key === key ? ((-sort.dir) as 1 | -1) : key === 'name' ? 1 : -1 })}>{label}</button>
+      {key === 'usg' && <HelpLink section="usg" />}
     </th>
   );
   const periods = Array.from({ length: g.periods }, (_, i) => i + 1);

@@ -11,6 +11,7 @@ import { TEAM_BY_TRI } from "../data/teams.ts";
 import { rosterTeams, teamRoster } from "../domain/roster.ts";
 import { TeamLogo } from "./Headshot.tsx";
 import { PlayerLink, TeamLink } from "./Links.tsx";
+import { inSet } from "../domain/gameSet.ts";
 
 export function RosterPanel({
   season,
@@ -26,7 +27,8 @@ export function RosterPanel({
   const data = useAsync(async () => {
     const idx = await loadSeasonAppearances(season);
     const { team, others } = rosterTeams(idx, player, routeTeam);
-    const games = await loadTeamGames(season, team);
+    // RK-13: minutes per game over the regular season only, as before postseason games existed in the data.
+    const games = (await loadTeamGames(season, team)).filter((g) => inSet(g.id));
     return { team, others, roster: teamRoster(games, team, idx) };
   }, [season, player, routeTeam]);
   const shown = !phone || open;

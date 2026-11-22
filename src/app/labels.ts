@@ -3,6 +3,7 @@
 import type { Selection } from '../domain/patterns.ts';
 import { REST_WORDS } from '../domain/rest.ts';
 import { formatDuration } from '../domain/time.ts';
+import { SET_WORDS, type GameSet } from '../domain/gameSet.ts';
 
 export function describeSelection(sel: Selection, names: Map<number, string>): string {
   const venue = sel.filters.venue === 'all' ? '' : `${sel.filters.venue} `;
@@ -13,7 +14,8 @@ export function describeSelection(sel: Selection, names: Map<number, string>): s
   return `${base} ${ww.mode} ${names.get(ww.player) ?? sel.withWithout?.name ?? 'player'}`;
 }
 
-export const basedOn = (n: number) => `based on ${n} game${n === 1 ? '' : 's'}`;
+/** "based on 12 games · regular season": always says which set of games (RK-13). */
+export const basedOn = (n: number, set: GameSet = 'regular') => `based on ${n} game${n === 1 ? '' : 's'} · ${SET_WORDS[set]}`;
 
 const REASONS: Record<string, string> = {
   INACTIVE_INJURY: 'Injury',

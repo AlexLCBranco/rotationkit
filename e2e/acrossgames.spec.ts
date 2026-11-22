@@ -10,7 +10,7 @@ import { formatMin } from '../src/app/labels.ts';
 import type { Game, GameIndexEntry } from '../src/domain/types.ts';
 
 const season = (s: string) =>
-  (JSON.parse(readFileSync(`data/${s}/index.json`, 'utf8')) as GameIndexEntry[]).map((e) => JSON.parse(readFileSync(`data/${s}/games/${e.id}.json`, 'utf8')) as Game);
+  (JSON.parse(readFileSync(`data/${s}/index.json`, 'utf8')) as GameIndexEntry[]).filter((e) => e.id.startsWith('002')).map((e) => JSON.parse(readFileSync(`data/${s}/games/${e.id}.json`, 'utf8')) as Game);
 
 test('clicking an upcoming game opens Averages in matchup mode (this team vs that opponent, last 10)', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2026-27&v=home');

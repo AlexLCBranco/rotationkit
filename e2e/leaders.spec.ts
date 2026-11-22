@@ -4,7 +4,11 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { leaders, type LeaderOpts, type QuartersFile } from '../src/domain/leaders.ts';
 
-const file = (s: string) => JSON.parse(readFileSync(`data/${s}/quarters.json`, 'utf8')) as QuartersFile;
+// Regular-season games (ids 002…): what Leaders counts by default (RK-13).
+const file = (s: string) => {
+  const f = JSON.parse(readFileSync(`data/${s}/quarters.json`, 'utf8')) as QuartersFile;
+  return { ...f, games: f.games.filter((g) => g[0].startsWith('002')) };
+};
 const want = (s: string, o: LeaderOpts) => leaders(file(s), { noGarbage: true, ...o }); // the tab hides garbage time by default
 const rows = (page: Page) =>
   page.getByTestId('leaders-row').evaluateAll((els) => els.map((e) => ({ id: Number(e.getAttribute('data-player')), min: Number(e.getAttribute('data-min')), pts: Number(e.getAttribute('data-pts')) })));

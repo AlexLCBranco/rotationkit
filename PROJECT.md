@@ -2,8 +2,8 @@
 
 NBA rotation research tool: when each player is on court, how consistent that is, how it changes when a teammate is
 out. Static Vite + React 19 + TypeScript (strict) app on Vercel reading committed JSON; Vitest + Playwright; Node/tsx
-scripts fetch and normalize the data. Production: **https://rotationkit.vercel.app** (deploys `main`). Desktop and phone
-(RK-4), dark theme only. History, incidents and old validation tables: `docs/DECISIONS.md` (not required reading).
+scripts fetch and normalize the data. Production: **https://rotationkit.vercel.app** (deploys `main`). Visitors see the site as
+**Hoop Rotations** (RK-16, a placeholder: name, description, address and the report form live in `src/app/site.ts` only). Desktop and phone (RK-4), dark theme only. History, incidents and old validation tables: `docs/DECISIONS.md` (not required reading).
 
 ## Data
 - **Sources**: cdn.nba.com schedule, box score and play-by-play (required); stats.nba.com `gamerotation` (stint
@@ -37,6 +37,8 @@ scripts fetch and normalize the data. Production: **https://rotationkit.vercel.a
 
 ## Pattern engine (`src/domain/patterns.ts`, settings in `src/domain/config.ts`)
 - **Blowout rule** (`PATTERN_CONFIG.blowout`, one place): Q4/OT, under 6:00 left in the period, margin ≥ 20; on by default (that time leaves both counts).
+- **Game sets** (RK-13, `src/domain/gameSet.ts`, kind = id prefix): regular season (002) | postseason = play-in (005) + playoffs (004); the Cup final (006) is in neither. Every average (Averages, player page, Leaders,
+  Full Q4, Closers, Usual, USG%) counts ONE set: regular by default, `gs=post` via the "Regular season | Postseason" chip (shown when the season has postseason games); labels always name the set. Tags PLAY-IN / PLAYOFFS / CUP FINAL (+ the feed's label). Past seasons: `scripts/backfill-postseason.ts` (GitHub: `backfill-postseason.yml`).
 - **Selection order**: season → team → home/away → rest → with/without → last N ("last 10 without X" = the 10 latest
   games X missed). Seasons never mix (season from the game id). The UI always says "based on N games".
 - **With/without**: "with" = played; "without" = inactive or DNP while with the team; neither when not with the team.
@@ -49,7 +51,12 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 - **Layout** (RK-8, backlogkit's NAV_PATTERN.md, footykit FK-65's look): pinned **header** (`Header.tsx`, `app/nav.ts`; 92 px, phone 100):
   logo, ← → (own history, `pageHistory.ts`), breadcrumb (each part lists its siblings), **Go anywhere** (`GoAnywhere.tsx`; button,
   "/", Ctrl+K: places, teams ("bos"), then 8 players, accent-insensitive, initials, empty = last 5 `rk.recent`), places **Games · By
-  day · Averages · Leaders** (Q4 / Full Q4 = How of Games / Leaders). **Page rows** (`PageRows.tsx`): season chips, team strips, How.
+  day · Averages · Leaders · How to read this** (Q4 / Full Q4 = How of Games / Leaders). **Page rows** (`PageRows.tsx`): season chips, team strips, How.
+- **Front door** (RK-9 / 10 / 11): an empty URL with no remembered team (`rk.team`, set only when the visitor goes somewhere with a team, never by a URL fix-up) opens By day.
+  **How to read this** (`#/help?sec=<part>`, `HelpView.tsx`, `app/help.ts`): ten parts in plain words, rule sentences generated from the settings (`PATTERN_CONFIG.blowout`, `FOUL_TROUBLE`, `USUAL`,
+  `FULL_Q4_SECONDS`), a real example from the latest game; a small **"?"** (`HelpLink.tsx`) next to each term on every screen opens its part. **Footer** (`Footer.tsx`, every page; inside the window on Q4):
+  unofficial-site notice, data source, How to read this, **Report a problem** (also next to every "⚠ Data note"): the Tally form `REPORT_FORM_URL?page=<this page's address>`, new tab; no form set = no link.
+  Tab titles name the page (`app/title.ts`). `index.html` gets title, description, Open Graph / Twitter tags at build time (`scripts/lib/head.ts`); preview image `public/og.png` (`scripts/make-og-image.ts`).
 - **Name links** (`Links.tsx`: `PlayerLink`, `TeamLink`; `src/app/links.ts`): every player / team name is a real `<a>`
   (his page / its Averages; that season, current filters, with/without only for its own team); a click never reaches the
   row under it. **Every new name in a table, list or chart must use them.** Not linked: Q4 sentences, tooltips, chips.
@@ -59,10 +66,10 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
   (B2B 1/2, 3-in-4, rest days; `scheduleTags.ts`) | ⚠ on flagged games; opponent filter; collapsible (remembered);
   drag its right border narrower only (500 px down to what date | game | W/L need, ~334 px; `rk.listWidth`; ↔ / dbl-click
   = 500); columns sized from their measured text (system font); badges cut with "…", hidden with rest days when < 30 px. **3-in-4 chip** (list, header, By day) = calendarkit's merged stretch (port of
-  7a1c7f7): chained overlapping sets, "4in6 · 2nd"; hover pop-up: one square per day, games link to hoopsjunkie;
+  7a1c7f7): chained overlapping sets, "4in6 · 2nd"; hover pop-up: one square per day, a game in our data links to its page here (that team first), others are plain;
   ↑/↓ moves; then the next 3 scheduled games, dimmed: ↑/↓ and ◀ ▶ skip them; a click opens Averages in matchup mode
   (this team `vs=` that opponent, last 10, other filters kept); the opponent's name is still its team link. ◀ ▶ in the rows. Right: game header (score, game-type badge, TV / CUP tags (also in the list and player rows),
-  garbage-time chip, hoopsjunkie / calendarkit icon links, both teams' schedule chips) and the **game chart**
+  garbage-time chip, calendarkit icon link, both teams' schedule chips) and the **game chart**
   (`GameChart.tsx`, layout in `src/domain/gameChart.ts`):
   - team order: the selected team (`t=`, else the remembered team, when it played) first, home or away; none →
     away first and no `t=` in the URL. Each team header has a HOME / AWAY tag and the score (Q4 view: same order/tags);
@@ -118,33 +125,26 @@ State lives in the URL hash (`src/app/route.ts`), so every view is linkable and 
 - **Phone** (< 768 px, `src/app/phone.ts`): places as icons with labels under, breadcrumb's last 2 parts; the game first, its list folded behind "☰ Games (N)" (in the
   page, no TM column / resize, folds after a pick); wide charts and tables scroll in their own box (name sticky); hover
   texts open on tap, close on a tap outside (`TapTips.tsx`, `useTapOutside`); chart: tap = cursor + readout, drag the handle.
-- **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 / second-half min and
-  pts per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table; `LEADER_MIN_GAMES`;
+- **Leaders** (`#/leaders?…`, `LeadersView.tsx`, `src/domain/leaders.ts` on `quarters.json`): Q4 / second-half min and pts per game (last 5 / 10 / season, OT optional, garbage time hidden by default); scatter + table; `LEADER_MIN_GAMES`;
   USG% column / "Rank by USG%" (`sort=usg`; whole games, from `quarters.json`'s usage counts, minutes from stints).
-- **Full Q4** (`#/fullq4?s=&th=11&nb=1`, `FullQ4View.tsx`, `domain/fullQ4.ts`): whole regulation 4th on court (12:00; back-to-back stints
-  count; OT never): season leaderboard (full Q4s, GP, %); "11:00+" (`th=11`); "Exclude blowouts" (`nb=1`). Per date: By day.
+- **Full Q4** (`#/fullq4?s=&th=11&nb=1`, `FullQ4View.tsx`, `domain/fullQ4.ts`): whole regulation 4th on court (12:00; back-to-back stints count; OT never): season leaderboard (full Q4s, GP, %); "11:00+" (`th=11`); "Exclude blowouts" (`nb=1`). Per date: By day.
 - **Deep link** `/?game=<NBA gameId>` → that game; unknown / future / not added → "Rotation data not available…" + the schedule (`DeepLink.tsx`).
-- **Player by name** `/#/player?name=<full name>[&s=&w=…]` (`PlayerByName.tsx`, `domain/playerByName.ts`; for statmuse-builder):
-  exact name, ignoring case, accents, `.'-`, Jr./Sr./II–IV; same name → latest appearance; team = his latest in `s=` / current
-  / last season with data; then history.replace → `#/player/<TEAM>/<id>`, params kept. None → "No rotation data for '<name>'".
+- **Player by name** `/#/player?name=<full name>[&s=&w=…]` (`PlayerByName.tsx`, `domain/playerByName.ts`; for statmuse-builder): exact name, ignoring case, accents, `.'-`, Jr./Sr./II–IV; same name → latest appearance; team = his latest in `s=` / current / last season with data; then history.replace → `#/player/<TEAM>/<id>`, params kept. None → "No rotation data for '<name>'".
 
 ## Testing
 - `npm test` — Vitest: 12 raw fixture games (`tests/fixtures/`), domain logic, CI logic, and **whole-season sweeps** over
-  every committed game (`WHOLE_DATA_TIMEOUT`, `tests/data.ts`; `RK_TEST_GAMES=id,id` limits them, for the daily update).
+  every committed game (`WHOLE_DATA_TIMEOUT`, `tests/data.ts`; `RK_TEST_GAMES=id,id` limits them, for the data update).
 - `npm run build && npm run e2e` — Playwright on the build (`vite preview`): **desktop** (1280 × 900, compact 1920 × 1080)
-  and **phone** (Pixel 7 390 × 844 touch, `e2e/phone*.spec.ts`: no sideways scroll + screenshot per route, game first,
-  swipe, taps). `e2e/nav.spec.ts` / `phone-nav.spec.ts`: NAV_PATTERN §6 (header, URL round-trips, < 100 ms clicks, layout
-  shift, no `<select>`). No console errors; By day date 2025-11-10. `E2E_ALL_GAMES=1`: all games. Shots → `screenshots/`.
+  and **phone** (Pixel 7 390 × 844 touch, `e2e/phone*.spec.ts`: no sideways scroll + screenshot per route, game first, swipe, taps). `e2e/nav.spec.ts` / `phone-nav.spec.ts`: NAV_PATTERN §6 (header, URL round-trips, < 100 ms clicks, layout shift, no `<select>`). No console errors; By day date 2025-11-10. `E2E_ALL_GAMES=1`: all games. Shots → `screenshots/`.
+  `e2e/frontdoor.spec.ts` / `phone-frontdoor.spec.ts`: RK-9…16 (first visit, help, footer, report link, no old name, no outside game links).
 - **Checks** (`.github/workflows/pr.yml`, every push to `main`): `npm ci`, `npm test`, `npm run build`, `npm run e2e`. Work goes straight to `main` (no PRs); run the same locally before pushing.
 
-## Data updates — daily (`.github/workflows/data-update.yml` → `scripts/ci-update.ts`)
-- 11:00 UTC daily (and manual): probe cdn.nba.com → `fetch-season --cdn-only --strict` → `normalize` → `validate-all`
-  → `RK_TEST_GAMES=<new ids> npm test` (sweeps over the new games only) → commit `data/` to `main` ("data: N new games
-  through YYYY-MM-DD", or a schedule-only update) → redeploy.
-- Every run writes `data/update-status.json`; a failing step commits **only** that file ("data: update FAILED at <step>",
-  `scripts/record-failure.ts`). A game failing a validate-all check is still committed with its warning; reviewed
-  problems go to `data/known-issues.json`; data is never patched. `claude/**` pushes touching the pipeline: dry run.
-- **By hand**: `npm run update-data` (fetch-season → normalize → validate-all; `-- --season 2025-26 --cdn-only` for a past
-  season); one game: `npm run fetch-game -- <id> [--force] [--cdn-only]`. Cache: `cache/`. **Deploy** (Vercel): per push.
-- **Open problems**: stats.nba.com is slow/flaky (optional). 2026-27 box scores have no inactive reasons, so DNP – CD is rare there. The
-  appearance rule misjudges some fringe two-way / G-League players.
+## Data updates (`.github/workflows/data-update.yml` "Data update" → `scripts/ci-update.ts`)
+- **Hourly 01:00–08:00 UTC** (RK-12; `--hourly`) and **11:00 UTC** (and manual): probe cdn.nba.com → `fetch-season --cdn-only --strict` (final games only: schedule status + box score
+  `gameStatus 3`) → `normalize` → `validate-all` → `RK_TEST_GAMES=<ids> npm test` → commit `data/` to `main` ("data: N new games through YYYY-MM-DD") → redeploy.
+  An hourly run with no new game and no schedule change stops after normalize and commits nothing. The 11:00 run always does every step, records itself in
+  `data/update-status.json` (stale banner: 36 h) and downloads again (`--refetch`) the games added since the previous 11:00 run (`pending` in that file); a changed game is committed.
+- A failing step commits **only** the status file ("data: update FAILED at <step>", `scripts/record-failure.ts`). A game failing a validate-all check is still committed with its warning;
+  reviewed problems go to `data/known-issues.json`; data is never patched. `claude/**` pushes touching the pipeline: dry run.
+- **By hand**: `npm run update-data` (fetch-season → normalize → validate-all; `-- --season 2025-26 --cdn-only` for a past season); one game: `npm run fetch-game -- <id> [--force] [--cdn-only]`. Cache: `cache/`. **Deploy** (Vercel): per push.
+- **Open problems**: stats.nba.com is slow/flaky (optional). 2026-27 box scores have no inactive reasons, so DNP – CD is rare there. The appearance rule misjudges some fringe two-way / G-League players.

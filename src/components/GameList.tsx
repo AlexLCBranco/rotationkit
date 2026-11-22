@@ -25,6 +25,8 @@ export interface ListGame {
   tags: ScheduleTags | undefined;
   tv?: string[] | undefined;
   cup?: CupRound | undefined;
+  /** The schedule feed's own label (playoff round, game number), when it gave one. */
+  label?: string | undefined;
 }
 
 /** How many not-yet-played games to show under the list. */
@@ -277,7 +279,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, season, onC
                   <td className="gl-tags">
                     <span className="gl-tags-in">
                       <ScheduleChips tags={g.tags} rest={false} />
-                      <BroadcastTags tv={g.tv} cup={g.cup} />
+                      <BroadcastTags tv={g.tv} cup={g.cup} id={g.id} label={g.label} />
                     </span>
                   </td>
                   <td className="rest-days" data-testid="list-rest">
@@ -291,7 +293,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, season, onC
                 key={g.id}
                 className={`gl-upcoming${i === 0 ? ' first' : ''}${g.opp && matchupHref ? ' open' : ''}`}
                 title={
-                  (g.status === 'live' ? 'In progress — the chart appears once the game is final and the daily update has run' : 'Not played yet') +
+                  (g.status === 'live' ? 'In progress. The chart appears about an hour after the game ends' : 'Not played yet') +
                   (g.opp && matchupHref ? `. Click for the matchup: ${g.team} vs ${g.opp}, last 10 games.` : '')
                 }
                 onClick={() => g.opp && matchupHref && (location.hash = matchupHref(g.opp))}
@@ -333,7 +335,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, season, onC
                 <td className="gl-tags">
                   <span className="gl-tags-in">
                     <ScheduleChips tags={g.tags} rest={false} />
-                    <BroadcastTags tv={g.tv} cup={g.cup} />
+                    <BroadcastTags tv={g.tv} cup={g.cup} id={g.id} label={g.label} />
                   </span>
                 </td>
                 <td className="rest-days">

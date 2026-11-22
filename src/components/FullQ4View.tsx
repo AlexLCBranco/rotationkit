@@ -8,10 +8,13 @@ import { type FullQ4Query, type Nav, type Route } from '../app/route.ts';
 import { teamColor } from '../app/teams.ts';
 import { leaderboard, seasonCounts, type FullQ4Threshold } from '../domain/fullQ4.ts';
 import { NoBlowoutsToggle } from './DateBar.tsx';
-import { PageRows, Row, SeasonChips, Switch } from './PageRows.tsx';
+import { PageRows, Row, SeasonChips, SetChips, Switch } from './PageRows.tsx';
+import { inSet, SET_WORDS, type GameSet } from '../domain/gameSet.ts';
+import { withSet } from '../domain/patterns.ts';
 import { LEADERS_HOWS, leadersHowRoute } from '../app/nav.ts';
 import { Headshot } from './Headshot.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
+import { HelpLink } from './HelpLink.tsx';
 
 interface Props {
   seasons: string[];
@@ -26,7 +29,10 @@ const thLabel = (t: FullQ4Threshold) => (t === 'full' ? '12:00' : '11:00+');
 
 export function FullQ4View({ seasons, season, route, nav }: Props) {
   const q = route.fullq4;
-  const data = useAsync(() => loadQuarters(season), [season]);
+  const all = useAsync(() => loadQuarters(season), [season]);
+  // RK-13: one set of games only (regular season unless the Postseason chip is on); the Cup final is in neither.
+  const gset: GameSet = route.filters.set ?? 'regular';
+  const data = useMemo(() => (all.status === 'ok' ? { status: 'ok' as const, value: { ...all.value, games: all.value.games.filter((g) => inSet(g[0], gset)) } } : all), [all, gset]);
   const set = (patch: Partial<FullQ4Query>, s?: string) => nav({ ...route, season: s ?? season, fullq4: { ...q, ...patch } });
   const [showAll, setShowAll] = useState(false);
   const opts = { threshold: q.threshold, noBlowouts: q.noBlowouts };
@@ -52,6 +58,7 @@ export function FullQ4View({ seasons, season, route, nav }: Props) {
           <>
             <Row label="What">
               <SeasonChips seasons={seasons} season={season} onChange={(s) => set({}, s)} />
+              <SetChips season={season} value={gset} onChange={(s) => nav({ ...route, season, filters: withSet(route.filters, s) })} />
             </Row>
             <Row label="How">
               <Switch label="How" testId="how" idPrefix="how" value="fullq4" options={LEADERS_HOWS} onChange={(h) => nav(leadersHowRoute({ ...route, season }, h))} />
@@ -64,8 +71,9 @@ export function FullQ4View({ seasons, season, route, nav }: Props) {
         <NoBlowoutsToggle checked={q.noBlowouts} onChange={(b) => set({ noBlowouts: b })} />
       </div>
       <p className="muted ld-note" data-testid="fq-note">
-        Players on court for {q.threshold === 'full' ? 'the entire regulation 4th quarter (12:00)' : 'at least 11:00 of the regulation 4th quarter'}. Overtime never counts.
-        {q.noBlowouts ? ' Games with 4th-quarter garbage time are left out (they count neither as played nor as full).' : ''}
+        Players on court for {q.threshold === 'full' ? 'the entire regulation 4th quarter (12:00)' : 'at least 11:00 of the regulation 4th quarter'}. Overtime never counts. <span data-testid="fq-set">Counts {SET_WORDS[gset]} games only.</span>
+        {q.noBlowouts ? ' Games with 4th-quarter garbage time are left out (they count neither as played nor as full).' : ''}{' '}
+        <HelpLink section="fullq4" />
       </p>
       {data.status === 'loading' && <p className="muted">Loading…</p>}
       {data.status === 'error' && <p className="error">Could not load: {data.error}</p>}

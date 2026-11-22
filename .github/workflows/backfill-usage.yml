@@ -13,7 +13,7 @@ on:
 permissions:
   contents: write
 
-# Same group as the daily data update: never two data commits at once.
+# Same group as the data update: never two data commits at once.
 concurrency:
   group: data-update
   cancel-in-progress: false

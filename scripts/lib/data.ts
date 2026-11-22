@@ -30,6 +30,26 @@ export function gamesToFetch<T extends { gameId: string }>(games: T[], inData: S
   return games.filter((g) => !inData.has(g.gameId) && !isCached(g.gameId));
 }
 
+/**
+ * RK-12: which games the 11:00 UTC run downloads again: the ones added since the previous 11:00 run (the pending
+ * list), that are finished games of this season's list and are not being downloaded for the first time in this run.
+ */
+export function refetchSelection(pending: string[], finishedIds: string[], fetchingNow: Set<string> = new Set()): string[] {
+  const ok = new Set(finishedIds);
+  return [...new Set(pending)].filter((id) => ok.has(id) && !fetchingNow.has(id)).sort();
+}
+
+/** Game ids of committed game files that git reports as modified (`git status --porcelain` lines). */
+export function modifiedGameIds(porcelain: string): string[] {
+  return porcelain
+    .split('\n')
+    .map((l) => /^.M\s+data\/\d{4}-\d{2}\/games\/(\d{10})\.json$/.exec(l.trimEnd())?.[1] ?? /^M.\s+data\/\d{4}-\d{2}\/games\/(\d{10})\.json$/.exec(l.trimEnd())?.[1])
+    .filter((id): id is string => !!id)
+    .sort();
+}
+
+export const correctedCommitMessage = (n: number) => `data: ${n} game${n === 1 ? '' : 's'} corrected (re-fetched)`;
+
 export const indexEntry = (g: Game): GameIndexEntry => ({
   id: g.id,
   date: g.date,
@@ -78,6 +98,13 @@ export function withScheduleTags(index: GameIndexEntry[], schedule: ScheduleEntr
     const e = by.get(g.id);
     return { ...g, ...(e?.tv ? { tv: e.tv } : {}), ...(e?.cup ? { cup: e.cup } : {}) };
   });
+}
+
+/** A schedule without a feed: its entries, plus a "final" entry for every game in the index that it lacks; by date, id. */
+export function mergeFinalGames(schedule: ScheduleEntry[], index: GameIndexEntry[]): ScheduleEntry[] {
+  const have = new Set(schedule.map((e) => e.id));
+  const add: ScheduleEntry[] = index.filter((g) => !have.has(g.id)).map((g) => ({ id: g.id, date: g.date, home: g.home, away: g.away, status: 'final' }));
+  return add.length ? [...schedule, ...add].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)) : schedule;
 }
 
 export function scheduleChanges(before: ScheduleEntry[], after: ScheduleEntry[]): number {

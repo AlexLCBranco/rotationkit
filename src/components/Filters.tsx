@@ -1,5 +1,6 @@
 import type { Filters as F, Venue, Window } from '../domain/patterns.ts';
 import { Chips, Switch, type Option } from './PageRows.tsx';
+import { HelpLink } from './HelpLink.tsx';
 
 interface Props {
   filters: F;
@@ -46,6 +47,7 @@ export function Filters({ filters, teammates, onFilters }: Props) {
       <label className="toggle">
         <input type="checkbox" checked={filters.blowout} onChange={(e) => onFilters({ ...filters, blowout: e.target.checked })} />
         <span>Hide blowout time</span>
+        <HelpLink section="garbage" />
       </label>
       {teammates && (
         <div className="ww">

@@ -1,6 +1,6 @@
 # Checks after every push to main (work is committed straight to main, CLAUDE.md) and on any pull request: unit
 # tests (incl. the whole-season sweeps), the production build, and the Playwright end-to-end tests against that build.
-# The daily data update's own pushes (GITHUB_TOKEN) do not trigger it; that workflow runs its own tests.
+# The data update's own pushes (GITHUB_TOKEN) do not trigger it; that workflow runs its own tests.
 name: Checks
 
 on:

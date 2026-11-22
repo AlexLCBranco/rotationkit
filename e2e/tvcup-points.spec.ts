@@ -1,5 +1,5 @@
 // National TV / NBA Cup tags and points per stint (desktop).
-// The committed data predates both fields (they arrive with the next daily update), so these tests serve real pipeline
+// The committed data predates both fields (they arrive with the next data update), so these tests serve real pipeline
 // output through request interception: a game normalized from its raw fixture (tests/fixtures, same code as
 // `npm run normalize`) and schedule tags from the real feed excerpt (src/shared/nba-schedule/fixture.json, parsed by
 // scheduleEntryOf). Committed data/ is never changed.

@@ -17,6 +17,8 @@ import { TeamLogo } from './Headshot.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { Q4_MARGIN_STRIP_PX, MarginLabel, MarginSvg } from './MarginStrip.tsx';
 import { seasonOf } from '../domain/season.ts';
+import { HelpLink } from './HelpLink.tsx';
+import { setFooterSlot } from './Footer.tsx';
 
 /** Left columns: player | Q4 MIN | fouls entering Q4 | fouls in Q4/OT. */
 const LEFT = 292;
@@ -93,6 +95,7 @@ export function Q4View({ g, trouble, setTrouble, first = null }: { g: Game; trou
         <label className="toggle">
           <input type="checkbox" checked={trouble} onChange={(e) => setTrouble(e.target.checked)} />
           <span>Foul trouble colors</span>
+          <HelpLink section="fouls" />
         </label>
         <span className="muted">
           4th quarter{g.periods > 4 ? ' + overtime' : ''} only · closers first · hover for both lineups, click to pin
@@ -208,6 +211,9 @@ export function Q4View({ g, trouble, setTrouble, first = null }: { g: Game; trou
             </span>
           ))}
         </p>
+        {/* RK-10: this screen fits the window with no page scroll, so the site's footer sits here, at the end of this
+            panel's own scroll (src/components/Footer.tsx). */}
+        <div ref={setFooterSlot} />
       </aside>
       </div>
     </>

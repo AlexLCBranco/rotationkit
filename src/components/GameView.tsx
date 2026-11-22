@@ -26,6 +26,8 @@ import { remember } from '../app/hooks.ts';
 import { usePhone } from '../app/phone.ts';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { dayNeighbours, finishedOfDay } from '../domain/slate.ts';
+import { HelpLink } from './HelpLink.tsx';
+import { ReportLink } from './Footer.tsx';
 
 interface Props {
   seasons: string[];
@@ -102,6 +104,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
     const [index, schedule] = meta.value;
     const sched = schedule ?? index;
     const ours = scheduleTags(sched, team);
+    const labels = new Map((schedule ?? []).map((e) => [e.id, e.label]));
     const games: ListGame[] = index
       .filter((e) => plays(e, team))
       .map((e) => {
@@ -120,6 +123,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
           tags: ours.get(e.id),
           tv: e.tv,
           cup: e.cup,
+          label: labels.get(e.id),
         };
       })
       .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)); // oldest first
@@ -244,7 +248,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
           {meta.status === 'error' && <p className="error">Could not load games: {meta.error}</p>}
           {loaded.status === 'error' && id && <p className="error">Could not load game: {loaded.error}</p>}
           {g && picker && team && (g.home.tri === team || g.away.tri === team) && (
-            <GameHeader g={g} team={team} entry={meta.status === 'ok' ? meta.value[0].find((e) => e.id === g.id) : undefined} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
+            <GameHeader g={g} team={team} label={picker.games.find((x) => x.id === g.id)?.label} entry={meta.status === 'ok' ? meta.value[0].find((e) => e.id === g.id) : undefined} ours={picker.ours.get(g.id)} theirs={scheduleTags(picker.sched, g.home.tri === team ? g.away.tri : g.home.tri).get(g.id)} />
           )}
           {g && tab === 'games' && <GameBody g={g} trouble={trouble} setTrouble={setTrouble} cursor={cursor} setCursor={setCursor} first={selected} />}
           {g && tab === 'q4' && (
@@ -259,7 +263,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   );
 }
 
-function GameHeader({ g, team, entry, ours, theirs }: { g: Game; team: string; entry: GameIndexEntry | undefined; ours: ScheduleTags | undefined; theirs: ScheduleTags | undefined }) {
+function GameHeader({ g, team, entry, label, ours, theirs }: { g: Game; team: string; label?: string | undefined; entry: GameIndexEntry | undefined; ours: ScheduleTags | undefined; theirs: ScheduleTags | undefined }) {
   const opp = g.home.tri === team ? g.away.tri : g.home.tri;
   return (
     <div className="game-head" data-testid="game-head">
@@ -279,7 +283,7 @@ function GameHeader({ g, team, entry, ours, theirs }: { g: Game; team: string; e
           {g.periods > REG_PERIODS ? ` · Final/${g.periods === 5 ? 'OT' : `${g.periods - REG_PERIODS}OT`}` : ' · Final'}
         </span>
         <GameBadge g={g} />
-        <BroadcastTags tv={entry?.tv} cup={entry?.cup} />
+        <BroadcastTags tv={entry?.tv} cup={entry?.cup} id={g.id} label={label} />
         <GameLinks g={g} />
       </h1>
       <div className="head-tags">
@@ -296,6 +300,7 @@ function GameHeader({ g, team, entry, ours, theirs }: { g: Game; team: string; e
             <ScheduleChips tags={tags as ScheduleTags | undefined} />
           </span>
         ))}
+        <HelpLink section="schedule" />
       </div>
     </div>
   );
@@ -349,10 +354,12 @@ function GameBody({
         <label className="toggle">
           <input type="checkbox" checked={trouble} onChange={(e) => setTrouble(e.target.checked)} />
           <span>Foul trouble colors</span>
+          <HelpLink section="fouls" />
         </label>
         <label className="toggle" title="Faint outline of each player's usual stints over his team's previous 10 games (this one excluded)">
           <input type="checkbox" checked={showUsual} onChange={(e) => setShowUsual(e.target.checked)} data-testid="usual-toggle" />
           <span>Usual</span>
+          <HelpLink section="usual" />
         </label>
         <label className="toggle" title="Only players who played, thinner rows and one time axis: both teams on one screen">
           <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} data-testid="compact-toggle" />
@@ -366,6 +373,9 @@ function GameBody({
           }}
         />
         <span className="muted">{phone ? 'Tap a row for both lineups at that moment; drag the clock handle to move it.' : 'Hover a row for both lineups at that moment; click to pin the lineup cursor.'}</span>
+        <span className="help-q-labelled">
+          What is a bar? <HelpLink section="bar" />
+        </span>
       </div>
       {cursor?.pinned && (
         <div className="gc-sticky-panel">
@@ -394,12 +404,13 @@ function QualityWarning({ g }: { g: Game }) {
   if (!g.quality) return null;
   return (
     <div className="warn box" data-testid="quality-warning">
-      <strong>⚠ Data note.</strong> Stints and minutes below come from play-by-play and are used in patterns. The box score disagrees for:
+      <strong>⚠ Data note.</strong> <HelpLink section="datanote" /> Stints and minutes below come from play-by-play and are used in patterns. The box score disagrees for:
       <ul>
         {g.quality.map((q, i) => (
           <li key={i}>{qualityLine(g, q)}</li>
         ))}
       </ul>
+      <ReportLink className="report-link in-note" />
     </div>
   );
 }

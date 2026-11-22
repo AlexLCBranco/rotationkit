@@ -48,7 +48,7 @@ for (const bad of ['garbage', '0022699999', '12345', '0099999999', '']) {
     const errors = trackErrors(page);
     await page.goto(`/?game=${encodeURIComponent(bad)}`);
     await expect(page.getByTestId('deeplink-unavailable')).toContainText('Rotation data not available for this game yet');
-    await expect(page.getByRole('link', { name: 'Open rotationkit' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open Hoop Rotations' })).toBeVisible();
     expect(errors).toEqual([]);
   });
 }
@@ -56,6 +56,6 @@ for (const bad of ['garbage', '0022699999', '12345', '0099999999', '']) {
 test('?game=<unknown 2025-26 id> shows the message without console errors', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/?game=0022599999');
-  await expect(page.getByTestId('deeplink-unavailable')).toContainText('No game 0022599999');
+  await expect(page.getByTestId('deeplink-unavailable')).toContainText('We have no game 0022599999 in our data');
   expect(errors).toEqual([]);
 });

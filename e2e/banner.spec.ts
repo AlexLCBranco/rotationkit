@@ -8,7 +8,7 @@ const serve = (page: Page, body: unknown | null) =>
 
 test('no banner when the last run succeeded recently', async ({ page }) => {
   await serve(page, { lastRun: iso(3), result: 'ok', failingStep: null, error: null, lastSuccess: iso(3), failingSince: null, runId: '1' });
-  await page.goto('/');
+  await page.goto('/#/games');
   await expect(page.getByTestId('game-list')).toBeVisible();
   await expect(page.getByTestId('stale-banner')).toHaveCount(0);
 });
@@ -17,7 +17,7 @@ test('no banner and no error when there is no status file yet', async ({ page })
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await serve(page, null);
-  await page.goto('/');
+  await page.goto('/#/games');
   await expect(page.getByTestId('game-list')).toBeVisible();
   await expect(page.getByTestId('stale-banner')).toHaveCount(0);
   expect(errors).toEqual([]);

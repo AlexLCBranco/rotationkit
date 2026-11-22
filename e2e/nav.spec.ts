@@ -55,7 +55,7 @@ test('the header: on every main page, the same height and controls, still at the
     const box = (await h.boundingBox())!;
     heights.add(Math.round(box.height));
     expect(box.y).toBe(0);
-    await expect(h.getByTestId('where-tabs').getByRole('button')).toHaveCount(4);
+    await expect(h.getByTestId('where-tabs').getByRole('button')).toHaveCount(5);
     await expect(h.getByTestId('go-anywhere')).toBeVisible();
     await expect(h.getByTestId('hist-back')).toBeVisible();
     expect(await h.getByTestId('crumb').count()).toBeGreaterThanOrEqual(2);

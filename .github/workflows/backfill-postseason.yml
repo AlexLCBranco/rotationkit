@@ -1,0 +1,66 @@
+# One-off backfill (RK-13): add last season's play-in, playoff and NBA Cup final games (cdn.nba.com refuses Claude's
+# cloud sessions, so it runs here). The script asks cdn.nba.com for each candidate game id and keeps only real, final
+# games; nothing is patched. Runs once when this file lands on main, and by hand (Actions → Run workflow).
+# Games already in data/ are downloaded and normalized again (same result), so a re-run is safe.
+name: Backfill postseason games
+
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: Season to backfill
+        default: '2025-26'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/backfill-postseason.yml']
+
+permissions:
+  contents: write
+
+# Same group as the data update: never two data commits at once.
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Find and download the games
+        # A failed check (a series that does not end at 4 wins, a missing play-in game…) or a failed download is listed
+        # in the log and makes this step fail AFTER everything else is done; the games that worked are still committed.
+        id: backfill
+        continue-on-error: true
+        run: npx tsx scripts/backfill-postseason.ts --season "${{ github.event.inputs.season || '2025-26' }}"
+      - name: Normalize (game files, index, schedule, quarters)
+        run: npm run normalize -- --season "${{ github.event.inputs.season || '2025-26' }}"
+      - run: npm run validate-all
+      - run: npm test
+      - name: Commit and push
+        env:
+          GIT_AUTHOR_NAME: ${{ vars.DATA_COMMIT_NAME || 'github-actions[bot]' }}
+          GIT_AUTHOR_EMAIL: ${{ vars.DATA_COMMIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+          GIT_COMMITTER_NAME: ${{ vars.DATA_COMMIT_NAME || 'github-actions[bot]' }}
+          GIT_COMMITTER_EMAIL: ${{ vars.DATA_COMMIT_EMAIL || '41898282+github-actions[bot]@users.noreply.github.com' }}
+        run: |
+          git add data ':!data/*/validation.json'
+          if git diff --cached --quiet; then echo "Nothing to commit."; exit 0; fi
+          git commit -m "data: play-in, playoff and Cup final games (backfill)"
+          for i in 1 2 3 4; do git push && exit 0; git pull --no-rebase --no-edit origin main || exit 1; sleep $((i * 5)); done
+          exit 1
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f cache/postseason-backfill.json ]; then node -e "const r=require('./cache/postseason-backfill.json');console.log('found',r.found.length,'problems',JSON.stringify(r.problems),'failed',JSON.stringify(r.failed))"; fi
+      - name: Fail when a check or a download failed
+        if: steps.backfill.outcome == 'failure'
+        run: |
+          echo "A check or a download failed (see the first step's log); the games that worked were committed."
+          exit 1

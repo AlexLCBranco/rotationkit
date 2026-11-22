@@ -25,6 +25,7 @@ import { MarginLabel, MarginSvg } from './MarginStrip.tsx';
 import { usualAt, usualLine, usualStintAt, type Usual } from '../domain/usual.ts';
 import { seasonOf } from '../domain/season.ts';
 import { mergeContinuous, ptsText, stintSplitText } from '../domain/stints.ts';
+import { HelpLink } from './HelpLink.tsx';
 
 export interface Cursor {
   t: number;
@@ -453,7 +454,7 @@ function TeamRows({
       ))}
       {compact && dnp.length > 0 && (
         <button type="button" className="gc-dnp-fold" aria-expanded={dnpOpen} onClick={(e) => (e.stopPropagation(), setDnpOpen(!dnpOpen))} data-testid="dnp-fold">
-          {dnpOpen ? '▾' : '▸'} Did not play: {dnp.length}{' '}
+          {dnpOpen ? '▾' : '▸'} Did not play: {dnp.length} <HelpLink section="dnp" />{' '}
           {!dnpOpen &&
             dnp.map((p) => (
               <span key={p.id} className="gc-fold-p">
@@ -461,6 +462,11 @@ function TeamRows({
               </span>
             ))}
         </button>
+      )}
+      {!compact && dnp.length > 0 && (
+        <div className="gc-dnp-head muted">
+          Did not play <HelpLink section="dnp" />
+        </div>
       )}
       {(!compact || dnpOpen) && dnp.map((p) => (
         <div className="gc-row gc-dnp" key={p.id} data-testid="dnp-row" data-kind={p.label.kind}>

@@ -1,8 +1,11 @@
-// Daily update logic: incremental detection, summary/commit message, gating, the status file (success + failure paths).
+// Data update logic (the 11:00 UTC run and the hourly runs, RK-12): incremental detection, summary/commit message, gating, the status file (success + failure paths).
 
 import { describe, expect, it } from 'vitest';
 import { runUpdate, stepCommand, STEPS, type Deps } from '../scripts/ci-update.ts';
-import { commitMessage, gamesToFetch, newGamesSummary, scheduleChanges, unexpectedFailures } from '../scripts/lib/data.ts';
+import { commitMessage, gamesToFetch, modifiedGameIds, newGamesSummary, refetchSelection, scheduleChanges, unexpectedFailures } from '../scripts/lib/data.ts';
+import { checkShape } from '../scripts/lib/cache.ts';
+import { finished, parseSchedule, regularSeason } from '../src/shared/nba-schedule/parse.ts';
+import { nextStatus } from '../src/domain/updateStatus.ts';
 import { scheduleTags } from '../src/domain/scheduleTags.ts';
 import type { UpdateStatus } from '../src/domain/updateStatus.ts';
 import { readStatus, STATUS_FILE, writeStatus } from '../scripts/lib/status.ts';
@@ -69,7 +72,7 @@ describe('schedule changes', () => {
 
 describe('runUpdate', () => {
   const NOW = '2026-11-05T11:03:00.000Z';
-  function fake(failAt?: string, newGames = 2, schedAfter: ScheduleEntry[] = SCHED, prev: UpdateStatus | null = null) {
+  function fake(failAt?: string, newGames = 2, schedAfter: ScheduleEntry[] = SCHED, prev: UpdateStatus | null = null, changed: string[] = []) {
     const ran: string[] = [];
     let after = false;
     const written: UpdateStatus[] = [];
@@ -81,6 +84,7 @@ describe('runUpdate', () => {
         if (cmd.startsWith('npm run normalize')) after = true;
       },
       schedules: () => (after ? schedAfter : SCHED),
+      changedGames: () => (after ? changed : []),
       indexes: () => (after ? [e('1', '2026-10-21'), ...Array.from({ length: newGames }, (_, i) => e(`n${i}`, `2026-10-2${2 + i}`))] : [e('1', '2026-10-21')]),
       log: () => {},
       now: () => NOW,
@@ -106,7 +110,7 @@ describe('runUpdate', () => {
     const { deps, ran, written } = fake();
     expect(runUpdate(deps, { commit: true })).toEqual({ status: 'committed', message: 'data: 2 new games through 2026-10-23' });
     expect(ran).toEqual([...CMDS, "git add data ':!data/*/validation.json'", 'git commit -m "data: 2 new games through 2026-10-23"', 'git push']);
-    expect(written).toEqual([OK]);
+    expect(written).toEqual([{ ...OK, pending: ['n0', 'n1'] }]);
   });
 
   it.each(STEPS)('a failure at "%s": no later step; status "failed" written; ONLY the status file is committed', (step) => {
@@ -118,7 +122,7 @@ describe('runUpdate', () => {
     expect(written).toEqual([
       { lastRun: NOW, result: 'failed', failingStep: step, error: 'exit code 1', lastSuccess: '2026-11-04T11:02:00.000Z', failingSince: NOW, runId: '42' },
     ]);
-    expect(gitCmds(ran)).toEqual([`git add ${STATUS_FILE}`, `git commit -m "data: update FAILED at ${step}" -- ${STATUS_FILE}`, 'git push']);
+    expect(gitCmds(ran)).toEqual([`git add ${STATUS_FILE}`, `git commit -m "data: update FAILED at ${step.replace(/"/g, "'")}" -- ${STATUS_FILE}`, 'git push']);
     expect(gitCmds(ran).some((c) => c.includes("git add data '") || c === 'git add data')).toBe(false);
   });
 
@@ -172,6 +176,128 @@ describe('runUpdate', () => {
       expect(gitCmds(ran)).toEqual([]);
       expect(written).toEqual([]);
     }
+  });
+});
+
+// ---------- RK-12: games show up the same night ----------
+describe('RK-12: only final games are ever added', () => {
+  it('the season list keeps finished regular-season games only (schedule feed fixture)', () => {
+    const s = parseSchedule(JSON.parse(readFileSync('src/shared/nba-schedule/fixture.json', 'utf8')));
+    const all = regularSeason(s);
+    const done = finished(all);
+    expect(all.some((g) => g.status !== 'final')).toBe(true); // the fixture has unplayed games…
+    expect(done.length).toBeGreaterThan(0);
+    expect(done.every((g) => g.gameStatus === 3 && g.status === 'final')).toBe(true); // …and none of them is listed
+  });
+  it('a box score that is not final is refused, so a live game is never cached or normalized', () => {
+    expect(checkShape('boxscore', { game: { gameStatus: 3 } })).toBeUndefined();
+    expect(checkShape('boxscore', { game: { gameStatus: 2 } })).toMatch(/expected 3 \(final\)/);
+    expect(checkShape('boxscore', { game: { gameStatus: 1 } })).toMatch(/expected 3 \(final\)/);
+    expect(checkShape('playbyplay', { game: { actions: [] } })).toBe('playbyplay has no actions');
+  });
+});
+
+describe('RK-12: hourly runs and the 11:00 re-fetch', () => {
+  const NOW = '2026-11-05T03:00:00.000Z';
+  const OKP: UpdateStatus = { lastRun: '2026-11-04T11:02:00.000Z', result: 'ok', failingStep: null, error: null, lastSuccess: '2026-11-04T11:02:00.000Z', failingSince: null, runId: '7' };
+  function fake(o: { newGames?: number; sched?: ScheduleEntry[]; prev?: UpdateStatus | null; changed?: string[] } = {}) {
+    const ran: string[] = [];
+    let after = false;
+    const written: UpdateStatus[] = [];
+    let status = o.prev === undefined ? OKP : o.prev;
+    const deps: Deps = {
+      run: (cmd) => {
+        ran.push(cmd);
+        if (cmd.startsWith('npm run normalize')) after = true;
+      },
+      schedules: () => (after ? (o.sched ?? SCHED) : SCHED),
+      indexes: () => (after ? [e('1', '2026-10-21'), ...Array.from({ length: o.newGames ?? 0 }, (_, i) => e(`n${i}`, `2026-10-2${2 + i}`))] : [e('1', '2026-10-21')]),
+      changedGames: () => (after ? (o.changed ?? []) : []),
+      log: () => {},
+      now: () => NOW,
+      runId: () => '43',
+      readStatus: () => status,
+      writeStatus: (st) => {
+        written.push(st);
+        status = st;
+      },
+    };
+    return { deps, ran, written };
+  }
+  const git = (ran: string[]) => ran.filter((c) => c.startsWith('git '));
+
+  it('hourly, no new data → stops after normalize: no validation, no tests, NO commit, status file untouched', () => {
+    const { deps, ran, written } = fake();
+    expect(runUpdate(deps, { commit: true, hourly: true })).toEqual({ status: 'no-changes' });
+    expect(ran).toEqual(['npx tsx scripts/probe-cdn.ts', 'npm run fetch-season -- --cdn-only --strict', 'npm run normalize']);
+    expect(git(ran)).toEqual([]);
+    expect(written).toEqual([]);
+  });
+  it('hourly, no new data, but the last recorded run had failed → records the recovery (only the status file)', () => {
+    const prev = nextStatus(OKP, { ok: false, at: '2026-11-05T02:00:00.000Z', step: 'npm test', error: 'x' });
+    const { deps, ran, written } = fake({ prev });
+    expect(runUpdate(deps, { commit: true, hourly: true })).toEqual({ status: 'no-changes' });
+    expect(written).toHaveLength(1);
+    expect(written[0]).toMatchObject({ result: 'ok', failingSince: null });
+    expect(git(ran)).toEqual([`git add ${STATUS_FILE}`, `git commit -m "data: update status (ok again, nothing new)" -- ${STATUS_FILE}`, 'git push']);
+  });
+  it('hourly with new games → every step, commit, and their ids join the pending list (never a re-fetch)', () => {
+    const { deps, ran, written } = fake({ newGames: 2, prev: { ...OKP, pending: ['p1'] } });
+    expect(runUpdate(deps, { commit: true, hourly: true })).toEqual({ status: 'committed', message: 'data: 2 new games through 2026-10-23' });
+    expect(ran.slice(0, 5)).toEqual(['npx tsx scripts/probe-cdn.ts', 'npm run fetch-season -- --cdn-only --strict', 'npm run normalize', 'npm run validate-all', 'RK_TEST_GAMES=n0,n1 npm test']);
+    expect(written.at(-1)!.pending).toEqual(['p1', 'n0', 'n1']);
+  });
+  it('hourly, schedule change only → committed (tags fix themselves the same night)', () => {
+    const { deps } = fake({ sched: MOVED });
+    expect(runUpdate(deps, { commit: true, hourly: true })).toEqual({ status: 'committed', message: 'data: schedule update (1 game changed)' });
+  });
+  it('11:00 run: re-fetches exactly the pending games, tests them too, then empties the list', () => {
+    const { deps, ran, written } = fake({ prev: { ...OKP, pending: ['0022600101', '0022600102'] } });
+    expect(runUpdate(deps, { commit: true })).toEqual({ status: 'no-changes' });
+    expect(ran[1]).toBe('npm run fetch-season -- --cdn-only --strict --refetch 0022600101,0022600102');
+    expect(ran[4]).toBe('RK_TEST_GAMES=0022600101,0022600102 npm test');
+    expect(written.at(-1)).not.toHaveProperty('pending');
+    // nothing changed, but the 11:00 run is recorded (the stale banner counts from it)
+    expect(git(ran)).toEqual([`git add ${STATUS_FILE}`, `git commit -m "data: update status (ok, nothing new)" -- ${STATUS_FILE}`, 'git push']);
+  });
+  it('11:00 run: a game the re-fetch changed is committed', () => {
+    const { deps, ran } = fake({ prev: { ...OKP, pending: ['1'] }, changed: ['1'] });
+    expect(runUpdate(deps, { commit: true })).toEqual({ status: 'committed', message: 'data: 1 game corrected (re-fetched)' });
+    expect(ran.slice(-3)).toEqual(["git add data ':!data/*/validation.json'", 'git commit -m "data: 1 game corrected (re-fetched)"', 'git push']);
+    const both = fake({ prev: { ...OKP, pending: ['1'] }, changed: ['1'], newGames: 1 });
+    expect(runUpdate(both.deps, { commit: true })).toMatchObject({ message: 'data: 1 new game through 2026-10-22, 1 corrected' });
+    // the 11:00 run's own new game waits for tomorrow's re-fetch
+    expect(both.written.at(-1)!.pending).toEqual(['n0']);
+  });
+  it('a failed 11:00 run keeps the pending list for the next one', () => {
+    const { deps, written } = fake({ prev: { ...OKP, pending: ['0022600101'] } });
+    const run = deps.run;
+    deps.run = (cmd) => {
+      if (cmd.startsWith('npm run fetch-season')) throw new Error('exit code 1');
+      run(cmd);
+    };
+    expect(runUpdate(deps, { commit: true })).toMatchObject({ status: 'failed' });
+    expect(written.at(-1)).toMatchObject({ result: 'failed', pending: ['0022600101'] });
+  });
+  it('re-fetch selection: pending games that are finished games of the season, not ones fetched for the first time now', () => {
+    const season = ['0022600101', '0022600102', '0022600103'];
+    expect(refetchSelection(['0022600102', '0022600101', '0022600102'], season)).toEqual(['0022600101', '0022600102']);
+    expect(refetchSelection(['0022600101', '0022500999'], season)).toEqual(['0022600101']); // another season's id is ignored
+    expect(refetchSelection(['0022600101', '0022600103'], season, new Set(['0022600103']))).toEqual(['0022600101']);
+    expect(refetchSelection([], season)).toEqual([]);
+  });
+  it('changed game files are read from git status (modified only; new files are new games)', () => {
+    const out = [' M data/2026-27/games/0022600101.json', '?? data/2026-27/games/0022600200.json', ' M data/2026-27/index.json', 'M  data/2026-27/games/0022600102.json'].join('\n');
+    expect(modifiedGameIds(out)).toEqual(['0022600101', '0022600102']);
+  });
+  it('the workflow: 11:00 UTC kept, hourly 01:00–08:00 UTC added, one concurrency group, hourly runs flagged', () => {
+    const yml = readFileSync('.github/workflows/data-update.yml', 'utf8');
+    expect(yml).toContain("- cron: '0 11 * * *'");
+    expect(yml).toContain("- cron: '0 1-8 * * *'");
+    expect(yml).toMatch(/^name: Data update$/m);
+    expect(yml).toMatch(/concurrency:\n  group: data-update\n  cancel-in-progress: false/);
+    expect(yml).toContain('github.event.schedule }}" = "0 1-8 * * *"');
+    expect(yml).toContain('ci-update.ts --commit --hourly');
   });
 });
 

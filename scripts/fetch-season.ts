@@ -1,4 +1,5 @@
-// Fetch every completed regular-season game of a season not already in the cache.
+// Fetch every completed game of a season not already in the cache: regular season and (RK-13, current season, from
+// the schedule feed) play-in, playoffs and the NBA Cup final. Preseason and All-Star games are never fetched.
 // Incremental: games whose required (CDN) sources are cached are skipped.
 // Failed games are logged to cache/fetch-errors.json and skipped, never filled in.
 //
@@ -10,17 +11,20 @@
 //   --season X        a past season; game list from stats.nba.com leaguegamelog (one request)
 //   --cdn-only        skip stats.nba.com per-game sources (gamerotation cross-check, roster list)
 //   --retry-optional  also retry missing stats.nba.com sources of already-fetched games
-//   --strict          exit with an error if any game failed to fetch (used by the daily CI update)
+//   --strict          exit with an error if any game failed to fetch (used by the CI data update)
+//   --refetch a,b     download these games' box score and play-by-play again, replacing the copies (RK-12: the
+//                     11:00 UTC run re-fetches the games added since the previous one, for late corrections)
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
-  BOX_REFRESH_DAYS, CACHE_DIR, fetchGame, isFetched, missingOptional, needsBoxRefresh, readCached,
+  BOX_REFRESH_DAYS, CACHE_DIR, fetchGame, gameDir, isFetched, missingOptional, needsBoxRefresh, readCached,
   refetchSource, seasonFile, type GameFetchResult, type SeasonGames,
 } from './lib/cache.ts';
 import { fetchJson } from './lib/http.ts';
-import { gamesToFetch, readIndex } from './lib/data.ts';
-import { finished, parseSchedule, regularSeason, SCHEDULE_URL } from '../src/shared/nba-schedule/parse.ts';
+import { gamesToFetch, readIndex, refetchSelection } from './lib/data.ts';
+import { finished, parseSchedule, SCHEDULE_URL } from '../src/shared/nba-schedule/parse.ts';
+import { isShownKind } from '../src/domain/gameSet.ts';
 import { fetchScheduleJson } from '../src/shared/nba-schedule/node.ts';
 
 const arg = (name: string) => {
@@ -30,6 +34,7 @@ const arg = (name: string) => {
 const cdnOnly = process.argv.includes('--cdn-only');
 const retryOptional = process.argv.includes('--retry-optional');
 const strict = process.argv.includes('--strict');
+const refetchIds = (arg('--refetch') ?? '').split(',').filter((id) => /^\d{10}$/.test(id));
 
 const rawSchedule = await fetchScheduleJson({ onRetry: (a, d, e) => console.warn(`  retry ${a} in ${d / 1000}s: schedule (${e.message})`) });
 mkdirSync(CACHE_DIR, { recursive: true });
@@ -41,7 +46,7 @@ const season = arg('--season') ?? current;
 
 let list: SeasonGames;
 if (season === current) {
-  const games = finished(regularSeason(schedule)).map((g) => ({ gameId: g.gameId, date: g.dateEt }));
+  const games = finished(schedule.games.filter((g) => isShownKind(g.gameId))).map((g) => ({ gameId: g.gameId, date: g.dateEt }));
   list = { season, source: SCHEDULE_URL, games };
 } else {
   const url = `https://stats.nba.com/stats/leaguegamelog?Counter=0&Direction=ASC&LeagueID=00&PlayerOrTeam=T&Season=${season}&SeasonType=Regular%20Season&Sorter=DATE`;
@@ -61,7 +66,7 @@ const todo = [
   ...gamesToFetch(list.games, inData, isFetched),
   ...(retryOptional && !cdnOnly ? list.games.filter((g) => isFetched(g.gameId) && missingOptional(g.gameId).length) : []),
 ];
-console.log(`season ${season}: ${list.games.length} finished regular-season games, ${inData.size} already in data/, ${todo.length} to fetch${cdnOnly ? ' (CDN only)' : ''}`);
+console.log(`season ${season}: ${list.games.length} finished games, ${inData.size} already in data/, ${todo.length} to fetch${cdnOnly ? ' (CDN only)' : ''}`);
 
 const failed: GameFetchResult[] = [];
 const warnings: GameFetchResult[] = [];
@@ -72,9 +77,23 @@ for (const [i, g] of todo.entries()) {
   else if (r.errors.length) warnings.push(r);
 }
 
+// RK-12: late corrections. Both CDN sources again; normalize then rewrites the game file (a failed download keeps
+// the committed file and fails a --strict run, so the list is retried on the next 11:00 run).
+const again = refetchSelection(refetchIds, list.games.map((g) => g.gameId), new Set(todo.map((g) => g.gameId)));
+if (again.length) console.log(`\nre-fetching ${again.length} game(s) added since the last 11:00 UTC run`);
+for (const id of again) {
+  const r = await fetchGame(id, { force: true, cdnOnly: true });
+  console.log(`  ${id} ${r.ok ? 'OK' : 'FAILED'}${r.errors.length ? ' — ' + r.errors.join('; ') : ''}`);
+  if (!r.ok) {
+    // Never leave half a game in the cache: normalize would mix an old and a new source.
+    rmSync(gameDir(id), { recursive: true, force: true });
+    failed.push(r);
+  }
+}
+
 // This season's box scores have so far lacked inactive players (2025-26 ones list them, with
 // reasons). Re-fetch recent ones in case the CDN fills them in later.
-const refresh = season === current ? list.games.filter((g) => isFetched(g.gameId) && needsBoxRefresh(g.gameId)) : [];
+const refresh = season === current ? list.games.filter((g) => isFetched(g.gameId) && !again.includes(g.gameId) && needsBoxRefresh(g.gameId)) : [];
 let gained = 0;
 if (refresh.length) console.log(`\nre-fetching ${refresh.length} box score(s) from the last ${BOX_REFRESH_DAYS} days without inactive players`);
 for (const g of refresh) {

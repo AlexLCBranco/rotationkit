@@ -85,7 +85,9 @@ describe(`all ${games.length} games`, { timeout: WHOLE_DATA_TIMEOUT }, () => {
 
   it('cursor info: foul counts equal fouls committed so far; score never decreases', () => {
     const bad: string[] = [];
-    for (const g of games.filter((_, i) => i % every === 0)) {
+    // Clean games only, like the other chart invariants: a game with data-quality notes has a wrong play-by-play
+    // (0022600101's score timeline is out of order), and which games the 1-in-7 sample hits moves when games are added.
+    for (const g of clean.filter((_, i) => i % every === 0)) {
       let last = [0, 0];
       for (let t = 0; t <= gameLength(g.periods); t += 60) {
         const c = cursorInfo(g, t);

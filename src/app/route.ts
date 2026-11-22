@@ -8,7 +8,8 @@
 //   #/q4/0022500093?t=ORL…               same game, Q4 tab (4th quarter + OT only)
 //   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts|usg&lt=ORL&gt=1   Leaders tab (lt = team filter, gt=1 keeps garbage time)
 //   #/fullq4?s=2026-27&th=11&nb=1   Full Q4 tab (th=11 → 11:00+, nb=1 → exclude blowouts)
-//   #/ (empty) → the main screen with the remembered team's latest game
+//   #/help?sec=garbage-time   "How to read this" (sec = the section to open at)
+//   #/ (empty) → the main screen with the remembered team's latest game; no remembered team (a first visit) → By day
 
 import { useEffect, useState } from 'react';
 import type { Filters, Venue, Window } from '../domain/patterns.ts';
@@ -21,7 +22,8 @@ export type Route =
   | { view: 'game'; game: string; team: string | null; season: string | null; filters: Filters; tab?: 'games' | 'q4'; day?: string | null }
   | { view: 'day'; team: string | null; season: string | null; filters: Filters; day: DayQuery }
   | { view: 'leaders'; team: string | null; season: string | null; filters: Filters; leaders: LeadersQuery }
-  | { view: 'fullq4'; team: string | null; season: string | null; filters: Filters; fullq4: FullQ4Query };
+  | { view: 'fullq4'; team: string | null; season: string | null; filters: Filters; fullq4: FullQ4Query }
+  | { view: 'help'; team: string | null; season: string | null; filters: Filters; section: string | null };
 
 /** Games tab, By day. */
 export interface DayQuery {
@@ -70,6 +72,7 @@ export function parse(hash: string): Route {
     ...(rest === 'b2b' || rest === 'rested' ? { rest } : {}),
     blowout: q.get('b') !== '0',
     ...(p && (m === 'with' || m === 'without') ? { withWithout: { player: p, mode: m } } : {}),
+    ...(q.get('gs') === 'post' ? { set: 'post' as const } : {}),
   };
   const season = q.get('s');
   const t = q.get('t');
@@ -94,6 +97,7 @@ export function parse(hash: string): Route {
       leaders: { part: q.get('part') === 'h2' ? 'h2' : 'q4', ot: q.get('ot') === '1', sort: q.get('sort') === 'pts' ? 'pts' : q.get('sort') === 'usg' ? 'usg' : 'min', only: q.get('lt'), noGarbage: q.get('gt') !== '1' },
     };
   if (parts[0] === 'fullq4') return { view: 'fullq4', team: t, season, filters, fullq4: { threshold: q.get('th') === '11' ? '11' : 'full', noBlowouts: q.get('nb') === '1' } };
+  if (parts[0] === 'help') return { view: 'help', team: t, season, filters, section: q.get('sec') };
   if (parts[0] === 'team') return { view: 'team', team: parts[1] ?? null, season, filters, vs: q.get('vs') };
   return { view: 'game', game: 'latest', team: t, season, filters };
 }
@@ -112,6 +116,7 @@ export function format(r: Route): string {
     q.set('p', String(r.filters.withWithout.player));
     q.set('m', r.filters.withWithout.mode);
   }
+  if (r.filters.set) q.set('gs', r.filters.set);
   if (r.view === 'game' && r.team) q.set('t', r.team);
   if (r.view === 'game' && r.day) q.set('day', r.day);
   if (r.view === 'day') {
@@ -132,7 +137,12 @@ export function format(r: Route): string {
     if (r.fullq4.threshold === '11') q.set('th', '11');
     if (r.fullq4.noBlowouts) q.set('nb', '1');
   }
+  if (r.view === 'help') {
+    if (r.team) q.set('t', r.team);
+    if (r.section) q.set('sec', r.section);
+  }
   const qs = q.toString() ? `?${q}` : '';
+  if (r.view === 'help') return `#/help${qs}`;
   if (r.view === 'player') return `#/player/${r.team}/${r.player}${qs}`;
   if (r.view === 'playerName') return `#/player${qs}`;
   if (r.view === 'leaders') return `#/leaders${qs}`;
@@ -141,6 +151,9 @@ export function format(r: Route): string {
   if (r.view === 'game') return `#/${r.tab === 'q4' ? 'q4' : 'game'}/${r.game}${qs}`;
   return `#/team/${r.team ?? ''}${qs}`;
 }
+
+/** True when the URL names no page at all (`/`, `#`, `#/`): the app picks the start page. */
+export const isStart = (hash: string) => hash.replace(/^#\/?/, '') === '';
 
 export type Nav = (r: Route, opts?: { replace?: boolean }) => void;
 

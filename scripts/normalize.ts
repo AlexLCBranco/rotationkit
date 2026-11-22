@@ -7,7 +7,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cachedSeasons, fetchedSeasonGames, loadRaw } from './lib/games.ts';
-import { DATA_DIR, dataSeasons, indexEntry, readSchedule, scheduleEntryOf, withScheduleTags } from './lib/data.ts';
+import { DATA_DIR, dataSeasons, indexEntry, mergeFinalGames, readSchedule, scheduleEntryOf, withScheduleTags } from './lib/data.ts';
 import { normalizeGame } from '../src/domain/normalize.ts';
 import { validateGame } from '../src/domain/validate.ts';
 import { qualityNotes } from '../src/domain/quality.ts';
@@ -24,10 +24,12 @@ function writeSchedule(season: string, dir: string, index: GameIndexEntry[]) {
     const entries: ScheduleEntry[] = s.games.map(scheduleEntryOf);
     writeFileSync(join(dir, 'schedule.json'), JSON.stringify(entries));
     console.log(`  schedule.json: ${entries.length} games from the feed (${entries.filter((e) => e.tv).length} on national TV, ${entries.filter((e) => e.cup).length} NBA Cup)`);
-  } else if (!existsSync(join(dir, 'schedule.json'))) {
-    // Past season without a cached feed: every game we have is final.
-    const entries: ScheduleEntry[] = index.map((g) => ({ id: g.id, date: g.date, home: g.home, away: g.away, status: 'final' }));
-    writeFileSync(join(dir, 'schedule.json'), JSON.stringify(entries));
+  } else {
+    // Past season without a cached feed: every game we have is final. Games added later (RK-13: the postseason
+    // backfill) join the entries already there, which are kept as they are.
+    const have = readSchedule(season);
+    const entries = mergeFinalGames(have, index);
+    if (entries.length !== have.length) writeFileSync(join(dir, 'schedule.json'), JSON.stringify(entries));
   }
 }
 

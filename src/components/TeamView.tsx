@@ -14,12 +14,15 @@ import { Filters } from './Filters.tsx';
 import { HeatDefs, HeatStrip } from './HeatStrip.tsx';
 import { Headshot, TeamLogo } from './Headshot.tsx';
 import { PatternChart, RareToggle } from './PatternChart.tsx';
-import { PageRows, Row, SeasonChips, TeamStrip } from './PageRows.tsx';
+import { PageRows, Row, SeasonChips, SetChips, TeamStrip } from './PageRows.tsx';
+import { SET_WORDS } from '../domain/gameSet.ts';
+import { withSet } from '../domain/patterns.ts';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { GameByGame } from './GameByGame.tsx';
 import { closersTable, type CloserRow } from '../domain/closers.ts';
 import { CLOSE_GAME } from '../domain/config.ts';
 import type { Game as G } from '../domain/types.ts';
+import { HelpLink } from './HelpLink.tsx';
 
 interface Props {
   seasons: string[];
@@ -55,7 +58,7 @@ export function SelectionSummary({ sel, names, seasons, onSwitchSeason }: { sel:
   return (
     <div className="summary">
       <p className="label" data-testid="selection-label">
-        <strong>{describeSelection(sel, names)}</strong> <span className="based">· {basedOn(n)}</span>
+        <strong>{describeSelection(sel, names)}</strong> <span className="based">· {basedOn(n, sel.filters.set)}</span>
       </p>
       {ww && (
         <p className="groups" data-testid="ww-groups">
@@ -106,6 +109,7 @@ export function TeamView({ seasons, season, team, route, nav }: Props) {
           <>
             <Row label="What">
               <SeasonChips seasons={seasons} season={season} onChange={(s) => go({ season: s })} />
+              <SetChips season={season} value={route.filters.set ?? 'regular'} onChange={(s) => go({ filters: withSet(route.filters, s) })} />
             </Row>
             <Row label="Team" grow>
               <TeamStrip team={team} onChange={(t) => go({ team: t, vs: vs === t ? null : vs })} />
@@ -336,12 +340,13 @@ function AveragesTable({ qa, sel, names }: { qa: QuarterAverages[]; sel: Selecti
   const th = (key: typeof sort, label: string, title?: string) => (
     <th className={`num sortable${sort === key ? ' sorted' : ''}`} aria-sort={sort === key ? 'descending' : 'none'} title={title}>
       <button onClick={() => setSort(key)}>{label}</button>
+      {key === 'usg' && <HelpLink section="usg" />}
     </th>
   );
   return (
     <details className="avg-table" open>
       <summary>
-        Minutes & fouls per game <span className="muted">· {basedOn(sel.games.length)}{sel.filters.blowout ? ' · garbage-time minutes excluded (fouls always count)' : ''}</span>
+        Minutes & fouls per game <span className="muted">· {basedOn(sel.games.length, sel.filters.set)}{sel.filters.blowout ? ' · garbage-time minutes excluded (fouls always count)' : ''}</span>
       </summary>
       <div className="table-wrap">
         <table className="tbl" data-testid="averages-table">
@@ -416,7 +421,7 @@ function ClosersTable({ games, sel, names }: { games: G[]; sel: Selection; names
       <summary>
         Closers{' '}
         <span className="muted" data-testid="closers-based-on">
-          · {close.length ? `based on ${close.length} close game${close.length === 1 ? '' : 's'}` : 'no close games in this selection'} (margin ≤ {CLOSE_GAME.margin} at some point in
+          · {close.length ? `based on ${close.length} close game${close.length === 1 ? '' : 's'} · ${SET_WORDS[sel.filters.set ?? 'regular']}` : 'no close games in this selection'} (margin ≤ {CLOSE_GAME.margin} at some point in
           the last {CLOSE_GAME.lastSeconds / 60}:00 of Q4 or in overtime)
         </span>
       </summary>

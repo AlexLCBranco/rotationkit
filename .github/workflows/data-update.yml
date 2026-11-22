@@ -1,12 +1,16 @@
-# Daily data update: fetch new finished games from cdn.nba.com (Path B, no stats.nba.com), normalize,
+# Data update: fetch new finished games from cdn.nba.com (Path B, no stats.nba.com), normalize,
 # validate, test, and commit the new data to main (Vercel then redeploys production).
-# Every run on main records its outcome in data/update-status.json (the app shows a banner when the data is stale).
+# RK-12: hourly from 01:00 to 08:00 UTC (US game nights), so a game shows up about an hour after it ends, plus the
+# 11:00 UTC run. An hourly run that finds nothing new stops early and commits nothing (no deploy). The 11:00 run (and
+# a manual run) always does every step, downloads again the games added since the previous 11:00 run (late
+# corrections) and records its outcome in data/update-status.json (the app shows a banner when the data is stale).
 # A failing step fails the run and commits ONLY that status file (no game data).
-name: Daily data update
+name: Data update
 
 on:
   schedule:
-    - cron: '0 11 * * *' # 11:00 UTC, after all US games have finished
+    - cron: '0 11 * * *' # 11:00 UTC, after all US games have finished: the full run, with the re-fetch
+    - cron: '0 1-8 * * *' # every hour from 01:00 to 08:00 UTC: new finished games only
   workflow_dispatch: {}
   # Dry run (no commit) on pushes to work branches that touch the pipeline: checks the CDN from GitHub's runners.
   push:
@@ -45,7 +49,11 @@ jobs:
         # Commits only for the scheduled/manual run on main; everything else is a dry run.
         run: |
           if [ "${{ github.event_name }}" != "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            npx tsx scripts/ci-update.ts --commit
+            if [ "${{ github.event.schedule }}" = "0 1-8 * * *" ]; then
+              npx tsx scripts/ci-update.ts --commit --hourly
+            else
+              npx tsx scripts/ci-update.ts --commit
+            fi
           else
             npx tsx scripts/ci-update.ts
           fi

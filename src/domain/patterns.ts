@@ -1,6 +1,7 @@
 // Pattern engine: on-court probability across games, with window / venue / blowout / with-without filters.
 // Pure functions over normalized games of ONE season (mixing seasons throws).
 
+import { inSet, type GameSet } from './gameSet.ts';
 import { PATTERN_CONFIG, TEAM_PATTERN, type BlowoutConfig, type TeamPatternConfig } from './config.ts';
 import { availabilityFor, buildAppearances, type AppearanceIndex } from './availability.ts';
 import { seasonOf } from './season.ts';
@@ -25,9 +26,18 @@ export interface Filters {
   /** Exclude blowout time (default ON in the UI). */
   blowout: boolean;
   withWithout?: WithWithout;
+  /** RK-13: which games count. Absent = regular season (the default); 'post' = play-in + playoffs of the season. */
+  set?: 'post';
 }
 
 export const DEFAULT_FILTERS: Filters = { window: 'season', venue: 'all', blowout: true };
+
+/** The same filters over the other set of games (RK-13). */
+export function withSet(f: Filters, set: GameSet): Filters {
+  const { set: _, ...rest } = f;
+  void _;
+  return set === 'post' ? { ...rest, set } : rest;
+}
 
 type Interval = [number, number];
 
@@ -96,8 +106,10 @@ export function selectGames(
   rest?: Map<string, RestInfo>,
 ): Selection {
   const seasonGames = allGames.filter((g) => seasonOf(g.id) === season);
+  // RK-13: one set only (regular season unless asked for the postseason); the Cup final is in neither.
+  const set: GameSet = filters.set ?? 'regular';
   let games = seasonGames
-    .filter((g) => g.home.tri === team || g.away.tri === team)
+    .filter((g) => (g.home.tri === team || g.away.tri === team) && inSet(g.id, set))
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   if (filters.venue !== 'all') games = games.filter((g) => (filters.venue === 'home' ? g.home.tri : g.away.tri) === team);
   if (filters.rest) {

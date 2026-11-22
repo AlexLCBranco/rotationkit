@@ -7,7 +7,8 @@ import { restForTeam } from '../src/domain/rest.ts';
 import type { Game } from '../src/domain/types.ts';
 
 const TEAMS = ['ATL', 'BKN', 'BOS', 'CHA', 'CHI', 'CLE', 'DAL', 'DEN', 'DET', 'GSW', 'HOU', 'IND', 'LAC', 'LAL', 'MEM', 'MIA', 'MIL', 'MIN', 'NOP', 'NYK', 'OKC', 'ORL', 'PHI', 'PHX', 'POR', 'SAC', 'SAS', 'TOR', 'UTA', 'WAS'];
-const index = (s: string) => JSON.parse(readFileSync(`data/${s}/index.json`, 'utf8')) as { home: string; away: string }[];
+// Regular-season games (ids 002…): what Averages counts by default (RK-13).
+const index = (s: string) => (JSON.parse(readFileSync(`data/${s}/index.json`, 'utf8')) as { id: string; home: string; away: string }[]).filter((g) => g.id.startsWith('002'));
 const teamGames = (s: string, t: string) => index(s).filter((g) => g.home === t || g.away === t).length;
 
 /**
@@ -48,7 +49,7 @@ async function noHorizontalScroll(page: Page) {
 
 test('loads on the current season with no console errors', async ({ page }, info) => {
   const errors = trackErrors(page);
-  await page.goto('/');
+  await page.goto('/#/games');
   // Main screen is the game view; averages are one tab away.
   await expect(page.getByTestId('game-list')).toBeVisible();
   await page.getByTestId('tab-averages').click();
@@ -85,20 +86,20 @@ test('team pattern view renders for all 30 teams in both seasons', async ({ page
 test('filters change the "based on N games" count and the plain-words label', async ({ page }, info) => {
   const errors = trackErrors(page);
   await page.goto('/#/team/ORL?s=2025-26');
-  await expect(label(page)).toHaveText('All 2025-26 games · based on 82 games');
+  await expect(label(page)).toHaveText('All 2025-26 games · based on 82 games · regular season');
   await page.getByRole('button', { name: 'Last 10' }).click();
-  await expect(label(page)).toHaveText('Last 10 games · based on 10 games');
+  await expect(label(page)).toHaveText('Last 10 games · based on 10 games · regular season');
   await page.getByRole('button', { name: 'Home' }).click();
-  await expect(label(page)).toHaveText('Last 10 home games · based on 10 games');
+  await expect(label(page)).toHaveText('Last 10 home games · based on 10 games · regular season');
   await page.getByRole('button', { name: 'All', exact: true }).click();
   await page.getByTestId('ww-mode').getByRole('tab', { name: 'Without…' }).click();
   await page.getByTestId('ww-player').getByRole('radio', { name: 'F. Wagner', exact: true }).click();
   // Two Wagners on ORL → first initial.
-  await expect(label(page)).toHaveText('Last 10 games without F. Wagner · based on 10 games');
+  await expect(label(page)).toHaveText('Last 10 games without F. Wagner · based on 10 games · regular season');
   await expect(page.getByTestId('ww-groups')).toContainText('With F. Wagner: 34 games · Without: 48 games');
   await expect(page.getByTestId('ww-groups')).not.toContainText('estimated');
   await page.getByRole('button', { name: 'Season' }).click();
-  await expect(label(page)).toHaveText('All 2025-26 games without F. Wagner · based on 48 games');
+  await expect(label(page)).toHaveText('All 2025-26 games without F. Wagner · based on 48 games · regular season');
   // Typical stints are the default; strip readout on hover/tap in the heat map.
   await expect(page.getByTestId('pattern-chart')).toBeVisible();
   await page.getByRole('button', { name: 'Heat map' }).click();

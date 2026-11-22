@@ -19,6 +19,7 @@ import { Headshot, TeamLogo } from './Headshot.tsx';
 import { PlayerLink, TeamLink } from './Links.tsx';
 import { ScheduleChips } from './ScheduleChips.tsx';
 import { PageRows, Row, SeasonChips } from './PageRows.tsx';
+import { HelpLink } from './HelpLink.tsx';
 
 interface Props {
   seasons: string[];
@@ -74,6 +75,17 @@ export function DayView({ seasons, season, route, nav }: Props) {
       {meta.status === 'error' && <p className="error">Could not load: {meta.error}</p>}
       {c && (
         <div className="dv-layout">
+          <p className="dv-key muted" data-testid="dv-key">
+            <span>
+              <span className="fq-mark">Q4</span> played the whole 4th quarter <HelpLink section="fullq4" />
+            </span>
+            <span>
+              <span className="dnp-tag cd">DNP – CD</span> did not play, coach's decision <HelpLink section="dnp" />
+            </span>
+            <span>
+              <span className="chip-tag b2b2">B2B 2</span> schedule tags <HelpLink section="schedule" />
+            </span>
+          </p>
           <section className="dv-cards" aria-label="Games of the day">
             {c.games.length === 0 && <p className="muted">No games.</p>}
             {c.games.map((sg) => (
@@ -231,7 +243,7 @@ function GameCard({ sg, g, tagsOf, open }: { sg: SlateGame; g: Game | undefined;
             · ⚠
           </span>
         )}
-        <BroadcastTags tv={sg.tv} cup={sg.cup} />
+        <BroadcastTags tv={sg.tv} cup={sg.cup} id={sg.id} label={sg.label} />
       </header>
       <div className="dv-sides">
         {side('away')}

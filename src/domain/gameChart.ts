@@ -155,7 +155,7 @@ const lineupKey = (g: Game, team: string, t: number) => onCourtAt(g, team, t).ma
  * Start of the lineup segment containing tt (0 ≤ tt ≤ game end) — the same value as
  * `lineupSegments(g, team).find(covers tt).start`, without building every segment and its +/-. cursorInfo used to
  * rebuild all segments of both teams on every call (the Q4 hover card, the Q4 paragraph and a whole-season test call
- * it many times per game); that made a test time out in the daily update (Nov 6, 2026).
+ * it many times per game); that made a test time out in the data update (Nov 6, 2026).
  */
 export function lineupSince(g: Game, team: string, tt: number): number {
   const xs = lineupBoundaries(g, team);

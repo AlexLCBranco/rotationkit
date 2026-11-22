@@ -4,13 +4,18 @@
 import { USUAL } from './config.ts';
 import { blowoutIntervals, selectGames, typicalStints, DEFAULT_FILTERS, type Selection, type TypicalStint } from './patterns.ts';
 import { seasonOf } from './season.ts';
+import { setOf } from './gameSet.ts';
 import { REGULATION_LEN } from './time.ts';
 import type { Game } from './types.ts';
 
 /** The team's previous USUAL.games games of the season before `g` (by date, then id), as a pattern selection. */
 export function usualSelection(teamGames: Game[], g: Game, team: string): Selection {
   const before = teamGames.filter((x) => x.id !== g.id && (x.date < g.date || (x.date === g.date && x.id < g.id)));
-  return selectGames(before, seasonOf(g.id), team, { ...DEFAULT_FILTERS, window: USUAL.games, blowout: true });
+  // RK-13: games of the same set as this one (a playoff game is compared with the team's earlier postseason games,
+  // never with the regular season); the Cup final belongs to no set, so it has no "usual".
+  const set = setOf(g.id);
+  if (!set) return selectGames([], seasonOf(g.id), team, { ...DEFAULT_FILTERS, window: USUAL.games, blowout: true });
+  return selectGames(before, seasonOf(g.id), team, { ...DEFAULT_FILTERS, window: USUAL.games, blowout: true, ...(set === 'post' ? { set } : {}) });
 }
 
 export interface Usual {

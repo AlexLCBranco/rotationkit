@@ -27,7 +27,7 @@ html, body { margin: 0; background: var(--bg); color: var(--text); }
 html { scroll-padding-top: calc(var(--header-h) + 8px); }
 body { font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
 button, select, input { font: inherit; color: inherit; }
-.page { max-width: 1200px; margin: 0 auto; padding: 0 16px 40px; }
+.page { max-width: 1200px; margin: 0 auto; padding: 0 16px 40px; min-height: calc(100vh - var(--header-h)); box-sizing: border-box; }
 .muted { color: var(--muted); }
 .error { color: #ff8a8a; }
 
@@ -463,7 +463,7 @@ a.tif-sq:hover { background: #7c4dcc; }
 .rd-panel legend { color: var(--muted); font-size: 12px; margin-bottom: 2px; padding: 0; }
 .rd-panel label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
 
-/* Stale-data warning (daily update failed / too old) */
+/* Stale-data warning (data update failed / too old) */
 .stale-banner { background: #3a1f12; border-bottom: 1px solid #7c3a1a; color: #ffd8b5; padding: 9px 16px; font-size: 14px; text-align: center; }
 .stale-banner .muted { color: #e0b48e; }
 
@@ -495,7 +495,7 @@ a.tif-sq:hover { background: #7c4dcc; }
 .q4-cursor .gc-cursor-handle { position: absolute; top: -21px; left: 0; pointer-events: none; }
 .q4-card { position: fixed; z-index: 60; }
 .q4-unpin { font-size: 12px; }
-.page.q4-page { padding-bottom: 0; }
+.page.q4-page { padding-bottom: 0; min-height: 0; }
 
 /* Score-line icon links (hoopsjunkie, calendarkit) */
 .game-links { display: inline-flex; gap: 6px; margin-left: 4px; vertical-align: middle; }
@@ -897,3 +897,59 @@ a.plain-link:focus-visible { outline: 1px solid var(--accent); outline-offset: 1
   .rk-switch { height: 36px; }
   .rk-chip { height: 34px; }
 }
+
+/* ---------- RK-9 / RK-10 / RK-11: "?" links, "How to read this", the footer, "Report a problem" ---------- */
+.help-q {
+  display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: none; box-sizing: border-box;
+  border: 1px solid var(--line); border-radius: 50%; font: 700 11px/1 system-ui, sans-serif; color: var(--muted); background: var(--panel);
+  text-decoration: none; vertical-align: 1px; margin-left: 3px; cursor: help;
+}
+.help-q:hover, .help-q:focus-visible { color: #06121f; background: var(--accent); border-color: var(--accent); outline: none; }
+th .help-q { margin-left: 2px; }
+.help-q-labelled { color: var(--muted); white-space: nowrap; }
+.gc-dnp-head { font-size: 12px; padding: 4px 0 0 4px; }
+.dv-key { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; font-size: 12px; align-items: center; }
+.dv-key > span { display: inline-flex; align-items: center; gap: 5px; }
+
+.page.help-page { max-width: 760px; padding-top: 12px; }
+.help-lead { font-size: 16px; margin: 8px 0 12px; }
+.help-toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.help-toc a { border: 1px solid var(--line); border-radius: 15px; padding: 4px 11px; color: var(--muted); text-decoration: none; background: var(--panel); font-size: 13px; }
+.help-toc a:hover { color: var(--text); border-color: var(--muted); }
+.help-part { border-top: 1px solid var(--line); padding: 14px 10px 6px; margin: 0 -10px; border-radius: 6px; }
+.help-part.on { background: #18212d; }
+.help-part h2 { font-size: 17px; margin: 0 0 8px; }
+.help-part p, .help-part li { margin: 0 0 8px; max-width: 64ch; }
+.help-part ul, .help-part ol { margin: 0 0 8px; padding-left: 22px; }
+.help-example { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 10px 12px 2px; margin: 4px 0 10px; }
+.help-example-who { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+.help-example .track { margin-bottom: 8px; }
+.help-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.help-legend i { display: inline-block; width: 22px; height: 10px; border-radius: 3px; vertical-align: 0; margin-right: 4px; }
+.help-tags { list-style: none; padding-left: 0 !important; }
+.help-tags li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.help-part .sched-legend { margin: 0 0 10px; }
+
+.site-footer {
+  max-width: 1200px; margin: 28px auto 0; padding: 12px 16px 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px;
+  display: flex; flex-wrap: wrap; gap: 6px 20px; justify-content: space-between; box-sizing: border-box;
+}
+.site-footer-links { display: inline-flex; flex-wrap: wrap; gap: 4px 16px; }
+.site-footer a, .report-link { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.site-footer a:hover, .report-link:hover { color: var(--text); }
+/* inside the 4th-quarter view's side panel (that screen has no page scroll) */
+.site-footer.in-panel { margin: 14px 0 0; padding: 8px 0 0; max-width: none; display: block; }
+.site-footer.in-panel .site-footer-links { display: flex; margin-top: 4px; }
+.report-link.in-note { display: inline-block; margin-top: 6px; font-size: 12px; }
+
+@media (max-width: 767px) {
+  /* five places: the long last label wraps onto two lines */
+  .rk-where-tab { font-size: 11.5px; line-height: 1.1; }
+  .rk-where-label { text-align: center; }
+  .help-q { width: 20px; height: 20px; font-size: 12px; }
+  .site-footer a, .report-link { display: inline-flex; align-items: center; min-height: 24px; }
+}
+
+/* RK-13: play-in / playoffs / Cup final tag; the "Regular season | Postseason" chips sit right after the season chips */
+.badge.kind-tag { background: #2a1838; border-color: #7a45a8; color: #e2c4ff; font-weight: 700; letter-spacing: 0.02em; }
+.rk-prow > .rk-chips + .rk-chips { margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--line); }

@@ -4,6 +4,24 @@ Shipped work only, newest first. Planned work is in `FEATURE_BACKLOG.md`, never 
 Entries dated before 2026-11-16 were backfilled from the git commit messages (data, docs, test-only, merge and
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
+## 2026-11-22
+- RK-16 — Show the site as "Hoop Rotations" (placeholder name) (v0.6.0)
+  The header, tab titles, footer, help page and link previews all say "Hoop Rotations"; the address stays rotationkit.vercel.app.
+- RK-15 — Remove the hoopsjunkie links (v0.6.0)
+  No link to hoopsjunkie is left; in the schedule pop-up a played game's square opens its rotation page here, and a game not played yet is a plain square.
+- RK-12 — Games show up the same night (v0.6.0)
+  The data update now also runs every hour from 01:00 to 08:00 UTC, so a game appears about an hour after it ends; the 11:00 UTC run re-downloads the night's games to pick up late corrections.
+- RK-11 — "Report a problem" link (v0.6.0)
+  A "Report a problem" link in the footer and next to every "⚠ Data note" opens the Tally form in a new tab with the page's address passed along.
+- RK-10 — Footer: unofficial-site notice and data source (v0.6.0)
+  Every page ends with a small footer: unofficial fan site, not affiliated with the NBA, data from NBA.com, and a link to "How to read this".
+- RK-9 — Front door for new visitors (v0.6.0)
+  A first-time visitor lands on last night's games; a new "How to read this" page explains every bar, color, tag and number, a small "?" next to each term opens its part, and shared links show the site's name, description and a preview image.
+
+### Internal
+- Chart cursor check (unit test) runs on games without data notes, like the other chart checks; averages tests count regular-season games only
+- Schedule pop-up loads its data only when opened (the games list stays fast)
+
 ## 2026-11-20
 - RK-8 — Shared layout: pinned header menu, chips instead of dropdowns (v0.5.0)
   A header that stays at the top of every page (back / forward, a breadcrumb whose parts jump to their neighbours, "Go anywhere" on Ctrl+K for players, teams and places) over four places (Games · By day · Averages · Leaders); under it season and team chips and a How switch (Whole game | 4th quarter, Minutes & points | Full 4th quarters) replace every dropdown, and old links still open the same pages.

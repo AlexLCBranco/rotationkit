@@ -13,11 +13,14 @@ import { formatUsg } from '../domain/usage.ts';
 import { USG_TITLE } from '../app/labels.ts';
 import type { Window } from '../domain/patterns.ts';
 import { PATTERN_CONFIG } from '../domain/config.ts';
-import { PageRows, Row, SeasonChips, Switch, TeamStrip } from './PageRows.tsx';
+import { PageRows, Row, SeasonChips, SetChips, Switch, TeamStrip } from './PageRows.tsx';
+import { inSet, SET_WORDS, type GameSet } from '../domain/gameSet.ts';
+import { withSet } from '../domain/patterns.ts';
 import { LEADERS_HOWS, leadersHowRoute } from '../app/nav.ts';
 import { Headshot } from './Headshot.tsx';
 import { PlayerLink, TeamLink, useLinkContext } from './Links.tsx';
 import { playerHref } from '../app/links.ts';
+import { HelpLink } from './HelpLink.tsx';
 
 interface Props {
   seasons: string[];
@@ -36,7 +39,10 @@ const TABLE_ROWS = 50;
 export function LeadersView({ seasons, season, route, nav }: Props) {
   const q = route.leaders;
   const window: LeaderWindow = route.filters.window as Window;
-  const file = useAsync(() => loadQuarters(season), [season]);
+  const all = useAsync(() => loadQuarters(season), [season]);
+  // RK-13: one set of games only (regular season unless the Postseason chip is on); the Cup final is in neither.
+  const gset: GameSet = route.filters.set ?? 'regular';
+  const file = useMemo(() => (all.status === 'ok' ? { status: 'ok' as const, value: { ...all.value, games: all.value.games.filter((g) => inSet(g[0], gset)) } } : all), [all, gset]);
   const set = (patch: Partial<LeadersQuery>, w?: Window, s?: string) =>
     nav({ ...route, season: s ?? season, filters: { ...route.filters, window: w ?? route.filters.window }, leaders: { ...q, ...patch } });
   const rows = useMemo(
@@ -63,6 +69,7 @@ export function LeadersView({ seasons, season, route, nav }: Props) {
           <>
             <Row label="What">
               <SeasonChips seasons={seasons} season={season} onChange={(s) => set({}, undefined, s)} />
+              <SetChips season={season} value={gset} onChange={(s) => nav({ ...route, season, filters: withSet(route.filters, s) })} />
             </Row>
             <Row label="How">
               <Switch label="How" testId="how" idPrefix="how" value="leaders" options={LEADERS_HOWS} onChange={(h) => nav(leadersHowRoute({ ...route, season }, h))} />
@@ -82,6 +89,7 @@ export function LeadersView({ seasons, season, route, nav }: Props) {
         <label className="toggle" title={GARBAGE_RULE}>
           <input type="checkbox" checked={q.noGarbage} onChange={(e) => set({ noGarbage: e.target.checked })} />
           <span>Hide garbage time</span>
+          <HelpLink section="garbage" />
         </label>
                 {seg('Games', window as Window, [[5, 'Last 5'], [10, 'Last 10'], ['season', 'Season']], (v) => set({}, v))}
         {seg('Rank by', q.sort, [['min', 'Minutes'], ['pts', 'Points'], ['usg', 'USG%']], (v) => set({ sort: v }))}
@@ -89,7 +97,7 @@ export function LeadersView({ seasons, season, route, nav }: Props) {
       <p className="muted ld-note" data-testid="leaders-note">
         {partName}
         {q.ot ? ' + overtime' : ''} · per game played · {window === 'season' ? `the ${season} season` : `each team's last ${window} games`} · players with at least {need} ·{' '}
-        {rows.length} players.{' '}
+        {rows.length} players · <span data-testid="leaders-set">{SET_WORDS[gset]} games only</span>.{' '}
         {q.noGarbage ? (
           <span data-testid="garbage-note">
             Garbage time left out: {GARBAGE_RULE.charAt(0).toLowerCase() + GARBAGE_RULE.slice(1)}
@@ -250,6 +258,7 @@ function Table({
       <button className="link" onClick={() => onSort(key)}>
         {label}
       </button>
+      {key === 'usg' && <HelpLink section="usg" />}
     </th>
   );
   return (

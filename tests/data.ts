@@ -17,7 +17,7 @@ export function loadSeason(season: string): Game[] {
 
 /**
  * Timeout for tests that sweep EVERY committed game. Their run time grows with the season (≈10 games a day), so
- * Vitest's fixed 5 s default eventually fails the daily update with no assertion failing (it did on Nov 6–7, 2026,
+ * Vitest's fixed 5 s default eventually fails the data update with no assertion failing (it did on Nov 6–7, 2026,
  * on the GitHub runner). This only bounds a hang; correctness is in the assertions, and per-call cost regressions are
  * caught by machine-independent cost guards (e.g. gameChartAll's cursorInfo vs lineupSegments ratio).
  */
@@ -25,7 +25,7 @@ export const WHOLE_DATA_TIMEOUT = 60_000;
 
 /**
  * Games the whole-data sweeps (the suites using WHOLE_DATA_TIMEOUT) check. Normally every committed game of both
- * seasons. The daily data update sets RK_TEST_GAMES to the comma-separated ids of the games it just added, so its
+ * seasons. The data update sets RK_TEST_GAMES to the comma-separated ids of the games it just added, so its
  * test step checks only those (the full sweeps run on every push to main instead, .github/workflows/pr.yml).
  * RK_TEST_GAMES="" (a day with no new games) = no games.
  */

@@ -40,7 +40,8 @@ test('unknown name shows the message and a link to the main screen', async ({ pa
   const box = page.getByTestId('player-name-unavailable');
   await expect(box).toContainText("No rotation data for 'Nobody Atall'");
   await expect(page).toHaveURL(/#\/player\?name=Nobody/);
-  await box.getByRole('link', { name: 'Open rotationkit' }).click();
-  await expect(page.getByTestId('game-team').first()).toBeVisible();
+  await box.getByRole('link', { name: 'Open Hoop Rotations' }).click();
+  // a first-time visitor (no remembered team) starts on By day (RK-9)
+  await expect(page.getByTestId('tab-day')).toHaveAttribute('aria-current', 'page');
   expect(errors).toEqual([]);
 });

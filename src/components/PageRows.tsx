@@ -6,6 +6,9 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { TEAM_CODES, teamName } from '../app/teams.ts';
 import { TEAM_BY_TRI } from '../data/teams.ts';
 import { TeamLogo } from './Headshot.tsx';
+import { loadIndex } from '../app/data.ts';
+import { useAsync } from '../app/hooks.ts';
+import { hasPostseason, type GameSet } from '../domain/gameSet.ts';
 
 export type Option<T> = [value: T, text: ReactNode, tip?: string, label?: string];
 
@@ -41,8 +44,15 @@ export function Chips<T extends string | number>({ value, options, onChange, lab
     const el = box.current;
     const on = el?.querySelector<HTMLElement>('[aria-checked="true"]');
     if (!strip || !el || !on) return;
-    const left = on.offsetLeft - el.offsetLeft;
-    if (left < el.scrollLeft || left + on.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = left - el.clientWidth / 2 + on.offsetWidth / 2;
+    const fit = () => {
+      const left = on.offsetLeft - el.offsetLeft;
+      if (left < el.scrollLeft || left + on.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = left - el.clientWidth / 2 + on.offsetWidth / 2;
+    };
+    fit();
+    // again when the strip gets narrower or wider (a neighbour appearing, the window resized)
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [strip, value]);
   return (
     <div ref={box} className={`rk-chips${strip ? ' rk-chips-strip' : ''}`} role="radiogroup" aria-label={label} data-testid={testId} {...extra}>
@@ -68,6 +78,26 @@ export function Chips<T extends string | number>({ value, options, onChange, lab
 
 export function SeasonChips({ seasons, season, onChange }: { seasons: string[]; season: string; onChange: (s: string) => void }) {
   return <Chips label="Season" testId="season-chips" value={season} options={[...seasons].reverse().map((s) => [s, s, `The ${s} season`])} onChange={onChange} />;
+}
+
+/** RK-13: "Regular season | Postseason" next to the season chips. Only for a season that has postseason games
+ * (play-in or playoffs) in the data; picking one switches every average on the page to that set of games. */
+export function SetChips({ season, value, onChange }: { season: string; value: GameSet; onChange: (s: GameSet) => void }) {
+  const index = useAsync(() => loadIndex(season), [season]);
+  const has = index.status === 'ok' && hasPostseason(index.value.map((e) => e.id));
+  if (!has && value !== 'post') return null;
+  return (
+    <Chips
+      label="Games counted"
+      testId="set-chips"
+      value={value}
+      options={[
+        ['regular', 'Regular season', 'Count regular-season games only'],
+        ['post', 'Postseason', 'Count play-in and playoff games only'],
+      ]}
+      onChange={onChange}
+    />
+  );
 }
 
 const teamChip = (t: string): Option<string> => {

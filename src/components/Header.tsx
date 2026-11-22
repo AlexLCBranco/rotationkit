@@ -9,6 +9,8 @@ import { useAsync } from '../app/hooks.ts';
 import { crumbs, goEntries, navContext, seasonShown, WHERE, whereOf, whereRoute, type Crumb, type Where } from '../app/nav.ts';
 import { pageHistory, subscribe } from '../app/pageHistory.ts';
 import { format, type Nav, type Route } from '../app/route.ts';
+import { SITE_NAME, tabTitle } from '../app/site.ts';
+import { pageTitle } from '../app/title.ts';
 import { GoAnywhere } from './GoAnywhere.tsx';
 
 const ICONS: Record<Where, ReactNode> = {
@@ -38,6 +40,14 @@ const ICONS: Record<Where, ReactNode> = {
     <>
       <path d="M5.5 6h5v8h-5zM1.5 9h4v5h-4zM10.5 10.5h4V14h-4z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
       <path d="M8 1.6l.7 1.4 1.5.2-1.1 1 .3 1.5L8 5l-1.4.7.3-1.5-1.1-1 1.5-.2z" fill="currentColor" />
+    </>
+  ),
+  // a question mark in a circle
+  help: (
+    <>
+      <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6.1 6.3a2 2 0 1 1 2.9 1.8c-.6.3-1 .7-1 1.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="8" cy="11.6" r="0.9" fill="currentColor" />
     </>
   ),
 };
@@ -114,13 +124,16 @@ export function Header({ route, seasons, season, rememberedTeam, nav }: { route:
   const players = useAsync(() => (route.view === 'player' ? loadPlayers(shown) : Promise.resolve(undefined)), [route.view === 'player', shown]);
   const playerName = route.view === 'player' && players.status === 'ok' ? players.value?.find((p) => p[0] === route.player)?.[1] : undefined;
   const parts = seasons.length ? crumbs(route, season, { seasons, index: index.status === 'ok' ? index.value : undefined, playerName, rememberedTeam }) : [];
+  // The tab title names the page (RK-9), then the site.
+  const title = tabTitle(seasons.length ? pageTitle(route, { season: shown, index: index.status === 'ok' ? index.value : undefined, playerName }) : null);
+  useEffect(() => void (document.title = title), [title]);
   const entries = useMemo(() => goEntries(c), [c.team, c.season, JSON.stringify(c.filters)]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <header className="rk-header" data-testid="header">
       <div className="rk-head-row">
-        <a className="brand" href="#/" title="rotationkit: back to the start">
+        <a className="brand" href="#/" title={`${SITE_NAME}: back to the start`}>
           <img className="brand-logo" src="/favicon.svg" alt="" width={22} height={22} />
-          <span className="brand-text">rotationkit</span>
+          <span className="brand-text">{SITE_NAME}</span>
         </a>
         <span className="rk-hist" role="group" aria-label="Page history" data-testid="page-history">
           <button type="button" className="rk-hist-btn" disabled={h.i === 0} title={h.i === 0 ? 'Nothing to go back to' : 'Back to the previous page'} aria-label="Back" onClick={() => history.back()} data-testid="hist-back">

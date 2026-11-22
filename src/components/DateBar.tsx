@@ -4,6 +4,7 @@
 
 import { useEffect } from 'react';
 import { GARBAGE_RULE } from './LeadersView.tsx';
+import { HelpLink } from './HelpLink.tsx';
 
 interface Props {
   /** Days with games, ascending. */
@@ -68,6 +69,7 @@ export function NoBlowoutsToggle({ checked, onChange, label = 'Exclude blowouts'
     <label className="toggle" title={`Leaves out games with garbage time in the 4th quarter: ${GARBAGE_RULE}`}>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>{label}</span>
+      <HelpLink section="garbage" />
     </label>
   );
 }

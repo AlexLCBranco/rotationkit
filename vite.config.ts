@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { cpSync, createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { generatedFile, generatedFiles, seasonsIn } from './scripts/lib/generated.ts';
+import { withHead } from './scripts/lib/head.ts';
 
 // Committed data/ is served at /data in dev and copied to dist/data at build time (preview serves dist/).
 // Generated files (scripts/lib/generated.ts, e.g. <season>/players.json) are built from the game files: written to
@@ -38,7 +39,10 @@ function dataDir(): Plugin {
   };
 }
 
+// RK-9 / RK-16: index.html gets its title, description and link-preview tags at build time, from src/app/site.ts.
+const siteHead = (): Plugin => ({ name: 'rotationkit-head', transformIndexHtml: (html) => withHead(html, {}) });
+
 export default defineConfig({
-  plugins: [react(), dataDir()],
+  plugins: [react(), dataDir(), siteHead()],
   test: { include: ['tests/**/*.test.ts', 'src/**/*.test.ts'] },
 });

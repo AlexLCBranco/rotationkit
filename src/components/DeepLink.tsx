@@ -1,4 +1,4 @@
-// ?game=<NBA gameId>: open that game's chart if rotationkit has data for it, otherwise say so clearly.
+// ?game=<NBA gameId>: open that game's chart if we have data for it, otherwise say so clearly.
 
 import { useEffect } from 'react';
 import { loadIndex, loadSchedule } from '../app/data.ts';
@@ -6,6 +6,7 @@ import { useAsync } from '../app/hooks.ts';
 import { shortDate } from '../app/labels.ts';
 import type { Route } from '../app/route.ts';
 import { teamName } from '../app/teams.ts';
+import { SITE_NAME } from '../app/site.ts';
 import { DEFAULT_FILTERS } from '../domain/patterns.ts';
 import { seasonOf } from '../domain/season.ts';
 import type { ScheduleEntry } from '../domain/types.ts';
@@ -54,11 +55,11 @@ export function DeepLink({ id, seasons, nav }: { id: string; seasons: string[]; 
           </p>
         ) : (
           <p className="muted">
-            {/^\d{10}$/.test(id) ? `No game ${id} in rotationkit's data.` : `“${id}” is not an NBA game ID (expected 10 digits, e.g. 0022600123).`}
+            {/^\d{10}$/.test(id) ? `We have no game ${id} in our data.` : `“${id}” is not an NBA game ID (expected 10 digits, e.g. 0022600123).`}
           </p>
         )}
         <p>
-          <a href={location.pathname}>Open rotationkit</a>
+          <a href={location.pathname}>Open {SITE_NAME}</a>
         </p>
       </div>
     </div>

@@ -8,7 +8,8 @@ import { leaders, type QuartersFile } from '../src/domain/leaders.ts';
 import type { Game } from '../src/domain/types.ts';
 
 const load = (season: string, id: string) => JSON.parse(readFileSync(`data/${season}/games/${id}.json`, 'utf8')) as Game;
-const index = (season: string) => JSON.parse(readFileSync(`data/${season}/index.json`, 'utf8')) as { id: string; home: string; away: string }[];
+// Regular-season games (ids 002…): what the averages count by default (RK-13).
+const index = (season: string) => (JSON.parse(readFileSync(`data/${season}/index.json`, 'utf8')) as { id: string; home: string; away: string }[]).filter((e) => e.id.startsWith('002'));
 const num = (s: string) => (s.trim() === '—' ? -1 : Number(s));
 function trackErrors(page: Page) {
   const errors: string[] = [];
@@ -65,7 +66,8 @@ test('Averages: USG% column = minutes-weighted usage over the selection; clickin
 
 test('Leaders: USG% column = the data; "Rank by USG%" sorts by it and is kept in the URL', async ({ page }) => {
   const errors = trackErrors(page);
-  const file = JSON.parse(readFileSync('data/2025-26/quarters.json', 'utf8')) as QuartersFile;
+  const all = JSON.parse(readFileSync('data/2025-26/quarters.json', 'utf8')) as QuartersFile;
+  const file = { ...all, games: all.games.filter((g) => g[0].startsWith('002')) };
   await page.goto('/#/leaders?s=2025-26');
   await page.getByRole('group', { name: 'Rank by' }).getByRole('button', { name: 'USG%' }).click();
   await expect(page).toHaveURL(/sort=usg/);

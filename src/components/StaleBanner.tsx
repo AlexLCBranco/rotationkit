@@ -1,4 +1,4 @@
-// Top-of-page warning when the daily data update failed or has not succeeded for too long (data/update-status.json).
+// Top-of-page warning when the data update failed or has not succeeded for too long (data/update-status.json).
 
 import { useEffect, useState } from 'react';
 import { staleBanner, type UpdateStatus } from '../domain/updateStatus.ts';
@@ -35,7 +35,7 @@ export function StaleBanner({ now = () => new Date() }: { now?: () => Date }) {
         </>
       ) : (
         <>
-          <strong>no successful update since then.</strong> <span className="muted">The daily update has not run since {when(b.since!)}.</span>
+          <strong>no successful update since then.</strong> <span className="muted">The data update has not run since {when(b.since!)}.</span>
         </>
       )}
     </div>

@@ -24,6 +24,7 @@ describe('places (Where)', () => {
     expect(at('#/player?name=Luka')).toBe('averages');
     expect(at('#/leaders')).toBe('leaders');
     expect(at('#/fullq4')).toBe('leaders');
+    expect(at('#/help?sec=usg')).toBe('help');
     expect(at('')).toBe('games');
   });
   it('a place keeps team, season and filters; Games keeps the open game (back from Q4 = whole game)', () => {
@@ -54,7 +55,7 @@ describe('breadcrumb', () => {
     const r = parse('#/game/0022500002?t=ORL&s=2025-26');
     const c = crumbs(r, '2025-26', { seasons: SEASONS, index: INDEX, rememberedTeam: null });
     expect(c.map((x) => x.label)).toEqual(['Games', '2025-26', 'Orlando Magic', 'Oct 22 · ORL @ MIA', 'Whole game']);
-    expect(c[0]!.items.map((i) => i.label)).toEqual(['Games', 'By day', 'Averages', 'Leaders']);
+    expect(c[0]!.items.map((i) => i.label)).toEqual(['Games', 'By day', 'Averages', 'Leaders', 'How to read this']);
     expect(c[1]!.items.map((i) => [i.label, i.on])).toEqual([['2026-27', false], ['2025-26', true]]);
     expect(c[2]!.items).toHaveLength(30);
     // the team's games, newest first; picking one opens it

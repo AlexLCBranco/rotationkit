@@ -65,9 +65,10 @@ async function expectChips(scope: ReturnType<Page['locator']>, t: ReturnType<typ
   await expect(scope.getByTestId('tag-rest')).toHaveText(t.rest);
 }
 
-test('opening the app shows the main screen: team + game list + the latest game chart', async ({ page }) => {
+test('the Games place with no team shows the main screen: team + game list + the latest game chart', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto('/');
+  // (An empty URL on a first visit opens By day instead: e2e/frontdoor.spec.ts.)
+  await page.goto('/#/games');
   await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('season-chips').locator('[aria-checked=true]')).toHaveText('2026-27');
   await expect(page.getByTestId('game-list')).toBeVisible();
@@ -136,7 +137,7 @@ test('clicking a row, the date link and arrow keys load the right game; URL upda
   await page.locator(`[data-testid=list-row][data-id="${pick.id}"]`).click();
   await expect(page).toHaveURL(new RegExp(`#/game/${pick.id}\\?.*t=ORL`));
   await expect(page.locator('h1')).toContainText(`${pick.away} ${pick.as} @ ${pick.home} ${pick.hs}`);
-  await expect(page.getByTestId('game-count')).toHaveText('Game 41 of 82 · 2025-26');
+  await expect(page.getByTestId('game-count')).toHaveText(`Game 41 of ${ORL.length} · 2025-26`);
   await page.locator(`[data-testid=list-row][data-id="${oldestFirst[10]!.id}"] .gl-date`).click();
   await expect(page).toHaveURL(new RegExp(`#/game/${oldestFirst[10]!.id}\\?`));
   // Keyboard on the focused list: ↓ = next (newer), ↑ = previous (older).
@@ -155,7 +156,7 @@ test('clicking a row, the date link and arrow keys load the right game; URL upda
 test('prev / next arrows step through the team\'s games in order', async ({ page }) => {
   await page.goto('/#/game/latest?t=ORL&s=2025-26');
   await expect(page).toHaveURL(new RegExp(`#/game/${latest.id}\\?`));
-  await expect(page.getByTestId('game-count')).toHaveText('Game 82 of 82 · 2025-26');
+  await expect(page.getByTestId('game-count')).toHaveText(`Game ${ORL.length} of ${ORL.length} · 2025-26`);
   await expect(page.getByTestId('next-game')).toBeDisabled();
   await page.getByTestId('prev-game').click();
   await expect(page).toHaveURL(new RegExp(`#/game/${newestFirst[1]!.id}\\?.*t=ORL`));
@@ -305,7 +306,7 @@ test('overlapping 3-in-4 sets: one merged chip ("4in6 · 2nd"), the hover pop-up
   await expect(chip).toHaveAttribute('data-stretch', want);
   await expect(chip).toHaveText(`${label} · ${ord(Number(pos))}`);
   expect(Number(await chip.getAttribute('data-sets'))).toBeGreaterThanOrEqual(2);
-  // Hover: calendarkit's pop-up — the stretch in words, one square per day, tonight marked, games link to hoopsjunkie.
+  // Hover: calendarkit's pop-up — the stretch in words, one square per day, tonight marked, played games link to their rotation page here (RK-15).
   await chip.hover();
   const pop = page.getByTestId('tif-pop');
   await expect(pop).toBeVisible();
@@ -316,7 +317,8 @@ test('overlapping 3-in-4 sets: one merged chip ("4in6 · 2nd"), the hover pop-up
   await expect(pop.locator('[data-kind=tonight]')).toHaveAttribute('data-date', multi.date);
   const opp = multi.home === 'ORL' ? multi.away : multi.home;
   await expect(pop.locator('[data-kind=tonight] [data-testid=tip-game]')).toHaveText(`${multi.home === 'ORL' ? 'vs' : '@'} ${opp}`);
-  await expect(pop.locator('[data-kind=tonight] a')).toHaveAttribute('href', `https://hoopsjunkie.io/games/${multi.date}/${multi.away.toLowerCase()}-vs-${multi.home.toLowerCase()}`);
+  await expect(pop.locator('[data-kind=tonight] a')).toHaveAttribute('href', new RegExp(`#/game/${multi.id}\\?.*t=ORL`));
+  await expect(pop.locator('[data-kind=tonight] a')).not.toHaveAttribute('target', '_blank');
   // The pointer can travel onto the pop-up (it stays); leaving both closes it.
   await pop.hover();
   await expect(pop).toBeVisible();

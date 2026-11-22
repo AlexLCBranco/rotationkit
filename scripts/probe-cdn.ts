@@ -1,11 +1,12 @@
-// Quick reachability check of the CDN endpoints the daily update needs (no files written).
-// Fetches the schedule, then the box score and play-by-play of the latest finished regular-season game.
+// Quick reachability check of the CDN endpoints the data update needs (no files written).
+// Fetches the schedule, then the box score and play-by-play of the latest finished game.
 // Exit 1 with a clear message if any request fails (e.g. NBA blocking the runner's IP).
 // Usage: npx tsx scripts/probe-cdn.ts
 
 import { fetchJson } from './lib/http.ts';
 import { SOURCES } from './lib/cache.ts';
-import { finished, parseSchedule, regularSeason } from '../src/shared/nba-schedule/parse.ts';
+import { finished, parseSchedule } from '../src/shared/nba-schedule/parse.ts';
+import { isShownKind } from '../src/domain/gameSet.ts';
 import { fetchScheduleJson } from '../src/shared/nba-schedule/node.ts';
 
 let ok = true;
@@ -23,7 +24,7 @@ const check = async (label: string, f: () => Promise<string>) => {
 let gameId: string | undefined;
 await check('schedule (cdn.nba.com)', async () => {
   const s = parseSchedule(await fetchScheduleJson());
-  gameId = finished(regularSeason(s)).at(-1)?.gameId;
+  gameId = finished(s.games.filter((g) => isShownKind(g.gameId))).at(-1)?.gameId;
   return `season ${s.seasonYear}, ${s.games.length} games, latest final ${gameId ?? 'none'}`;
 });
 if (gameId) {

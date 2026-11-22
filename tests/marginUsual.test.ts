@@ -91,7 +91,8 @@ describe(`margin strip over ${sweepGames().length} games`, { timeout: WHOLE_DATA
 describe('usual window', () => {
   const games = loadSeason('2025-26');
   const team = 'ORL';
-  const mine = games.filter((g) => g.home.tri === team || g.away.tri === team);
+  // regular-season games (RK-13: a game's "usual" is taken over games of its own set)
+  const mine = games.filter((g) => g.id.startsWith('002') && (g.home.tri === team || g.away.tri === team));
   it('= the team\'s previous 10 games of the season, this one excluded, blowout rule on', () => {
     const g = mine[30]!;
     const sel = usualSelection(mine, g, team);

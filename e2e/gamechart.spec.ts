@@ -198,12 +198,12 @@ test('team pattern: minutes & fouls per game table respects filters; matchup mod
   await page.getByTestId('vs-picker').locator('[data-value=BOS]').click();
   const blocks = page.getByTestId('team-block');
   await expect(blocks).toHaveCount(2);
-  await expect(blocks.nth(0).getByTestId('selection-label')).toHaveText('Last 10 home games · based on 10 games');
-  await expect(blocks.nth(1).getByTestId('selection-label')).toHaveText('Last 10 home games · based on 10 games');
+  await expect(blocks.nth(0).getByTestId('selection-label')).toHaveText('Last 10 home games · based on 10 games · regular season');
+  await expect(blocks.nth(1).getByTestId('selection-label')).toHaveText('Last 10 home games · based on 10 games · regular season');
   await expect(blocks.nth(1)).toHaveAttribute('data-team', 'BOS');
   await page.getByRole('button', { name: 'Last 5' }).click();
-  await expect(blocks.nth(0).getByTestId('selection-label')).toHaveText('Last 5 home games · based on 5 games');
-  await expect(blocks.nth(1).getByTestId('selection-label')).toHaveText('Last 5 home games · based on 5 games');
+  await expect(blocks.nth(0).getByTestId('selection-label')).toHaveText('Last 5 home games · based on 5 games · regular season');
+  await expect(blocks.nth(1).getByTestId('selection-label')).toHaveText('Last 5 home games · based on 5 games · regular season');
 });
 
 test('headshots fall back to initials when the image fails', async ({ page }) => {
@@ -240,7 +240,7 @@ test('minutes trend: one mark per game with the team, values = per-game minutes,
   await expect(chart.getByTestId('trend-dnp')).toHaveCount(48);
   await expect(chart.getByTestId('trend-avg')).toBeAttached();
   const mins = (await chart.getByTestId('trend-point').evaluateAll((els) => els.map((e) => Number(e.getAttribute('data-min'))))) as number[];
-  const games = index('2025-26').map((e) => load('2025-26', e.id)).filter((g) => g.home.tri === 'ORL' || g.away.tri === 'ORL');
+  const games = index('2025-26').filter((e) => e.id.startsWith('002')).map((e) => load('2025-26', e.id)).filter((g) => g.home.tri === 'ORL' || g.away.tri === 'ORL');
   const expected = games.flatMap((g) => {
     const p = g.players.find((x) => x.id === 1630532 && x.played && x.stints.length);
     return p ? [p.stints.reduce((x, [a, b]) => x + b - a, 0)] : [];
@@ -254,14 +254,15 @@ test('rest filter: back-to-back / rested in the filter chain with "based on N ga
   const { restForTeam } = await import('../src/domain/rest.ts');
   const idx = JSON.parse(readFileSync('data/2025-26/index.json', 'utf8')) as { id: string; date: string; home: string; away: string }[];
   const rest = restForTeam(idx, 'ORL');
-  const b2b = [...rest.values()].filter((r) => r.rest === 'b2b').length;
+  // rest days come from every game; the selection counts regular-season games (ids 002…)
+  const b2b = [...rest].filter(([id, r]) => id.startsWith('002') && r.rest === 'b2b').length;
   await page.goto('/#/team/ORL?s=2025-26');
   await page.getByRole('button', { name: 'Back-to-back' }).click();
-  await expect(page.getByTestId('selection-label')).toHaveText(`All 2025-26 games on the second night of a back-to-back · based on ${b2b} games`);
+  await expect(page.getByTestId('selection-label')).toHaveText(`All 2025-26 games on the second night of a back-to-back · based on ${b2b} games · regular season`);
   await page.getByRole('button', { name: 'Rested' }).click();
-  await expect(page.getByTestId('selection-label')).toHaveText(`All 2025-26 games with 1+ days of rest · based on ${82 - b2b} games`);
+  await expect(page.getByTestId('selection-label')).toHaveText(`All 2025-26 games with 1+ days of rest · based on ${82 - b2b} games · regular season`);
   await page.getByRole('button', { name: 'Last 5' }).click();
-  await expect(page.getByTestId('selection-label')).toHaveText('Last 5 games with 1+ days of rest · based on 5 games');
+  await expect(page.getByTestId('selection-label')).toHaveText('Last 5 games with 1+ days of rest · based on 5 games · regular season');
   await page.getByRole('button', { name: 'Any rest' }).click();
-  await expect(page.getByTestId('selection-label')).toHaveText('Last 5 games · based on 5 games');
+  await expect(page.getByTestId('selection-label')).toHaveText('Last 5 games · based on 5 games · regular season');
 });

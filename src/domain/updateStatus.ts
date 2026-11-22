@@ -1,4 +1,5 @@
-// Outcome of the daily data update, committed as data/update-status.json on every run (also failed ones), and
+// Outcome of the data update, committed as data/update-status.json (by the 11:00 UTC run always; by an hourly run
+// only when it added games, failed, or recovered from a failure), and
 // the app's "data is stale" banner logic. Pure: no Node or browser APIs (also run by plain `node` in CI).
 
 export interface UpdateStatus {
@@ -14,13 +15,19 @@ export interface UpdateStatus {
   failingSince: string | null;
   /** GitHub Actions run id of the latest run (lets the workflow's fallback step see whether it was recorded). */
   runId: string | null;
+  /** RK-12: ids of the games added since the last 11:00 UTC run; that run re-fetches them (late corrections) and
+   * empties the list. Absent = none. */
+  pending?: string[];
 }
 
-export type RunResult = { at: string; runId?: string | null } & ({ ok: true } | { ok: false; step: string; error: string });
+/** `pending`: the new list; left out = keep the previous one. */
+export type RunResult = { at: string; runId?: string | null; pending?: string[] } & ({ ok: true } | { ok: false; step: string; error: string });
 
 export function nextStatus(prev: UpdateStatus | null, run: RunResult): UpdateStatus {
   const runId = run.runId ?? null;
-  if (run.ok) return { lastRun: run.at, result: 'ok', failingStep: null, error: null, lastSuccess: run.at, failingSince: null, runId };
+  const list = run.pending ?? prev?.pending ?? [];
+  const pending = list.length ? { pending: list } : {};
+  if (run.ok) return { lastRun: run.at, result: 'ok', failingStep: null, error: null, lastSuccess: run.at, failingSince: null, runId, ...pending };
   return {
     lastRun: run.at,
     result: 'failed',
@@ -29,6 +36,7 @@ export function nextStatus(prev: UpdateStatus | null, run: RunResult): UpdateSta
     lastSuccess: prev?.lastSuccess ?? null,
     failingSince: prev?.result === 'failed' && prev.failingSince ? prev.failingSince : run.at,
     runId,
+    ...pending,
   };
 }
 
