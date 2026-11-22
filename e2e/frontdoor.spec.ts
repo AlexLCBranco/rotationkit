@@ -120,7 +120,7 @@ test.describe('RK-9: link preview tags', () => {
     const built = readFileSync('dist/index.html', 'utf8');
     for (const p of ['og:title', 'og:description', 'og:type', 'og:url', 'og:image']) expect(built, p).toMatch(new RegExp(`<meta property="${p}" content="[^"]+"`));
     for (const n of ['description', 'twitter:card', 'twitter:title', 'twitter:description', 'twitter:image']) expect(built, n).toMatch(new RegExp(`<meta name="${n}" content="[^"]+"`));
-    await page.goto('/help');
+    await page.goto('/');
     expect(await page.locator('meta[name=description]').getAttribute('content')).toBe(SITE_TAGLINE);
     expect(await page.locator('meta[property="og:image"]').getAttribute('content')).toBe(`${SITE_URL}${OG_IMAGE.path}`);
     const r = await request.get(OG_IMAGE.path);
@@ -288,7 +288,7 @@ test.describe('RK-16: the site is shown as "Hoop Rotations"', () => {
     for (const f of html) {
       const text = readFileSync(`dist/${f}`, 'utf8').replaceAll(SITE_URL, '');
       expect(text.toLowerCase(), f).not.toContain('rotationkit');
-      expect(text, f).toContain(`<title>${SITE_NAME}`);
+      expect(text, f).toMatch(new RegExp(`<title>[^<]*${SITE_NAME}`));
     }
   });
   test('the old name is in no visible text, hover text or tab title of the main screens; the header shows the new one', async ({ page }) => {

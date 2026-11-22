@@ -105,13 +105,20 @@ describe('generated pages', () => {
   it('sitemap lists the start page, the help page and every generated page; robots points to it', () => {
     const files = pageFiles(HTML, pages);
     const map = files['sitemap.xml']!;
-    expect(map.match(/<loc>/g)).toHaveLength(pages.length + 2);
+    const listed = pages.filter((p) => !p.unlisted);
+    expect(map.match(/<loc>/g)).toHaveLength(listed.length + 1);
+    expect(map).toContain(`<loc>${SITE_URL}/help</loc>`);
+    expect(map).not.toContain('/q4/');
     expect(map).toContain(`<loc>${SITE_URL}/</loc>`);
     expect(map).toContain(`<loc>${SITE_URL}/game/0022500020</loc>`);
     expect(map).toContain(`<loc>${SITE_URL}/team/ORL</loc>`);
-    expect(sitemap([])).toContain(`<loc>${SITE_URL}/help</loc>`);
+    expect(sitemap([])).toContain(`<loc>${SITE_URL}/</loc>`);
     expect(files['robots.txt']).toBe(`User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
-    expect(Object.keys(files)).toHaveLength(pages.length + 2);
+    expect(Object.keys(files)).toHaveLength(pages.length + 3);
+    // every address of the app has a file: the places, the 4th-quarter view of each game, and the app itself as the 404 page
+    for (const f of ['leaders.html', 'fullq4.html', 'games.html', 'help.html', 'team.html', 'player.html', 'q4/0022500020.html', '404.html']) expect(files[f], f).toContain('<div id="root"></div>');
+    expect(files['help.html']).toContain(`<title>How to read this | ${SITE_NAME}</title>`);
+    expect(files['q4/0022500020.html']).toMatch(/<title>ATL \d+, IND \d+ · Oct 31, 2025 · rotations · 4th quarter \| /);
   });
   it('the pages stay small: each adds under 2 KB to index.html; under 20 MB in all', () => {
     const files = pageFiles(HTML, pages);
@@ -125,6 +132,6 @@ describe('generated pages', () => {
   it('host config: clean addresses, one catch-all pattern (no entry per page)', () => {
     const v = JSON.parse(readFileSync('vercel.json', 'utf8')) as { cleanUrls: boolean; rewrites: { source: string; destination: string }[] };
     expect(v.cleanUrls).toBe(true);
-    expect(v.rewrites).toEqual([{ source: '/((?!data/|assets/).*)', destination: '/index.html' }]);
+    expect(v.rewrites).toEqual([{ source: '/((?!data/|assets/).*)', destination: '/' }]);
   });
 });

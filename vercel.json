@@ -19,7 +19,7 @@
   "rewrites": [
     {
       "source": "/((?!data/|assets/).*)",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }

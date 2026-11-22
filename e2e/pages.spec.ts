@@ -31,7 +31,7 @@ test('the address itself answers with that page\'s title and tags, without JavaS
   }
   // a place without a page of its own gets the site's general tags (and still loads the app)
   const leaders = await (await request.get('/leaders')).text();
-  expect(leaders).toContain(`<title>${SITE_NAME}:`);
+  expect(leaders).toContain(`<title>Leaders | ${SITE_NAME}</title>`);
   expect(leaders).toContain('<div id="root"></div>');
 });
 
@@ -140,7 +140,8 @@ test('sitemap.xml lists every generated page; robots.txt points to it', async ({
   // every address in it is a file of the build
   const files = new Set(['game', 'player', 'team'].flatMap((d) => walk(join('dist', d))).map((f) => f.slice('dist'.length).replace(/\.html$/, '')));
   for (const l of locs.filter((x) => /\/(game|player|team)\//.test(x))) expect(files.has(l.slice(SITE_URL.length)), l).toBe(true);
-  expect(files.size).toBe(locs.length - 2);
+  expect(locs).toContain(`${SITE_URL}/help`);
+  expect(locs.some((l) => l.includes('/q4/'))).toBe(false);
   const robots = await (await request.get('/robots.txt')).text();
   expect(robots).toContain(`Sitemap: ${SITE_URL}/sitemap.xml`);
   expect(robots).toContain('Allow: /');
@@ -150,8 +151,13 @@ function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [join(dir, f)]));
 }
 
+test('every address of the app is a real file of the build (a reload never needs a host rule)', () => {
+  for (const f of ['leaders.html', 'fullq4.html', 'games.html', 'help.html', 'team.html', 'player.html', 'q4/0022500020.html', '404.html', 'game/0022500020.html', 'team/ORL.html', 'player/ORL/1631094.html'])
+    expect(readFileSync(join('dist', f), 'utf8'), f).toContain('<div id="root"></div>');
+});
+
 test('build size: the generated pages stay small', () => {
-  const files = ['game', 'player', 'team'].flatMap((d) => walk(join('dist', d)));
+  const files = ['game', 'player', 'team', 'q4'].flatMap((d) => walk(join('dist', d)));
   const total = files.reduce((n, f) => n + statSync(f).size, 0);
   const base = statSync('dist/index.html').size;
   console.log(`generated pages: ${files.length} files, ${(total / 1024 / 1024).toFixed(1)} MB in all, ${(total / files.length / 1024).toFixed(1)} KB each`);

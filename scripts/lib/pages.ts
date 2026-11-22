@@ -5,6 +5,9 @@
 //   game/<gameId>.html            → /game/<gameId>
 //   player/<TEAM>/<playerId>.html → /player/<TEAM>/<playerId>
 //   team/<TEAM>.html              → /team/<TEAM>
+// Every other address the app uses gets a file too, so a direct load or a reload never depends on a host rule:
+//   q4/<gameId>.html, leaders.html, fullq4.html, games.html, help.html, team.html, player.html
+//   404.html = the app itself (an address with no file still opens the app, which says what is missing)
 // The host serves "/game/123" from "game/123.html" (Vercel cleanUrls; vite preview does the same).
 
 import { readFileSync } from 'node:fs';
@@ -24,6 +27,8 @@ export interface PageInfo extends HeadInfo {
   path: string;
   title: string;
   description: string;
+  /** Left out of sitemap.xml (a second address of a page that is already in it, or a page with no content of its own). */
+  unlisted?: true;
 }
 
 const longDate = (iso: string) => `${shortDate(iso)}, ${iso.slice(0, 4)}`;
@@ -61,20 +66,34 @@ export function allPages(dataDir: string): PageInfo[] {
     for (const e of index) games.push(gamePage(e));
     for (const [id, name, teams] of buildPlayerIndex(readSeasonGames(dataDir, season))) for (const t of teams) players.set(`${t}/${id}`, playerPage(id, name, t));
   }
-  return [...TEAM_CODES.map((t) => teamPage(t, current)), ...games, ...[...players.values()].sort((a, b) => a.path.localeCompare(b.path))];
+  return [...TEAM_CODES.map((t) => teamPage(t, current)), ...games, ...[...players.values()].sort((a, b) => a.path.localeCompare(b.path)), ...PLACES, ...games.map(q4Page)];
 }
+
+/** The places of the menu (and the two addresses that only make sense with a query). */
+export const PLACES: PageInfo[] = [
+  { path: '/games', title: 'Games by day', description: 'Every NBA game of one day: who closed each game, who played the whole 4th quarter, who sat by coach\'s decision.' },
+  { path: '/leaders', title: 'Leaders', description: 'Who plays the most 4th-quarter and second-half minutes in the NBA, and who scores the most in them.' },
+  { path: '/fullq4', title: 'Full 4th quarters', description: 'Who played the whole 4th quarter the most times this NBA season.' },
+  { path: '/help', title: 'How to read this', description: `How to read ${SITE_NAME}: what the bars, colors, tags and numbers mean, in plain words.` },
+  { path: '/team', title: 'Averages', description: 'A team\'s usual rotation: who plays when, minutes per game and closers.', unlisted: true },
+  { path: '/player', title: 'Player', description: 'A player\'s rotation, game by game.', unlisted: true },
+];
+
+/** The same game, 4th quarter and overtime only (not in the sitemap: the game's own page is). */
+const q4Page = (g: PageInfo): PageInfo => ({ path: g.path.replace('/game/', '/q4/'), title: `${g.title} · 4th quarter`, description: g.description, unlisted: true });
 
 /** Output files (path under dist/ → text) for the built index.html. */
 export function pageFiles(indexHtml: string, pages: PageInfo[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const p of pages) out[`${p.path.slice(1)}.html`] = withHead(indexHtml, p);
+  out['404.html'] = indexHtml;
   out['sitemap.xml'] = sitemap(pages);
   out['robots.txt'] = `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`;
   return out;
 }
 
-/** The start page, "How to read this" and every generated page. */
+/** The start page and every generated page that is listed. */
 export function sitemap(pages: PageInfo[]): string {
-  const urls = ['/', '/help', ...pages.map((p) => p.path)];
+  const urls = ['/', ...pages.filter((p) => !p.unlisted).map((p) => p.path)];
   return `<?xml version="1.0" encoding="UTF-8"?>\n<!-- ${SITE_NAME} -->\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${SITE_URL}${u}</loc></url>`).join('\n')}\n</urlset>\n`;
 }

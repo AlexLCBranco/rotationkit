@@ -48,7 +48,7 @@ scripts fetch and normalize the data. Production: **https://rotationkit.vercel.a
 
 ## App (`src/App.tsx`, `src/components/`, `src/app/`)
 State lives in the URL as a real path + query (RK-14, `src/app/route.ts`: link clicks are caught, no page load; old `/#/…` links are rewritten to the path form), so every view is linkable and the back button works.
-- **Real pages** (RK-14): the build writes one HTML file per game, player-team and team (`scripts/lib/pages.ts` → `dist/game/<id>.html`, `player/<TEAM>/<id>.html`, `team/<TEAM>.html`: index.html with that page's title, description, Open Graph / Twitter tags), `sitemap.xml`, `robots.txt`; Vercel `cleanUrls` + one catch-all rewrite to index.html (`vercel.json`).
+- **Real pages** (RK-14): the build writes one HTML file per game, player-team and team (`scripts/lib/pages.ts` → `dist/game/<id>.html`, `player/<TEAM>/<id>.html`, `team/<TEAM>.html`: index.html with that page's title, description, Open Graph / Twitter tags), plus a file for every other address (`q4/<id>.html`, `leaders.html`, `games.html`, `fullq4.html`, `help.html`, `team.html`, `player.html`) and `404.html` = the app, so a reload never needs a host rule; `sitemap.xml`, `robots.txt`; Vercel `cleanUrls` (`vercel.json`).
 - **Layout** (RK-8, backlogkit's NAV_PATTERN.md, footykit FK-65's look): pinned **header** (`Header.tsx`, `app/nav.ts`; 92 px, phone 100):
   logo, ← → (own history, `pageHistory.ts`), breadcrumb (each part lists its siblings), **Go anywhere** (`GoAnywhere.tsx`; button,
   "/", Ctrl+K: places, teams ("bos"), then 8 players, accent-insensitive, initials, empty = last 5 `rk.recent`), places **Games · By
