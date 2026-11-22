@@ -1,10 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { cpSync, createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { generatedFile, generatedFiles, seasonsIn } from './scripts/lib/generated.ts';
 import { withHead } from './scripts/lib/head.ts';
+import { allPages, pageFiles } from './scripts/lib/pages.ts';
 
 // Committed data/ is served at /data in dev and copied to dist/data at build time (preview serves dist/).
 // Generated files (scripts/lib/generated.ts, e.g. <season>/players.json) are built from the game files: written to
@@ -35,6 +36,16 @@ function dataDir(): Plugin {
           mkdirSync(dirname(join(out, path)), { recursive: true });
           writeFileSync(join(out, path), JSON.stringify(content));
         }
+      // RK-14: one real page per game, player and team (its own title and preview tags), sitemap.xml, robots.txt.
+      const dist = join(import.meta.dirname, 'dist');
+      const files = pageFiles(readFileSync(join(dist, 'index.html'), 'utf8'), allPages(root));
+      let bytes = 0;
+      for (const [path, text] of Object.entries(files)) {
+        mkdirSync(dirname(join(dist, path)), { recursive: true });
+        writeFileSync(join(dist, path), text);
+        bytes += Buffer.byteLength(text);
+      }
+      console.log(`generated pages: ${Object.keys(files).length} files, ${(bytes / 1024 / 1024).toFixed(1)} MB`);
     },
   };
 }

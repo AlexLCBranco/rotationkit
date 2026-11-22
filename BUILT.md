@@ -5,6 +5,10 @@ Entries dated before 2026-11-16 were backfilled from the git commit messages (da
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
 ## 2026-11-22
+- RK-14 — Links that preview: one real page per game, player and team (v0.7.0)
+  Addresses are now plain paths like /game/<id> (old links still open the same page); a pasted link to a game shows its teams, score and date, a player or team link shows the name, and a sitemap lets Google find every page.
+- RK-13 — Play-in, playoffs and the NBA Cup final (v0.7.0)
+  Last season's 6 play-in games, 85 playoff games and the Cup final are in, tagged PLAY-IN / PLAYOFFS / CUP FINAL; averages stay regular season unless you pick the new "Postseason" chip, and every "based on N games" says which set it is.
 - RK-16 — Show the site as "Hoop Rotations" (placeholder name) (v0.6.0)
   The header, tab titles, footer, help page and link previews all say "Hoop Rotations"; the address stays rotationkit.vercel.app.
 - RK-15 — Remove the hoopsjunkie links (v0.6.0)
@@ -19,6 +23,8 @@ spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Featu
   A first-time visitor lands on last night's games; a new "How to read this" page explains every bar, color, tag and number, a small "?" next to each term opens its part, and shared links show the site's name, description and a preview image.
 
 ### Internal
+- 4th-quarter screen: the side panel re-measures when the page above it changes (it could end up taller than the window)
+- By day cards and game titles keep their height while data or a logo loads (no jump on a direct page load); Checks retry a failed browser test once on GitHub (timing tests are noisy there)
 - Chart cursor check (unit test) runs on games without data notes, like the other chart checks; averages tests count regular-season games only
 - Schedule pop-up loads its data only when opened (the games list stays fast)
 

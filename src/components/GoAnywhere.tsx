@@ -9,7 +9,7 @@ import { loadPlayers } from '../app/data.ts';
 import { useAsync } from '../app/hooks.ts';
 import { playerHref } from '../app/links.ts';
 import { goFind, type GoEntry } from '../app/nav.ts';
-import { format, type Route } from '../app/route.ts';
+import { format, navigate, type Route } from '../app/route.ts';
 import { recentPlayers } from '../app/recent.ts';
 import { searchPlayers, type PlayerIndexEntry, type SearchHit } from '../domain/players.ts';
 import { Headshot } from './Headshot.tsx';
@@ -63,7 +63,7 @@ export function GoAnywhere({ entries, nav }: { entries: GoEntry[]; nav: (r: Rout
   };
   const go = (h: SearchHit) => {
     close();
-    location.hash = href(h);
+    navigate(href(h));
   };
   const goPlace = (e: GoEntry) => {
     close();

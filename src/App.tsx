@@ -1,6 +1,6 @@
 import { loadSeasons } from './app/data.ts';
 import { useAsync, remember } from './app/hooks.ts';
-import { DEFAULT_DAY, isStart, useRoute, type Nav } from './app/route.ts';
+import { DEFAULT_DAY, here, isStart, useRoute, type Nav } from './app/route.ts';
 import { TEAM_CODES } from './app/teams.ts';
 import { seasonOf } from './domain/season.ts';
 import { TeamView } from './components/TeamView.tsx';
@@ -40,7 +40,7 @@ function Screen() {
   const rememberedTeam = remembered && TEAM_CODES.includes(remembered) ? remembered : null;
   const team = route.team ?? rememberedTeam ?? TEAM_CODES[0]!;
   // RK-9, first visit: an empty URL and no remembered team → By day on the latest day with finished games.
-  const firstVisit = !rememberedTeam && isStart(location.hash) && !location.search;
+  const firstVisit = !rememberedTeam && isStart(here());
   useEffect(() => {
     if (firstVisit) go({ view: 'day', team: null, season: null, filters: route.filters, day: DEFAULT_DAY }, { replace: true });
   }, [firstVisit]); // eslint-disable-line react-hooks/exhaustive-deps

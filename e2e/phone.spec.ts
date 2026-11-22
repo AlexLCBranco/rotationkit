@@ -7,24 +7,24 @@ import { mkdirSync } from 'node:fs';
 
 const GAME = '0022500020'; // ATL @ IND, 2025-10-31 (a blowout: its badge carries a hover text)
 const ROUTES: [string, string][] = [
-  ['games', `/#/game/${GAME}?t=IND&s=2025-26`],
-  ['games-compact-list-open', `/#/game/${GAME}?t=IND&s=2025-26`],
-  ['by-day', '/#/games?view=day&date=2025-11-10&s=2025-26'],
-  ['q4', `/#/q4/${GAME}?t=IND&s=2025-26`],
-  ['averages', '/#/team/ORL?s=2025-26'],
-  ['averages-heat-map', '/#/team/ORL?s=2025-26'],
-  ['averages-game-by-game', '/#/team/ORL?s=2025-26'],
-  ['averages-matchup', '/#/team/ORL?s=2025-26&w=10&vs=BOS'],
-  ['leaders', '/#/leaders?s=2025-26'],
-  ['leaders-by-usage', '/#/leaders?s=2025-26&sort=usg'],
-  ['averages-with-usage', '/#/team/PHI?s=2025-26'],
-  ['full-q4', '/#/fullq4?s=2025-26'],
-  ['help', '/#/help'],
-  ['help-at-a-section', '/#/help?sec=usg'],
-  ['player', '/#/player/ORL/1631094?s=2025-26'],
-  ['player-with-dnp-reasons', '/#/player/IND/1630174?s=2025-26'],
-  ['player-two-teams', '/#/player/LAC/201935?s=2025-26'],
-  ['team', '/#/team/IND?s=2025-26'],
+  ['games', `/game/${GAME}?t=IND&s=2025-26`],
+  ['games-compact-list-open', `/game/${GAME}?t=IND&s=2025-26`],
+  ['by-day', '/games?view=day&date=2025-11-10&s=2025-26'],
+  ['q4', `/q4/${GAME}?t=IND&s=2025-26`],
+  ['averages', '/team/ORL?s=2025-26'],
+  ['averages-heat-map', '/team/ORL?s=2025-26'],
+  ['averages-game-by-game', '/team/ORL?s=2025-26'],
+  ['averages-matchup', '/team/ORL?s=2025-26&w=10&vs=BOS'],
+  ['leaders', '/leaders?s=2025-26'],
+  ['leaders-by-usage', '/leaders?s=2025-26&sort=usg'],
+  ['averages-with-usage', '/team/PHI?s=2025-26'],
+  ['full-q4', '/fullq4?s=2025-26'],
+  ['help', '/help'],
+  ['help-at-a-section', '/help?sec=usg'],
+  ['player', '/player/ORL/1631094?s=2025-26'],
+  ['player-with-dnp-reasons', '/player/IND/1630174?s=2025-26'],
+  ['player-two-teams', '/player/LAC/201935?s=2025-26'],
+  ['team', '/team/IND?s=2025-26'],
   ['deep-link', `/?game=${GAME}`],
 ];
 
@@ -63,7 +63,7 @@ for (const [name, url] of ROUTES) {
 }
 
 test('phone: a direct game link shows the game header and the chart on the first screen', async ({ page }) => {
-  for (const url of [`/?game=${GAME}`, `/#/game/${GAME}?t=IND&s=2025-26`]) {
+  for (const url of [`/?game=${GAME}`, `/game/${GAME}?t=IND&s=2025-26`]) {
     await page.goto(url);
     await expect(page.getByTestId('game-head')).toBeVisible();
     expect(await page.evaluate(() => scrollY)).toBe(0);
@@ -78,7 +78,7 @@ test('phone: a direct game link shows the game header and the chart on the first
 });
 
 test('phone: the games list has no scroll box of its own; a swipe over it scrolls the page; picking a game folds it', async ({ page }) => {
-  await page.goto(`/#/game/${GAME}?t=IND&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=IND&s=2025-26`);
   await settle(page);
   await page.getByTestId('list-expand').tap();
   const rows = page.getByTestId('game-list-rows');
@@ -105,12 +105,12 @@ test('phone: the games list has no scroll box of its own; a swipe over it scroll
   const other = page.getByTestId('list-row').nth(2);
   const id = await other.getAttribute('data-id');
   await other.locator('.gl-result').tap();
-  await expect(page).toHaveURL(new RegExp(`#/game/${id}`));
+  await expect(page).toHaveURL(new RegExp(`/game/${id}`));
   await expect(page.getByTestId('game-list')).toHaveCount(0);
 });
 
 test('phone: tapping the chart shows the lineup for that moment; a tap outside closes it; the clock handle drags', async ({ page }) => {
-  await page.goto(`/#/game/${GAME}?t=IND&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=IND&s=2025-26`);
   await settle(page);
   const row = page.getByTestId('gc-player-row').first();
   const track = row.locator('.gc-track');
@@ -146,7 +146,7 @@ test('phone: tapping the chart shows the lineup for that moment; a tap outside c
 });
 
 test('phone: a hover text opens on tap and closes on a tap outside (shared pattern)', async ({ page }) => {
-  await page.goto(`/#/game/${GAME}?t=IND&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=IND&s=2025-26`);
   await settle(page);
   const badge = page.getByTestId('game-head').locator('.badge[title]').first();
   const text = (await badge.getAttribute('title'))!;
@@ -169,7 +169,7 @@ test('phone: a hover text opens on tap and closes on a tap outside (shared patte
 });
 
 test('phone: the roster folds into a "Roster" toggle above the chart; it opens and closes, no sideways scroll', async ({ page }) => {
-  await page.goto('/#/player/IND/1630174?s=2025-26');
+  await page.goto('/player/IND/1630174?s=2025-26');
   await settle(page);
   const toggle = page.getByTestId('roster-toggle');
   await expect(toggle).toContainText('Roster');

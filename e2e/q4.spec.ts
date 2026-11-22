@@ -18,7 +18,7 @@ function trackErrors(page: Page) {
 }
 async function openQ4(page: Page, id: string, team?: string) {
   const g = load(id);
-  await page.goto(`/#/q4/${id}${team ? `?t=${team}` : ''}`);
+  await page.goto(`/q4/${id}${team ? `?t=${team}` : ''}`);
   await expect(page.locator('h1')).toContainText(`${g.away.tri} ${g.away.score} @ ${g.home.tri} ${g.home.score}`);
   await expect(page.getByTestId('q4-row').first()).toBeVisible();
   return g;
@@ -170,22 +170,22 @@ test('the tab is in the URL; Games ↔ Q4 keep the same game; the list and arrow
   await expect(page.getByTestId('how-q4')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
   await page.getByTestId('tab-games').click();
-  await expect(page).toHaveURL(new RegExp(`#/game/${g.id}\\?`));
+  await expect(page).toHaveURL(new RegExp(`/game/${g.id}\\?`));
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
   await page.getByTestId('how-q4').click();
-  await expect(page).toHaveURL(new RegExp(`#/q4/${g.id}\\?.*t=ORL`));
+  await expect(page).toHaveURL(new RegExp(`/q4/${g.id}\\?.*t=ORL`));
   await page.getByTestId('next-game').click();
-  await expect(page).toHaveURL(new RegExp(`#/q4/${orl[11]!.id}\\?`));
+  await expect(page).toHaveURL(new RegExp(`/q4/${orl[11]!.id}\\?`));
   await page.locator(`[data-testid=list-row][data-id="${orl[3]!.id}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`#/q4/${orl[3]!.id}\\?`));
+  await expect(page).toHaveURL(new RegExp(`/q4/${orl[3]!.id}\\?`));
   await expect(page.getByTestId('q4-chart')).toBeVisible();
-  // A bare #/q4 link opens the latest game of the team in the Q4 tab.
-  await page.goto('/#/q4?t=ORL&s=2025-26');
-  await expect(page).toHaveURL(new RegExp(`#/q4/${orl.at(-1)!.id}\\?`));
+  // A bare /q4 link opens the latest game of the team in the Q4 tab.
+  await page.goto('/q4?t=ORL&s=2025-26');
+  await expect(page).toHaveURL(new RegExp(`/q4/${orl.at(-1)!.id}\\?`));
   await page.getByTestId('tab-averages').click();
   await page.getByTestId('tab-games').click();
   await page.getByTestId('how-q4').click();
-  await expect(page).toHaveURL(new RegExp(`#/q4/${orl.at(-1)!.id}\\?`));
+  await expect(page).toHaveURL(new RegExp(`/q4/${orl.at(-1)!.id}\\?`));
 });
 
 test('paragraph: every change in words (no clock times); hovering a sentence shows its moment and players', async ({ page }) => {
@@ -228,10 +228,10 @@ test('paragraph: every change in words (no clock times); hovering a sentence sho
 });
 
 test('a game with a data note shows the same warning on the Q4 tab as on Games', async ({ page }) => {
-  await page.goto('/#/q4/0022500093?t=DET');
+  await page.goto('/q4/0022500093?t=DET');
   await expect(page.getByTestId('q4-chart')).toBeVisible();
   await expect(page.getByTestId('quality-warning')).toContainText('Kevin Durant — minutes: play-by-play 36:48 vs box score 28:08');
-  await page.goto('/#/q4/0022600085?t=ORL');
+  await page.goto('/q4/0022600085?t=ORL');
   await expect(page.getByTestId('q4-chart')).toBeVisible();
   await expect(page.getByTestId('quality-warning')).toHaveCount(0);
 });

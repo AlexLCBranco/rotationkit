@@ -40,7 +40,7 @@ const lineups = (page: Page) =>
   );
 
 async function openGame(page: Page, id: string, team: string) {
-  await page.goto(`/#/game/${id}?t=${team}`);
+  await page.goto(`/game/${id}?t=${team}`);
   // A hash-only change keeps the previous game on screen until this one loads: wait for this game's header.
   const g = load(id.startsWith('00226') ? '2026-27' : '2025-26', id);
   await expect(page.locator('h1')).toContainText(`${g.away.tri} ${g.away.score} @ ${g.home.tri} ${g.home.score}`);

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { loadIndex, loadSchedule } from '../app/data.ts';
 import { useAsync } from '../app/hooks.ts';
 import { shortDate } from '../app/labels.ts';
-import type { Route } from '../app/route.ts';
+import type { Nav } from '../app/route.ts';
 import { teamName } from '../app/teams.ts';
 import { SITE_NAME } from '../app/site.ts';
 import { DEFAULT_FILTERS } from '../domain/patterns.ts';
@@ -23,13 +23,12 @@ async function resolve(id: string, seasons: string[]): Promise<Resolution> {
   return entry ? { found: false, entry } : { found: false };
 }
 
-export function DeepLink({ id, seasons, nav }: { id: string; seasons: string[]; nav: (r: Route) => void }) {
+export function DeepLink({ id, seasons, nav }: { id: string; seasons: string[]; nav: Nav }) {
   const r = useAsync(() => resolve(id, seasons), [id]);
   useEffect(() => {
     if (r.status === 'ok' && r.value.found) {
-      // Drop ?game= from the URL and show the chart; the back button then leads into the app.
-      history.replaceState(null, '', `${location.pathname}#/game/${id}?s=${r.value.season}`);
-      nav({ view: 'game', game: id, team: null, season: r.value.season, filters: DEFAULT_FILTERS });
+      // The address becomes the game's own (/game/<id>) and the chart shows; the back button then leads into the app.
+      nav({ view: 'game', game: id, team: null, season: r.value.season, filters: DEFAULT_FILTERS }, { replace: true });
     }
   }, [r, id, nav]);
 
@@ -59,7 +58,7 @@ export function DeepLink({ id, seasons, nav }: { id: string; seasons: string[]; 
           </p>
         )}
         <p>
-          <a href={location.pathname}>Open {SITE_NAME}</a>
+          <a href="/">Open {SITE_NAME}</a>
         </p>
       </div>
     </div>

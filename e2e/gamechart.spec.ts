@@ -88,7 +88,7 @@ test(`labels, bars, ticks and badges on ${sample.length} games${ALL ? ' (all)' :
   const errors = trackErrors(page);
   const problems: string[] = [];
   for (const id of sample) {
-    await page.goto(`/#/game/${id}`);
+    await page.goto(`/game/${id}`);
     await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
     await page.waitForFunction(() => document.querySelector('.gc-box')!.clientWidth > 0);
     const p = await page.evaluate(inspectChart);
@@ -105,7 +105,7 @@ test('foul tick readout: player, number, type, quarter, clock', async ({ page })
   const g = load('2025-26', '0022500093');
   const p = g.players.find((x) => x.name === 'Isaiah Stewart')!;
   const marks = foulMarks(p);
-  await page.goto('/#/game/0022500093');
+  await page.goto('/game/0022500093');
   const row = page.locator(`[data-testid=gc-player-row][data-player="${p.id}"]`);
   await expect(row.getByTestId('foul-tick')).toHaveCount(p.pf);
   for (const m of [marks[0]!, marks[2]!, marks[5]!]) {
@@ -118,7 +118,7 @@ test('foul tick readout: player, number, type, quarter, clock', async ({ page })
 });
 
 test('foul-trouble toggle: colors on by default, single neutral color when off', async ({ page }) => {
-  await page.goto('/#/game/0022500093');
+  await page.goto('/game/0022500093');
   await expect(page.getByTestId('trouble-legend')).toHaveCount(2);
   await expect(page.getByTestId('trouble-legend').first()).toContainText('Foul Trouble:');
   await expect(page.locator('.gc-seg.lvl-trouble').first()).toBeAttached();
@@ -130,7 +130,7 @@ test('foul-trouble toggle: colors on by default, single neutral color when off',
 });
 
 test('lineup cursor: 5 per team, fouls at that moment, pin; lineup list moves the cursor', async ({ page }, info) => {
-  await page.goto('/#/game/0022500093');
+  await page.goto('/game/0022500093');
   const chart = page.getByTestId('game-chart');
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
   // Lineup list row → pinned cursor at its start.
@@ -153,7 +153,7 @@ test('lineup cursor: 5 per team, fouls at that moment, pin; lineup list moves th
 
 test('minutes & fouls by quarter: PF totals equal the box score; per-quarter sums match; sortable', async ({ page }) => {
   const g = load('2025-26', '0022500093');
-  await page.goto('/#/game/0022500093');
+  await page.goto('/game/0022500093');
   for (const t of [g.home.tri, g.away.tri]) {
     const table = page.locator(`[data-testid=quarter-table][data-team="${t}"]`);
     const rows = table.getByTestId('quarter-row');
@@ -173,26 +173,26 @@ test('minutes & fouls by quarter: PF totals equal the box score; per-quarter sum
 });
 
 test('game badges: header and player-view rows; garbage time on a known blowout', async ({ page }) => {
-  await page.goto('/#/game/0022600088'); // TOR by 43
+  await page.goto('/game/0022600088'); // TOR by 43
   await expect(page.getByTestId('game-badge').first()).toContainText('Blowout (43)');
   await expect(page.getByTestId('garbage-badge').first()).toContainText(/Garbage time \d+:\d\d/);
-  await page.goto('/#/game/0022600001'); // DET by 8
+  await page.goto('/game/0022600001'); // DET by 8
   await expect(page.getByTestId('game-badge').first()).toContainText('Competitive (8)');
   await expect(page.getByTestId('garbage-badge')).toHaveCount(0);
-  await page.goto('/#/player/ORL/1630532?s=2025-26');
+  await page.goto('/player/ORL/1630532?s=2025-26');
   await expect(page.getByTestId('game-log-row').first().getByTestId('game-badge')).toBeVisible();
   await expect(page.getByTestId('game-log-avg')).toContainText('Average');
 });
 
 test('team without a game id → its most recent game', async ({ page }) => {
-  await page.goto('/#/game/latest?t=PHI&s=2025-26');
+  await page.goto('/game/latest?t=PHI&s=2025-26');
   await expect(page.locator('h1')).toContainText('PHI');
   const last = index('2025-26').map((e) => load('2025-26', e.id)).filter((g) => g.home.tri === 'PHI' || g.away.tri === 'PHI').at(-1)!;
   await expect(page.locator('h1')).toContainText(`${last.away.tri} ${last.away.score}`);
 });
 
 test('team pattern: minutes & fouls per game table respects filters; matchup mode shows both teams with identical filters', async ({ page }) => {
-  await page.goto('/#/team/PHI?s=2025-26&w=10&v=home');
+  await page.goto('/team/PHI?s=2025-26&w=10&v=home');
   await expect(page.getByTestId('averages-table')).toBeVisible();
   await expect(page.locator('.avg-table:not(.closers) summary')).toContainText('based on 10 games');
   await page.getByTestId('vs-picker').locator('[data-value=BOS]').click();
@@ -208,33 +208,33 @@ test('team pattern: minutes & fouls per game table respects filters; matchup mod
 
 test('headshots fall back to initials when the image fails', async ({ page }) => {
   await page.route('**/cdn.nba.com/headshots/**', (r) => r.abort());
-  await page.goto('/#/game/0022600001');
+  await page.goto('/game/0022600001');
   await expect(page.locator('.headshot.initials').first()).toBeVisible();
   expect(await page.locator('.headshot.initials').first().textContent()).toMatch(/^[A-Z]{1,2}$/);
 });
 
 test('reference screenshots', async ({ page }, info) => {
-  await page.goto('/#/game/0022500093');
+  await page.goto('/game/0022500093');
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `screenshots/gamechart-${info.project.name}.png`, fullPage: true });
 });
 
 test('rows (incl. DNP rows) show full names', async ({ page }) => {
-  await page.goto('/#/game/0022500093');
+  await page.goto('/game/0022500093');
   await expect(page.getByTestId('dnp-row').first().locator('.gc-name .full')).toBeVisible();
 });
 
 test('"when does he sit?" in the team table and the player view header', async ({ page }) => {
-  await page.goto('/#/team/ORL?s=2025-26&w=10');
+  await page.goto('/team/ORL?s=2025-26&w=10');
   const row = page.getByTestId('avg-row').filter({ hasText: 'Banchero' });
   await expect(row.getByTestId('sit-cell')).toHaveText(/^Q1 out ~\d+:\d0 \(\d+\)/);
-  await page.goto('/#/player/ORL/1631094?s=2025-26&w=10');
+  await page.goto('/player/ORL/1631094?s=2025-26&w=10');
   await expect(page.getByTestId('sit-line')).toContainText(/When he sits: Q1 out ~\d+:\d0 \(\d+\)/);
 });
 
 test('minutes trend: one mark per game with the team, values = per-game minutes, DNP and garbage-time marks', async ({ page }, info) => {
-  await page.goto('/#/player/ORL/1630532?s=2025-26&b=0');
+  await page.goto('/player/ORL/1630532?s=2025-26&b=0');
   const chart = page.getByTestId('minutes-trend');
   await expect(chart.getByTestId('trend-point')).toHaveCount(34);
   await expect(chart.getByTestId('trend-dnp')).toHaveCount(48);
@@ -256,7 +256,7 @@ test('rest filter: back-to-back / rested in the filter chain with "based on N ga
   const rest = restForTeam(idx, 'ORL');
   // rest days come from every game; the selection counts regular-season games (ids 002…)
   const b2b = [...rest].filter(([id, r]) => id.startsWith('002') && r.rest === 'b2b').length;
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await page.getByRole('button', { name: 'Back-to-back' }).click();
   await expect(page.getByTestId('selection-label')).toHaveText(`All 2025-26 games on the second night of a back-to-back · based on ${b2b} games · regular season`);
   await page.getByRole('button', { name: 'Rested' }).click();

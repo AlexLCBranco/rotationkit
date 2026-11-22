@@ -36,7 +36,7 @@ async function stripMatchesAxis(page: Page, trackSel: string, from: number) {
 }
 
 test('Games: the strip sits on the bars\' axis; edges at the margin changes; final margin; cursor lines up', async ({ page }) => {
-  await page.goto(`/#/game/${GAME}`);
+  await page.goto(`/game/${GAME}`);
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
   const { g, k, sb } = await stripMatchesAxis(page, '[data-testid=gc-player-row] .gc-track', 0);
   // Above the first team's quarter timeline.
@@ -60,7 +60,7 @@ test('Games: the strip sits on the bars\' axis; edges at the margin changes; fin
 });
 
 test('Q4: the strip covers Q4 + OT on the same axis as the Q4 bars', async ({ page }) => {
-  await page.goto(`/#/q4/${GAME}`);
+  await page.goto(`/q4/${GAME}`);
   await expect(page.getByTestId('q4-row').first()).toBeVisible();
   const { k, sb } = await stripMatchesAxis(page, '[data-testid=q4-row] .q4-track', Q4_START);
   const bar = page.getByTestId('q4-stint').nth(2);
@@ -71,7 +71,7 @@ test('Q4: the strip covers Q4 + OT on the same axis as the Q4 bars', async ({ pa
 
 test('Usual: outlines = typical stints over the previous 10 games (none under 3 games); toggle remembered', async ({ page }) => {
   const g = load(GAME);
-  await page.goto(`/#/game/${GAME}`);
+  await page.goto(`/game/${GAME}`);
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
   await expect(page.getByTestId('usual-toggle')).toBeChecked();
   await expect(page.getByTestId('usual-stint').first()).toBeAttached();
@@ -99,7 +99,7 @@ test('Usual: outlines = typical stints over the previous 10 games (none under 3 
 });
 
 test('Usual never hides or shifts bars, labels or foul ticks', async ({ page }) => {
-  await page.goto(`/#/game/${GAME}`);
+  await page.goto(`/game/${GAME}`);
   await expect(page.getByTestId('usual-stint').first()).toBeAttached();
   const boxes = () =>
     page.locator('[data-testid=stint], [data-testid=stint-label], [data-testid=foul-tick], [data-testid=gc-player-row]').evaluateAll((els) =>
@@ -127,7 +127,7 @@ test('Usual never hides or shifts bars, labels or foul ticks', async ({ page }) 
 
 test('hover readout: "usually on court here (7 of 10)" on an outline, nothing elsewhere', async ({ page }) => {
   const g = load(GAME);
-  await page.goto(`/#/game/${GAME}`);
+  await page.goto(`/game/${GAME}`);
   await expect(page.getByTestId('usual-stint').first()).toBeAttached();
   const outline = page.getByTestId('usual-stint').first();
   const row = outline.locator('xpath=ancestor::*[@data-testid="gc-player-row"]');

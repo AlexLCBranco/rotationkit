@@ -20,10 +20,10 @@ function trackErrors(page: Page) {
 }
 test('tab opens with the season leaderboard (= computed from the data) and no by-date section (moved to Games › By day)', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto('/#/game/latest?t=ORL&s=2026-27');
+  await page.goto('/game/latest?t=ORL&s=2026-27');
   await page.getByTestId('tab-leaders').click();
   await page.getByTestId('how-fullq4').click();
-  await expect(page).toHaveURL(/#\/fullq4\?s=2026-27/);
+  await expect(page).toHaveURL(/\/fullq4\?s=2026-27/);
   const o: FullQ4Opts = { threshold: 'full', noBlowouts: false };
   const board = leaderboard(seasonCounts(file('2026-27'), o));
   await expect(page.getByTestId('fq-row').first()).toBeVisible();
@@ -36,7 +36,7 @@ test('tab opens with the season leaderboard (= computed from the data) and no by
 });
 
 test('options live in the URL; show all; a player name opens his page', async ({ page }) => {
-  await page.goto('/#/fullq4?s=2025-26');
+  await page.goto('/fullq4?s=2025-26');
   await page.getByRole('button', { name: '11:00+' }).click();
   await expect(page).toHaveURL(/th=11/);
   await page.getByRole('checkbox', { name: 'Exclude blowouts' }).check();
@@ -50,7 +50,7 @@ test('options live in the URL; show all; a player name opens his page', async ({
   const row = page.getByTestId('fq-row').first();
   const pid = await row.getAttribute('data-player');
   await row.getByTestId('player-link').click();
-  await expect(page).toHaveURL(new RegExp(`#/player/[A-Z]{3}/${pid}`));
+  await expect(page).toHaveURL(new RegExp(`/player/[A-Z]{3}/${pid}`));
 });
 
 test('player page: "Full Q4s: X of Y games" and a marker on each full-4th row', async ({ page }) => {
@@ -59,7 +59,7 @@ test('player page: "Full Q4s: X of Y games" and a marker on each full-4th row', 
   const games = index.filter((e) => e.id.startsWith('002') && (e.home === 'ORL' || e.away === 'ORL')).map((e) => JSON.parse(readFileSync(`data/${season}/games/${e.id}.json`, 'utf8')) as Game);
   const top = leaderboard(seasonCounts(file(season), { threshold: 'full', noBlowouts: false })).find((r) => r.team === 'ORL')!;
   const mine = playerFullQ4(games, top.id, 'ORL');
-  await page.goto(`/#/player/ORL/${top.id}?s=${season}`);
+  await page.goto(`/player/ORL/${top.id}?s=${season}`);
   await expect(page.getByTestId('fq-counter')).toContainText(`Full Q4s: ${mine.full.size} of ${mine.played} games`);
   await expect(page.getByTestId('fq-mark')).toHaveCount(mine.full.size);
 });

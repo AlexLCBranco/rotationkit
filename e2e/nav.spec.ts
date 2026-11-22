@@ -8,13 +8,13 @@ import { mkdirSync } from 'node:fs';
 
 const GAME = '0022500081'; // an ORL game (t=ORL stays in the URL)
 const PAGES: [string, string][] = [
-  ['games', `/#/game/${GAME}?t=ORL&s=2025-26`],
-  ['q4', `/#/q4/${GAME}?t=ORL&s=2025-26`],
-  ['by-day', '/#/games?view=day&date=2025-11-10&s=2025-26'],
-  ['averages', '/#/team/ORL?s=2025-26'],
-  ['player', '/#/player/ORL/1630532?s=2025-26'],
-  ['leaders', '/#/leaders?s=2025-26'],
-  ['full-q4', '/#/fullq4?s=2025-26'],
+  ['games', `/game/${GAME}?t=ORL&s=2025-26`],
+  ['q4', `/q4/${GAME}?t=ORL&s=2025-26`],
+  ['by-day', '/games?view=day&date=2025-11-10&s=2025-26'],
+  ['averages', '/team/ORL?s=2025-26'],
+  ['player', '/player/ORL/1630532?s=2025-26'],
+  ['leaders', '/leaders?s=2025-26'],
+  ['full-q4', '/fullq4?s=2025-26'],
 ];
 
 function trackErrors(page: Page) {
@@ -29,7 +29,8 @@ async function settle(page: Page) {
   await page.waitForLoadState('networkidle');
 }
 const header = (page: Page) => page.getByTestId('header');
-const hash = (page: Page) => page.evaluate(() => location.hash);
+// the address inside the site: path + query (it was the URL hash until RK-14)
+const hash = (page: Page) => page.evaluate(() => location.pathname + location.search);
 /** The visible page (header + rows + content text), to compare a screen before and after a reload. */
 const screenText = (page: Page) => page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
 /** The screen's text once it stops changing (data that loads in steps, e.g. By day's cards). */
@@ -76,14 +77,14 @@ test('the header: on every main page, the same height and controls, still at the
 
 test('places: each one opens, is highlighted, and the URL round-trips (reload, header back / forward, browser back)', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto(`/#/game/${GAME}?t=ORL&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=ORL&s=2025-26`);
   await settle(page);
   await expect(page.getByTestId('hist-back')).toBeDisabled();
   const want: [string, RegExp][] = [
-    ['day', /^#\/games\?view=day&s=2025-26&t=ORL$/],
-    ['averages', /^#\/team\/ORL\?s=2025-26$/],
-    ['leaders', /^#\/leaders\?s=2025-26&t=ORL$/],
-    ['games', /^#\/game\/\d{10}\?s=2025-26&t=ORL$/],
+    ['day', /^\/games\?view=day&s=2025-26&t=ORL$/],
+    ['averages', /^\/team\/ORL\?s=2025-26$/],
+    ['leaders', /^\/leaders\?s=2025-26&t=ORL$/],
+    ['games', /^\/game\/\d{10}\?s=2025-26&t=ORL$/],
   ];
   const seen: string[] = [await hash(page)];
   for (const [w, re] of want) {
@@ -119,17 +120,17 @@ test('What and How: every season chip, every team in the strip, every How option
   test.setTimeout(120_000);
   const errors = trackErrors(page);
   // How: Games (whole game | 4th quarter), Leaders (minutes & points | full 4th quarters)
-  await page.goto(`/#/game/${GAME}?t=ORL&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=ORL&s=2025-26`);
   await settle(page);
-  for (const [id, re] of [['how-q4', /^#\/q4\//], ['how-games', /^#\/game\//]] as const) {
+  for (const [id, re] of [['how-q4', /^\/q4\//], ['how-games', /^\/game\//]] as const) {
     await page.getByTestId(id).click();
     await expect.poll(() => hash(page)).toMatch(re);
     await expect(page.getByTestId(id)).toHaveAttribute('aria-selected', 'true');
     await page.reload();
     await expect(page.getByTestId(id)).toHaveAttribute('aria-selected', 'true');
   }
-  await page.goto('/#/leaders?s=2025-26');
-  for (const [id, re] of [['how-fullq4', /^#\/fullq4\?s=2025-26/], ['how-leaders', /^#\/leaders\?s=2025-26/]] as const) {
+  await page.goto('/leaders?s=2025-26');
+  for (const [id, re] of [['how-fullq4', /^\/fullq4\?s=2025-26/], ['how-leaders', /^\/leaders\?s=2025-26/]] as const) {
     await page.getByTestId(id).click();
     await expect.poll(() => hash(page)).toMatch(re);
     await page.reload();
@@ -148,13 +149,14 @@ test('What and How: every season chip, every team in the strip, every How option
     await expect(page.getByTestId('season-chips').locator('[aria-checked=true]')).toHaveText('2026-27');
   }
   // Every team (Averages); the chosen one highlighted and scrolled into view in its strip
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   const strip = page.getByTestId('team-picker');
+  await expect(strip.getByRole('radio')).toHaveCount(30);
   const teams = await strip.getByRole('radio').evaluateAll((els) => els.map((e) => e.getAttribute('data-value')!));
   expect(teams).toHaveLength(30);
   for (const t of teams) {
     await strip.locator(`[data-value=${t}]`).click();
-    await expect.poll(() => hash(page)).toBe(`#/team/${t}?s=2025-26`);
+    await expect.poll(() => hash(page)).toBe(`/team/${t}?s=2025-26`);
     await expect(strip).toHaveAttribute('data-team', t);
   }
   await page.reload();
@@ -166,16 +168,16 @@ test('What and How: every season chip, every team in the strip, every How option
   // Matchup and Leaders' team strips
   await strip.locator('[data-value=ORL]').click();
   await page.getByTestId('vs-picker').locator('[data-value=BOS]').click();
-  await expect.poll(() => hash(page)).toBe('#/team/ORL?s=2025-26&vs=BOS');
+  await expect.poll(() => hash(page)).toBe('/team/ORL?s=2025-26&vs=BOS');
   await page.getByTestId('vs-picker').locator('[data-value=""]').click();
-  await expect.poll(() => hash(page)).toBe('#/team/ORL?s=2025-26');
-  await page.goto('/#/leaders?s=2025-26');
+  await expect.poll(() => hash(page)).toBe('/team/ORL?s=2025-26');
+  await page.goto('/leaders?s=2025-26');
   await page.getByTestId('leaders-team').locator('[data-value=MIA]').click();
   await expect.poll(() => hash(page)).toMatch(/lt=MIA/);
   // Games: the team strip opens that team's latest game
-  await page.goto(`/#/game/${GAME}?t=ORL&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=ORL&s=2025-26`);
   await page.getByTestId('team-picker').locator('[data-value=BOS]').click();
-  await expect.poll(() => hash(page)).toMatch(/^#\/game\/\d{10}\?s=2025-26&t=BOS$/);
+  await expect.poll(() => hash(page)).toMatch(/^\/game\/\d{10}\?s=2025-26&t=BOS$/);
   expect(errors).toEqual([]);
 });
 
@@ -204,7 +206,7 @@ test('breadcrumb: every part with siblings opens its list and jumps; the current
     }
   }
   // The game's parts: Games › 2025-26 › Orlando Magic › <date · away @ home> › Whole game
-  await page.goto(`/#/game/${GAME}?t=ORL&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=ORL&s=2025-26`);
   await settle(page);
   const labels = await page.getByTestId('crumb-btn').allTextContents();
   expect(labels[0]).toBe('Games');
@@ -225,7 +227,7 @@ const clickTime = (page: Page, selector: string) =>
   }, selector);
 
 test('clicks on loaded data update the screen in under 100 ms (game page and Averages, the heaviest pages)', async ({ page }) => {
-  await page.goto(`/#/game/${GAME}?t=ORL&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=ORL&s=2025-26`);
   await settle(page);
   // load both views once, then time the switches
   const times: number[] = [];
@@ -233,7 +235,7 @@ test('clicks on loaded data update the screen in under 100 ms (game page and Ave
     times.push(await clickTime(page, `[data-testid=${id}]`));
     await settle(page);
   }
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await settle(page);
   for (const name of ['Last 10', 'Season', 'Last 5', 'Season']) {
     times.push(await page.evaluate(async (n) => {
@@ -264,7 +266,7 @@ test('no layout shift on load or after navigating', async ({ page }) => {
     expect(await cls(), name).toBeLessThan(0.05);
   }
   // navigating with the header and the rows
-  await page.goto(`/#/game/${GAME}?t=ORL&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=ORL&s=2025-26`);
   await settle(page);
   for (const id of ['how-q4', 'how-games', 'tab-averages', 'tab-leaders', 'how-fullq4', 'tab-day', 'tab-games']) {
     await page.getByTestId(id).click();

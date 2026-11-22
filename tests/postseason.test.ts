@@ -116,9 +116,9 @@ describe('the set lives in the URL and in the "based on" label', () => {
   it('gs=post round-trips; absent = regular season; links carry it', () => {
     const r = parse('#/team/ORL?s=2025-26&gs=post&w=10');
     expect(r.filters.set).toBe('post');
-    expect(format(r)).toBe('#/team/ORL?s=2025-26&w=10&gs=post');
+    expect(format(r)).toBe('/team/ORL?s=2025-26&w=10&gs=post');
     expect(parse('#/team/ORL?s=2025-26').filters.set).toBeUndefined();
-    expect(format(parse('#/team/ORL?s=2025-26&gs=nonsense'))).toBe('#/team/ORL?s=2025-26');
+    expect(format(parse('#/team/ORL?s=2025-26&gs=nonsense'))).toBe('/team/ORL?s=2025-26');
     expect(carryFilters({ season: S, filters: r.filters, team: 'ORL' }, 'BOS').set).toBe('post');
     expect(withSet(r.filters, 'regular')).not.toHaveProperty('set');
     expect(withSet(DEFAULT_FILTERS, 'post').set).toBe('post');

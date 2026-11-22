@@ -13,23 +13,23 @@ const season = (s: string) =>
   (JSON.parse(readFileSync(`data/${s}/index.json`, 'utf8')) as GameIndexEntry[]).filter((e) => e.id.startsWith('002')).map((e) => JSON.parse(readFileSync(`data/${s}/games/${e.id}.json`, 'utf8')) as Game);
 
 test('clicking an upcoming game opens Averages in matchup mode (this team vs that opponent, last 10)', async ({ page }) => {
-  await page.goto('/#/game/latest?t=ORL&s=2026-27&v=home');
+  await page.goto('/game/latest?t=ORL&s=2026-27&v=home');
   const up = page.getByTestId('upcoming-row').first();
   await expect(up).toBeVisible();
   const opp = (await up.getAttribute('data-opp'))!;
   await up.locator('.gl-result-future').click();
-  await expect(page).toHaveURL(new RegExp(`#/team/ORL\\?s=2026-27&w=10&v=home&vs=${opp}$`));
+  await expect(page).toHaveURL(new RegExp(`/team/ORL\\?s=2026-27&w=10&v=home&vs=${opp}$`));
   await expect(page.getByTestId('team-block')).toHaveCount(2);
   await expect(page.getByTestId('team-block').nth(1)).toHaveAttribute('data-team', opp);
   await expect(page.getByTestId('selection-label').first()).toContainText('Last 10 home games');
   // Back returns to the game.
   await page.goBack();
-  await expect(page).toHaveURL(/#\/game\//);
+  await expect(page).toHaveURL(/\/game\//);
   // The date is a real link to the same place; the opponent's name still goes to its own team page.
   const up2 = page.getByTestId('upcoming-row').first();
-  await expect(up2.getByTestId('upcoming-matchup')).toHaveAttribute('href', `#/team/ORL?s=2026-27&w=10&v=home&vs=${opp}`);
+  await expect(up2.getByTestId('upcoming-matchup')).toHaveAttribute('href', `/team/ORL?s=2026-27&w=10&v=home&vs=${opp}`);
   await up2.getByTestId('team-link').nth(1).click();
-  await expect(page).toHaveURL(new RegExp(`#/team/${opp}\\?s=2026-27&v=home$`));
+  await expect(page).toHaveURL(new RegExp(`/team/${opp}\\?s=2026-27&v=home$`));
 });
 
 test('Closers table: close games of the selection, same numbers as computed, follows the filters', async ({ page }) => {
@@ -37,13 +37,13 @@ test('Closers table: close games of the selection, same numbers as computed, fol
   for (const [q, f] of [['', DEFAULT_FILTERS], ['&w=10&v=away', { ...DEFAULT_FILTERS, window: 10, venue: 'away' }]] as [string, Filters][]) {
     const sel = selectGames(games, '2025-26', 'ORL', f);
     const { close, rows } = closersTable(sel.games, 'ORL');
-    await page.goto(`/#/team/ORL?s=2025-26${q}`);
+    await page.goto(`/team/ORL?s=2025-26${q}`);
     const table = page.getByTestId('closers');
     await expect(page.getByTestId('closers-based-on')).toContainText(`based on ${close.length} close game${close.length === 1 ? '' : 's'}`);
     await expect(table.getByTestId('closers-row')).toHaveCount(rows.length);
     const got = await table.getByTestId('closers-row').evaluateAll((trs) => trs.map((tr) => [Number(tr.getAttribute('data-player')), ...[...tr.querySelectorAll('td')].slice(1).map((td) => td.textContent)]));
     expect(got).toEqual(rows.map((r) => [r.id, String(r.played), String(r.closed), `${Math.round(r.share * 100)}%`, formatMin(r.q4Min)]));
-    await expect(table.getByTestId('player-link').first()).toHaveAttribute('href', new RegExp(`^#/player/ORL/${rows[0]!.id}\\?s=2025-26`));
+    await expect(table.getByTestId('player-link').first()).toHaveAttribute('href', new RegExp(`^/player/ORL/${rows[0]!.id}\\?s=2025-26`));
   }
 });
 
@@ -51,7 +51,7 @@ test('Game by game: same players, order and rare group as the other views; last 
   const games = season('2025-26');
   const sel = selectGames(games, '2025-26', 'ORL', { ...DEFAULT_FILTERS, window: 10 });
   const last = lastGames(sel.games);
-  await page.goto('/#/team/ORL?s=2025-26&w=10');
+  await page.goto('/team/ORL?s=2025-26&w=10');
   const typical = page.getByTestId('pattern-chart');
   await expect(typical.getByTestId('player-row').first()).toBeVisible();
   await page.getByTestId('rare-toggle').click();
@@ -84,7 +84,7 @@ test('Game by game: same players, order and rare group as the other views; last 
   expect(Math.abs(bb.x - (tb.x + (Number(await bar.getAttribute('data-start')) * tb.width) / 2880))).toBeLessThan(0.6);
   // Clicking a strip opens that game.
   await gbg.getByTestId('gbg-strip').nth(2).locator('.gc-track').click();
-  await expect(page).toHaveURL(new RegExp(`#/game/${last[2]!.id}\\?`));
+  await expect(page).toHaveURL(new RegExp(`/game/${last[2]!.id}\\?`));
 });
 
 test('Game by game: a missed game shows an empty strip with the reason', async ({ page }) => {
@@ -93,7 +93,7 @@ test('Game by game: a missed game shows an empty strip with the reason', async (
   const sel = selectGames(games, '2025-26', 'ORL', DEFAULT_FILTERS);
   const idx = buildAppearances(games);
   const strips = playerStrips(lastGames(sel.games), 'ORL', 1630532, idx);
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await page.getByRole('button', { name: 'Game by game' }).click();
   await page.getByTestId('rare-toggle').click();
   const row = page.locator('[data-testid=game-by-game] [data-testid=player-row][data-player="1630532"]');

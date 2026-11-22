@@ -42,7 +42,7 @@ export function PlayerByName({ route, seasons, season, nav }: { route: Extract<R
           {r.status === 'error' ? `Could not load the player list: ${r.error}` : 'We have no player with that full name in any season.'}
         </p>
         <p>
-          <a href="#/">Open {SITE_NAME}</a>
+          <a href="/">Open {SITE_NAME}</a>
         </p>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { loadGame, loadIndex, loadSchedule, loadTeamGames } from '../app/data.ts
 import { usualFor, usualSelection, type Usual } from '../domain/usual.ts';
 import { useAsync } from '../app/hooks.ts';
 import { formatMin, shortDate, signed } from '../app/labels.ts';
-import { format, parse, type Nav, type Route } from '../app/route.ts';
+import { format, here, parse, type Nav, type Route } from '../app/route.ts';
 import { teamName } from '../app/teams.ts';
 import { scheduleTags, type ScheduleTags } from '../domain/scheduleTags.ts';
 import { GameList, UPCOMING_GAMES, type ListGame, type UpcomingGame } from './GameList.tsx';
@@ -93,7 +93,7 @@ export function GameView({ seasons, season, route, nav, rememberedTeam }: Props)
   useEffect(() => {
     if (fresh && (route.game !== fresh.id || route.team !== selected || route.season !== gameSeason)) {
       // Skip if the user navigated since this render (e.g. picked another team): never overwrite their choice.
-      const live = parse(location.hash);
+      const live = parse(here());
       if (live.view !== 'game' || live.game !== route.game || (live.team && live.team !== route.team)) return;
       nav({ ...route, game: fresh.id, team: selected, season: gameSeason }, { replace: true });
     }

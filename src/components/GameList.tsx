@@ -10,6 +10,7 @@ import { ScheduleChips, ScheduleLegend } from './ScheduleChips.tsx';
 import { BroadcastTags } from './GameBadge.tsx';
 import type { CupRound } from '../domain/types.ts';
 import { TeamLink } from './Links.tsx';
+import { navigate } from '../app/route.ts';
 
 export interface ListGame {
   id: string;
@@ -296,7 +297,7 @@ export function GameList({ games, upcoming = [], selected, onSelect, season, onC
                   (g.status === 'live' ? 'In progress. The chart appears about an hour after the game ends' : 'Not played yet') +
                   (g.opp && matchupHref ? `. Click for the matchup: ${g.team} vs ${g.opp}, last 10 games.` : '')
                 }
-                onClick={() => g.opp && matchupHref && (location.hash = matchupHref(g.opp))}
+                onClick={() => g.opp && matchupHref && navigate(matchupHref(g.opp))}
                 data-testid="upcoming-row"
                 data-id={g.id}
                 data-opp={g.opp}

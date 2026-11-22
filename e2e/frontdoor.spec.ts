@@ -15,7 +15,7 @@ test.describe('RK-9: first visit', () => {
     await page.goto('/');
     await settle(page);
     await expect(page.getByTestId('tab-day')).toHaveAttribute('aria-current', 'page');
-    await expect(page).toHaveURL(/#\/games\?view=day/);
+    await expect(page).toHaveURL(/\/games\?view=day/);
     await expect(page.getByTestId('dv-side').first()).toBeVisible();
     await expect(page.getByTestId('dv-date')).toHaveValue(latestDay);
     // a reload stays there; the logo ("back to the start") leads there too
@@ -31,24 +31,24 @@ test.describe('RK-9: first visit', () => {
     // picking a team does: from then on the start page is that team's latest game
     await page.getByTestId('tab-averages').click();
     await page.getByTestId('team-picker').locator('[data-value=BOS]').click();
-    await expect(page).toHaveURL(/#\/team\/BOS/);
+    await expect(page).toHaveURL(/\/team\/BOS/);
     await page.locator('.brand').click();
-    await expect(page).toHaveURL(/#\/game\/\d+\?.*t=BOS/);
+    await expect(page).toHaveURL(/\/game\/\d+\?.*t=BOS/);
     expect(errors).toEqual([]);
   });
   test('a remembered team → that team\'s latest game, as before', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('rk.team', 'ORL'));
     await page.goto('/');
     const orl = index(CURRENT).filter((e) => e.home === 'ORL' || e.away === 'ORL').at(-1)!;
-    await expect(page).toHaveURL(new RegExp(`#/game/${orl.id}\\?.*t=ORL`));
+    await expect(page).toHaveURL(new RegExp(`/game/${orl.id}\\?.*t=ORL`));
     await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
     await expect(page.getByTestId('game-list')).toBeVisible();
   });
   test('links that name a team or a game are unaffected by a clean storage', async ({ page }) => {
-    await page.goto('/#/game/0022500020');
+    await page.goto('/game/0022500020');
     await expect(page.locator('h1')).toContainText('ATL');
-    await expect(page).toHaveURL(/#\/game\/0022500020/);
-    await page.goto('/#/team/BOS?s=2025-26');
+    await expect(page).toHaveURL(/\/game\/0022500020/);
+    await page.goto('/team/BOS?s=2025-26');
     await expect(page.getByTestId('team-picker')).toHaveAttribute('data-team', 'BOS');
   });
 });
@@ -56,11 +56,11 @@ test.describe('RK-9: first visit', () => {
 test.describe('RK-9: "How to read this"', () => {
   test('in the header menu after Leaders; every part is there, rules come from the settings, with a real example', async ({ page }, info) => {
     const errors = trackErrors(page);
-    await page.goto('/#/leaders?s=2025-26');
+    await page.goto('/leaders?s=2025-26');
     const tabs = page.getByTestId('where-tabs').getByRole('button');
     await expect(tabs).toHaveText(['Games', 'By day', 'Averages', 'Leaders', 'How to read this']);
     await page.getByTestId('tab-help').click();
-    await expect(page).toHaveURL(/#\/help/);
+    await expect(page).toHaveURL(/\/help/);
     await expect(page.getByTestId('tab-help')).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('h1')).toHaveText('How to read this');
     await expect(page).toHaveTitle(`How to read this | ${SITE_NAME}`);
@@ -85,14 +85,14 @@ test.describe('RK-9: "How to read this"', () => {
     test.setTimeout(120_000);
     const flagged = index('2025-26').find((e) => e.flagged)!;
     const screens: [string, string[]][] = [
-      ['/#/game/0022500020?t=IND&s=2025-26', ['garbage', 'fouls', 'usual', 'bar', 'schedule', 'dnp', 'usg']],
-      [`/#/game/${flagged.id}?s=2025-26`, ['datanote']],
-      ['/#/q4/0022500020?t=IND&s=2025-26', ['fouls']],
-      ['/#/games?view=day&date=2025-11-10&s=2025-26', ['fullq4', 'dnp', 'schedule']],
-      ['/#/team/ORL?s=2025-26', ['garbage', 'usg']],
-      ['/#/player/ORL/1631094?s=2025-26', ['fullq4', 'usg']],
-      ['/#/leaders?s=2025-26', ['garbage', 'usg']],
-      ['/#/fullq4?s=2025-26', ['fullq4', 'garbage']],
+      ['/game/0022500020?t=IND&s=2025-26', ['garbage', 'fouls', 'usual', 'bar', 'schedule', 'dnp', 'usg']],
+      [`/game/${flagged.id}?s=2025-26`, ['datanote']],
+      ['/q4/0022500020?t=IND&s=2025-26', ['fouls']],
+      ['/games?view=day&date=2025-11-10&s=2025-26', ['fullq4', 'dnp', 'schedule']],
+      ['/team/ORL?s=2025-26', ['garbage', 'usg']],
+      ['/player/ORL/1631094?s=2025-26', ['fullq4', 'usg']],
+      ['/leaders?s=2025-26', ['garbage', 'usg']],
+      ['/fullq4?s=2025-26', ['fullq4', 'garbage']],
     ];
     const seen = new Set<string>();
     for (const [url, sections] of screens) {
@@ -103,7 +103,7 @@ test.describe('RK-9: "How to read this"', () => {
         await expect(link, `${url}: "?" for ${s}`).toBeVisible();
         expect(await link.getAttribute('title')).toBe(HELP_SECTIONS.find(([id]) => id === s)![2]);
         await link.click();
-        await expect(page).toHaveURL(new RegExp(`#/help\\?.*sec=${s}`));
+        await expect(page).toHaveURL(new RegExp(`/help\\?.*sec=${s}`));
         const part = page.locator(`[data-testid=help-section][data-section=${s}]`);
         await expect(part).toHaveClass(/\bon\b/);
         await expect(part.locator('h2')).toBeInViewport();
@@ -120,7 +120,7 @@ test.describe('RK-9: link preview tags', () => {
     const built = readFileSync('dist/index.html', 'utf8');
     for (const p of ['og:title', 'og:description', 'og:type', 'og:url', 'og:image']) expect(built, p).toMatch(new RegExp(`<meta property="${p}" content="[^"]+"`));
     for (const n of ['description', 'twitter:card', 'twitter:title', 'twitter:description', 'twitter:image']) expect(built, n).toMatch(new RegExp(`<meta name="${n}" content="[^"]+"`));
-    await page.goto('/#/help');
+    await page.goto('/help');
     expect(await page.locator('meta[name=description]').getAttribute('content')).toBe(SITE_TAGLINE);
     expect(await page.locator('meta[property="og:image"]').getAttribute('content')).toBe(`${SITE_URL}${OG_IMAGE.path}`);
     const r = await request.get(OG_IMAGE.path);
@@ -147,7 +147,7 @@ test.describe('RK-10: footer', () => {
       await settle(page);
       await expect(page.getByTestId('footer'), name).toHaveCount(1);
       await expect(page.getByTestId('footer-notice'), name).toHaveText(FOOTER_NOTICE);
-      await expect(page.getByTestId('footer-help'), name).toHaveAttribute('href', '#/help');
+      await expect(page.getByTestId('footer-help'), name).toHaveAttribute('href', '/help');
       if (name === 'q4') {
         // built to fit the window: no page scroll; the footer is at the end of the side panel's own scroll
         await expect(page.getByTestId('q4-story').getByTestId('footer')).toHaveCount(1);
@@ -170,7 +170,7 @@ test.describe('RK-10: footer', () => {
     await expect(page.locator('h1')).toHaveText('How to read this');
   });
   test('headshots and logos still come from cdn.nba.com (not copied into the site)', async ({ page }) => {
-    await page.goto('/#/game/0022500020?t=IND&s=2025-26');
+    await page.goto('/game/0022500020?t=IND&s=2025-26');
     await settle(page);
     const srcs = await page.locator('img.headshot, img.logo').evaluateAll((els) => els.map((e) => (e as HTMLImageElement).src));
     expect(srcs.length).toBeGreaterThan(10);
@@ -182,7 +182,7 @@ test.describe('RK-11: "Report a problem"', () => {
   const flagged = index('2025-26').find((e) => e.flagged)!;
   test('no form set → no link anywhere', async ({ page }) => {
     await page.addInitScript(() => ((window as unknown as { __RK_REPORT_FORM__: string }).__RK_REPORT_FORM__ = ''));
-    for (const url of ['/#/leaders', `/#/game/${flagged.id}?s=2025-26`]) {
+    for (const url of ['/leaders', `/game/${flagged.id}?s=2025-26`]) {
       await page.goto(url);
       await settle(page);
       await expect(page.getByTestId('footer')).toBeVisible();
@@ -192,7 +192,7 @@ test.describe('RK-11: "Report a problem"', () => {
   test('a form set → in the footer and next to the data note, new tab, with this page\'s address', async ({ page, context }) => {
     await page.addInitScript(() => ((window as unknown as { __RK_REPORT_FORM__: string }).__RK_REPORT_FORM__ = 'https://forms.test/f1'));
     await context.route(/forms\.test/, (r) => r.fulfill({ contentType: 'text/html', body: '<title>form</title>' }));
-    await page.goto(`/#/game/${flagged.id}?s=2025-26`);
+    await page.goto(`/game/${flagged.id}?s=2025-26`);
     await settle(page);
     await expect(page.getByTestId('quality-warning')).toBeVisible();
     await expect(page.getByTestId('report-link')).toHaveCount(2);
@@ -205,7 +205,7 @@ test.describe('RK-11: "Report a problem"', () => {
       await popup.waitForURL(/forms\.test/);
       expect(popup.url()).toBe(want());
       expect(new URL(popup.url()).searchParams.get('page')).toBe(page.url());
-      expect(page.url()).toContain(`#/game/${flagged.id}`);
+      expect(page.url()).toContain(`/game/${flagged.id}`);
       await popup.close();
     }
     // after moving to another page the link carries the new address
@@ -213,10 +213,10 @@ test.describe('RK-11: "Report a problem"', () => {
     await settle(page);
     const [popup] = await Promise.all([context.waitForEvent('page'), page.getByTestId('footer').getByTestId('report-link').click()]);
     await popup.waitForURL(/forms\.test/);
-    expect(new URL(popup.url()).searchParams.get('page')).toContain('#/leaders');
+    expect(new URL(popup.url()).searchParams.get('page')).toContain('/leaders');
   });
   test('by default the link opens the owner\'s form', async ({ page }) => {
-    await page.goto('/#/leaders');
+    await page.goto('/leaders');
     await settle(page);
     expect(await page.getByTestId('report-link').getAttribute('href')).toBe(`${REPORT_FORM_URL}?page=${encodeURIComponent(page.url())}`);
   });
@@ -230,8 +230,12 @@ test.describe('RK-15: no hoopsjunkie links', () => {
       // open a 3-in-4 pop-up too, when the screen has one
       const chip = page.getByTestId('tag-3in4').first();
       if (await chip.count()) {
-        await chip.hover();
-        await expect(page.getByTestId('tif-pop')).toBeVisible();
+        // (a page still laying itself out scrolls, which closes the pop-up: hover again until it stays)
+        await expect(async () => {
+          await page.mouse.move(2, 2);
+          await chip.hover();
+          await expect(page.getByTestId('tif-pop')).toBeVisible({ timeout: 1000 });
+        }).toPass({ timeout: 10_000 });
       }
       const bad = await page.locator('[href]').evaluateAll((els) => els.map((e) => e.getAttribute('href')!).filter((h) => /hoopsjunkie/i.test(h)));
       expect(bad, name).toEqual([]);
@@ -240,7 +244,7 @@ test.describe('RK-15: no hoopsjunkie links', () => {
   });
   test('schedule pop-up: a played game\'s square opens that game here (same tab, that team first); an unplayed one is plain', async ({ page }) => {
     // 2025-26 is complete: every square of a stretch is a played game.
-    await page.goto('/#/game/latest?t=ORL&s=2025-26');
+    await page.goto('/game/latest?t=ORL&s=2025-26');
     await settle(page);
     const row = page.locator('[data-testid=list-row]:has([data-testid=tag-3in4])').first();
     const from = await row.getAttribute('data-id');
@@ -254,7 +258,7 @@ test.describe('RK-15: no hoopsjunkie links', () => {
     const other = ids.find(([, id]) => id !== from)!;
     await expect(pop.locator(`[data-id="${other[1]}"]`)).toHaveAttribute('title', /Open this game's rotations$/);
     await pop.locator(`[data-id="${other[1]}"]`).click();
-    await expect(page).toHaveURL(new RegExp(`#/game/${other[1]}\\?.*t=ORL`));
+    await expect(page).toHaveURL(new RegExp(`/game/${other[1]}\\?.*t=ORL`));
     const e = index('2025-26').find((x) => x.id === other[1])!;
     await expect(page.locator('h1')).toContainText(`${e.away} ${e.as} @ ${e.home} ${e.hs}`);
     // ORL's rows come first (the selected team)
@@ -262,7 +266,7 @@ test.describe('RK-15: no hoopsjunkie links', () => {
     // This season: a square for a game that is not in our data yet is not a link.
     const played = new Set(index(CURRENT).map((x) => x.id));
     for (const team of ['ORL', 'BOS', 'LAL', 'DEN', 'NYK', 'OKC', 'MIA', 'PHX']) {
-      await page.goto(`/#/game/latest?t=${team}&s=${CURRENT}`);
+      await page.goto(`/game/latest?t=${team}&s=${CURRENT}`);
       await settle(page);
       const chip = page.locator('[data-testid=header-tags]').first().getByTestId('tag-3in4');
       if (!(await chip.count())) continue;
@@ -288,7 +292,7 @@ test.describe('RK-16: the site is shown as "Hoop Rotations"', () => {
     }
   });
   test('the old name is in no visible text, hover text or tab title of the main screens; the header shows the new one', async ({ page }) => {
-    for (const [name, url] of [...PLACES, ['not-available', '/?game=0022599999'], ['no-player', '/#/player?name=Nobody%20Atall']] as [string, string][]) {
+    for (const [name, url] of [...PLACES, ['not-available', '/?game=0022599999'], ['no-player', '/player?name=Nobody%20Atall']] as [string, string][]) {
       await page.goto(url);
       await settle(page);
       await expect(page.locator('.brand'), name).toHaveText(SITE_NAME);
@@ -298,14 +302,14 @@ test.describe('RK-16: the site is shown as "Hoop Rotations"', () => {
     }
   });
   test('tab titles name the page, then the site', async ({ page }) => {
-    await page.goto('/#/game/0022500020?t=IND&s=2025-26');
+    await page.goto('/game/0022500020?t=IND&s=2025-26');
     const e = index('2025-26').find((x) => x.id === '0022500020')!;
     await expect(page).toHaveTitle(`${e.away} ${e.as}, ${e.home} ${e.hs} · Oct 31, 2025 · rotations | ${SITE_NAME}`);
-    await page.goto('/#/team/ORL?s=2025-26');
+    await page.goto('/team/ORL?s=2025-26');
     await expect(page).toHaveTitle(`Orlando Magic · 2025-26 · usual rotation | ${SITE_NAME}`);
-    await page.goto('/#/player/ORL/1631094?s=2025-26');
+    await page.goto('/player/ORL/1631094?s=2025-26');
     await expect(page).toHaveTitle(`Paolo Banchero · Orlando Magic · rotations | ${SITE_NAME}`);
-    await page.goto('/#/leaders?s=2025-26');
+    await page.goto('/leaders?s=2025-26');
     await expect(page).toHaveTitle(`Leaders · 2025-26 | ${SITE_NAME}`);
   });
 });

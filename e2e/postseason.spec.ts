@@ -24,7 +24,7 @@ test.describe('RK-13: postseason games', () => {
   test('a postseason game opens like any game, with its tag in the header, the list and By day', async ({ page }) => {
     const errors = trackErrors(page);
     const g = mine.at(-1)!;
-    await page.goto(`/#/game/${g.id}?t=${TEAM}`);
+    await page.goto(`/game/${g.id}?t=${TEAM}`);
     await settle(page);
     await expect(page.locator('h1')).toContainText(`${g.away} ${g.as} @ ${g.home} ${g.hs}`);
     await expect(page.locator('h1').getByTestId('kind-tag')).toHaveText(new RegExp(`^${TAG[kind(g.id)!]}`));
@@ -34,14 +34,14 @@ test.describe('RK-13: postseason games', () => {
     await expect(page.locator(`[data-testid=list-row][data-id="${regular.at(-1)!.id}"]`).getByTestId('kind-tag')).toHaveCount(0);
     await expect(page.getByTestId('list-row')).toHaveCount(all.filter((e) => e.home === TEAM || e.away === TEAM).length);
     // By day
-    await page.goto(`/#/games?view=day&date=${g.date}&s=${S}`);
+    await page.goto(`/games?view=day&date=${g.date}&s=${S}`);
     await settle(page);
     await expect(page.getByTestId('kind-tag').first()).toHaveText(new RegExp(`^${TAG[kind(g.id)!]}`));
     expect(errors).toEqual([]);
   });
 
   test('Averages: regular season by default (same N as before); the chip switches every table to the postseason', async ({ page }, info) => {
-    await page.goto(`/#/team/${TEAM}?s=${S}`);
+    await page.goto(`/team/${TEAM}?s=${S}`);
     await settle(page);
     const chips = page.getByTestId('set-chips');
     await expect(chips.getByRole('radio')).toHaveText(['Regular season', 'Postseason']);
@@ -59,7 +59,7 @@ test.describe('RK-13: postseason games', () => {
     await expect(chips.locator('[aria-checked=true]')).toHaveText('Postseason');
     await page.getByTestId('player-link').first().click();
     await settle(page);
-    await expect(page).toHaveURL(/#\/player\/.*gs=post/);
+    await expect(page).toHaveURL(/\/player\/.*gs=post/);
     await expect(page.getByTestId('set-chips').locator('[aria-checked=true]')).toHaveText('Postseason');
     await expect(page.getByTestId('selection-label')).toContainText('postseason (play-in + playoffs)');
     await page.getByTestId('set-chips').getByRole('radio', { name: 'Regular season' }).click();
@@ -68,7 +68,7 @@ test.describe('RK-13: postseason games', () => {
   });
 
   test('Leaders and Full Q4: one set at a time, and the note says which', async ({ page }) => {
-    await page.goto(`/#/leaders?s=${S}`);
+    await page.goto(`/leaders?s=${S}`);
     await settle(page);
     await expect(page.getByTestId('leaders-set')).toHaveText('regular season games only');
     const before = await page.getByTestId('leaders-note').textContent();
@@ -86,12 +86,12 @@ test.describe('RK-13: postseason games', () => {
   test('the Cup final is a single game only: tagged, in neither set', async ({ page }) => {
     test.skip(!cupFinal, 'no Cup final in data/');
     const g = cupFinal!;
-    await page.goto(`/#/game/${g.id}`);
+    await page.goto(`/game/${g.id}`);
     await settle(page);
     await expect(page.locator('h1').getByTestId('kind-tag')).toHaveText('CUP FINAL');
     for (const team of [g.home, g.away]) {
       const reg = all.filter((e) => e.id.startsWith('002') && (e.home === team || e.away === team)).length;
-      await page.goto(`/#/team/${team}?s=${S}`);
+      await page.goto(`/team/${team}?s=${S}`);
       await settle(page);
       await expect(page.getByTestId('selection-label')).toContainText(`based on ${reg} games · regular season`);
     }
@@ -100,12 +100,12 @@ test.describe('RK-13: postseason games', () => {
 
 test('RK-13: a season without postseason games shows no chip, and its labels still say "regular season"', async ({ page }) => {
   test.skip(index('2026-27').some((e) => /^00[45]/.test(e.id)), '2026-27 has postseason games now');
-  await page.goto('/#/team/ORL?s=2026-27');
+  await page.goto('/team/ORL?s=2026-27');
   await settle(page);
   await expect(page.getByTestId('season-chips')).toBeVisible();
   await expect(page.getByTestId('set-chips')).toHaveCount(0);
   await expect(page.getByTestId('selection-label')).toContainText('· regular season');
-  await page.goto('/#/leaders?s=2026-27');
+  await page.goto('/leaders?s=2026-27');
   await settle(page);
   await expect(page.getByTestId('set-chips')).toHaveCount(0);
   await expect(page.getByTestId('leaders-set')).toHaveText('regular season games only');

@@ -28,14 +28,14 @@ export async function noSidewaysScroll(page: Page, what = '') {
 
 /** One screen per place in the menu (plus the 4th-quarter view and a player page). */
 export const PLACES: [string, string][] = [
-  ['games', '/#/game/0022500020?t=IND&s=2025-26'],
-  ['q4', '/#/q4/0022500020?t=IND&s=2025-26'],
-  ['by-day', '/#/games?view=day&date=2025-11-10&s=2025-26'],
-  ['averages', '/#/team/ORL?s=2025-26'],
-  ['player', '/#/player/ORL/1631094?s=2025-26'],
-  ['leaders', '/#/leaders?s=2025-26'],
-  ['full-q4', '/#/fullq4?s=2025-26'],
-  ['help', '/#/help'],
+  ['games', '/game/0022500020?t=IND&s=2025-26'],
+  ['q4', '/q4/0022500020?t=IND&s=2025-26'],
+  ['by-day', '/games?view=day&date=2025-11-10&s=2025-26'],
+  ['averages', '/team/ORL?s=2025-26'],
+  ['player', '/player/ORL/1631094?s=2025-26'],
+  ['leaders', '/leaders?s=2025-26'],
+  ['full-q4', '/fullq4?s=2025-26'],
+  ['help', '/help'],
 ];
 
 export const FOOTER_NOTICE = 'Unofficial fan site. Not affiliated with or endorsed by the NBA. Data, logos and player photos: NBA.com.';

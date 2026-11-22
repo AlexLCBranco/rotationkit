@@ -30,10 +30,12 @@ export function TapTips() {
     if (!tip) return;
     const close = () => setTip(null);
     window.addEventListener('scroll', close, true);
-    window.addEventListener('hashchange', close);
+    window.addEventListener('popstate', close);
+    window.addEventListener('rk:navigate', close);
     return () => {
       window.removeEventListener('scroll', close, true);
-      window.removeEventListener('hashchange', close);
+      window.removeEventListener('popstate', close);
+      window.removeEventListener('rk:navigate', close);
     };
   }, [tip]);
   useLayoutEffect(() => {

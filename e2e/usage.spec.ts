@@ -20,7 +20,7 @@ function trackErrors(page: Page) {
 
 test('single game: USG% per player = the box-score formula (Siakam 27.5 in 0022500020); the column sorts', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto('/#/game/0022500020?t=IND&s=2025-26');
+  await page.goto('/game/0022500020?t=IND&s=2025-26');
   const table = page.locator('[data-testid=quarter-table][data-team=IND]');
   await expect(table).toBeVisible();
   const g = load('2025-26', '0022500020');
@@ -38,7 +38,7 @@ test('single game: USG% per player = the box-score formula (Siakam 27.5 in 00225
 
 test('Averages: USG% column = minutes-weighted usage over the selection; clicking it sorts the table', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto('/#/team/PHI?s=2025-26');
+  await page.goto('/team/PHI?s=2025-26');
   const table = page.getByTestId('averages-table');
   await expect(table).toBeVisible();
   await expect(table.locator('th', { hasText: 'USG%' })).toBeVisible();
@@ -68,7 +68,7 @@ test('Leaders: USG% column = the data; "Rank by USG%" sorts by it and is kept in
   const errors = trackErrors(page);
   const all = JSON.parse(readFileSync('data/2025-26/quarters.json', 'utf8')) as QuartersFile;
   const file = { ...all, games: all.games.filter((g) => g[0].startsWith('002')) };
-  await page.goto('/#/leaders?s=2025-26');
+  await page.goto('/leaders?s=2025-26');
   await page.getByRole('group', { name: 'Rank by' }).getByRole('button', { name: 'USG%' }).click();
   await expect(page).toHaveURL(/sort=usg/);
   const exp = leaders(file, { part: 'q4', ot: false, window: 'season', sort: 'usg', noGarbage: true });
@@ -77,7 +77,7 @@ test('Leaders: USG% column = the data; "Rank by USG%" sorts by it and is kept in
   expect(got.map((r) => r.id)).toEqual(exp.slice(0, got.length).map((r) => r.id));
   got.forEach((r, i) => expect(r.usg).toBe(formatUsg(exp[i]!.usg)));
   await page.locator('[data-testid=leaders-table] th.sortable button', { hasText: 'MIN' }).click();
-  await expect(page).toHaveURL(/#\/leaders\?(?!.*sort=)/);
+  await expect(page).toHaveURL(/\/leaders\?(?!.*sort=)/);
   await page.locator('[data-testid=leaders-table] th.sortable button', { hasText: 'USG%' }).click();
   await expect(page).toHaveURL(/sort=usg/);
   expect(errors).toEqual([]);
@@ -85,7 +85,7 @@ test('Leaders: USG% column = the data; "Rank by USG%" sorts by it and is kept in
 
 test('player page: USG% per game in the game log, and over the selection on the average row', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto('/#/player/IND/1627783?s=2025-26');
+  await page.goto('/player/IND/1627783?s=2025-26');
   const log = page.getByTestId('game-log');
   await expect(log).toBeVisible();
   await expect(log.getByTestId('game-log-row').getByTestId('game-log-usg').filter({ hasText: '27.5' })).toHaveCount(1);

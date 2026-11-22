@@ -9,7 +9,7 @@ const HARDEN = 201935; // LAC → CLE in 2025-26
 test('roster panel: the team and its players, the current player highlighted, left of the chart', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`/#/player/IND/${NESMITH}?s=2025-26`);
+  await page.goto(`/player/IND/${NESMITH}?s=2025-26`);
   const panel = page.getByTestId('roster');
   await expect(panel).toHaveAttribute('data-team', 'IND');
   await expect(panel.getByTestId('team-link').first()).toHaveText('Indiana Pacers');
@@ -28,21 +28,21 @@ test('roster panel: the team and its players, the current player highlighted, le
 });
 
 test('roster panel: a teammate opens his page with the filters kept; the team name opens the team page', async ({ page }) => {
-  await page.goto(`/#/player/IND/${NESMITH}?s=2025-26&w=10&v=home&rest=b2b&b=0`);
+  await page.goto(`/player/IND/${NESMITH}?s=2025-26&w=10&v=home&rest=b2b&b=0`);
   const panel = page.getByTestId('roster');
   await expect(panel.locator(`[data-testid=roster-player][data-player="${SIAKAM}"]`)).toBeVisible();
   await panel.locator(`[data-testid=roster-player][data-player="${SIAKAM}"] a`).click();
-  await expect(page).toHaveURL(new RegExp(`#/player/IND/${SIAKAM}\\?`));
+  await expect(page).toHaveURL(new RegExp(`/player/IND/${SIAKAM}\\?`));
   const q = new URL(page.url().replace('#', '')).searchParams;
   expect([q.get('s'), q.get('w'), q.get('v'), q.get('rest'), q.get('b')]).toEqual(['2025-26', '10', 'home', 'b2b', '0']);
   await expect(page.getByTestId('player-title')).toContainText('Pascal Siakam');
   await expect(panel.locator('[aria-current=true]')).toHaveAttribute('data-player', String(SIAKAM));
   await panel.getByTestId('team-link').first().click();
-  await expect(page).toHaveURL(/#\/team\/IND\?/);
+  await expect(page).toHaveURL(/\/team\/IND\?/);
 });
 
 test('roster panel: a player with two teams in the season shows his latest team, the other as a link', async ({ page }) => {
-  await page.goto(`/#/player/LAC/${HARDEN}?s=2025-26`);
+  await page.goto(`/player/LAC/${HARDEN}?s=2025-26`);
   const panel = page.getByTestId('roster');
   await expect(panel).toHaveAttribute('data-team', 'CLE');
   await expect(panel.locator('[aria-current=true]')).toHaveAttribute('data-player', String(HARDEN));

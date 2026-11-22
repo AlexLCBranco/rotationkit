@@ -24,7 +24,7 @@ test.describe('compact mode at 1920×1080', () => {
     test(`${id}: both teams' charts are inside the viewport without scrolling`, async ({ page }) => {
       const errors = trackErrors(page);
       const g = load(season, id);
-      await page.goto(`/#/game/${id}?t=${g.home.tri}&s=${season}`);
+      await page.goto(`/game/${id}?t=${g.home.tri}&s=${season}`);
       await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
       await page.getByTestId('compact-toggle').check();
       await expect(page.getByTestId('game-chart')).toHaveAttribute('data-compact', 'true');
@@ -50,7 +50,7 @@ test.describe('compact mode at 1920×1080', () => {
 
   test('DNP line expands on click; the choice is remembered; broken storage still works', async ({ page, context }) => {
     const g = load('2026-27', '0022600085');
-    await page.goto(`/#/game/${g.id}?t=ORL&s=2026-27`);
+    await page.goto(`/game/${g.id}?t=ORL&s=2026-27`);
     await page.getByTestId('compact-toggle').check();
     const fold = page.getByTestId('dnp-fold').first();
     await expect(fold).toContainText(`Did not play: ${dnpCount(g, 'ORL')}`);
@@ -70,7 +70,7 @@ test.describe('compact mode at 1920×1080', () => {
       Object.defineProperty(window, 'localStorage', { get: () => { throw new Error('blocked'); } });
     });
     const errors = trackErrors(p2);
-    await p2.goto(`/#/game/${g.id}?t=ORL&s=2026-27`);
+    await p2.goto(`/game/${g.id}?t=ORL&s=2026-27`);
     await p2.getByTestId('compact-toggle').check();
     await expect(p2.getByTestId('game-chart')).toHaveAttribute('data-compact', 'true');
     expect(errors).toEqual([]);
@@ -79,11 +79,11 @@ test.describe('compact mode at 1920×1080', () => {
 
 test('the selected team shows first, home or away; HOME / AWAY tags; the team stays in the URL', async ({ page }) => {
   const g = load('2026-27', '0022600085'); // ATL @ ORL
-  await page.goto(`/#/game/${g.id}?t=ORL&s=2026-27`);
+  await page.goto(`/game/${g.id}?t=ORL&s=2026-27`);
   await expect(page.getByTestId('game-team').first()).toContainText('Orlando Magic');
   expect(await teamOrder(page)).toEqual(['HOME', 'AWAY']);
   await expect(page).toHaveURL(/t=ORL/);
-  await page.goto(`/#/game/${g.id}?t=ATL&s=2026-27`);
+  await page.goto(`/game/${g.id}?t=ATL&s=2026-27`);
   await expect(page.getByTestId('game-team').first()).toContainText('Atlanta Hawks');
   expect(await teamOrder(page)).toEqual(['AWAY', 'HOME']);
   await page.reload();
@@ -97,7 +97,7 @@ test('the selected team shows first, home or away; HOME / AWAY tags; the team st
 test('no selected team: away first as before, and no team is added to the URL', async ({ browser }) => {
   const ctx = await browser.newContext(); // empty storage: no remembered team
   const page = await ctx.newPage();
-  await page.goto('/#/game/0022600085?s=2026-27');
+  await page.goto('/game/0022600085?s=2026-27');
   await expect(page.getByTestId('game-team').first()).toContainText('Atlanta Hawks');
   expect(await teamOrder(page)).toEqual(['AWAY', 'HOME']);
   await expect(page).not.toHaveURL(/[?&]t=/);

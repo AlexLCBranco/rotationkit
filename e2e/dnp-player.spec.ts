@@ -11,7 +11,7 @@ const load = (season: string, id: string) => JSON.parse(readFileSync(`data/${sea
 test('game chart: every DNP / inactive row shows its reason without hovering, by kind', async ({ page }) => {
   // 0022500014 MIL @ ATL: no-reason DNPs, inactive injury, coach's decision, G League assignment and two-way.
   const g = load('2025-26', '0022500014');
-  await page.goto(`/#/game/${g.id}?t=ATL&s=2025-26`);
+  await page.goto(`/game/${g.id}?t=ATL&s=2025-26`);
   await expect(page.getByTestId('dnp-row').first()).toBeVisible();
   const want = [g.home.tri, g.away.tri].flatMap((t) => [
     ...g.players.filter((p) => p.team === t && !(p.played && p.stints.length)).map((p) => [p.id, dnpLabel(p.reason, p.reasonDetail)] as const),
@@ -37,13 +37,13 @@ test('player page: DNP rows and missed games carry the same labels', async ({ pa
   // Asa Newell (ATL), 2026-27: listed in the box score as DND_INJURY in 0022600025.
   const g = load('2026-27', '0022600025');
   const p = g.players.find((x) => x.id === 1642854)!;
-  await page.goto(`/#/player/ATL/${p.id}?s=2026-27`);
+  await page.goto(`/player/ATL/${p.id}?s=2026-27`);
   const l = dnpLabel(p.reason, p.reasonDetail);
   const label = page.getByTestId('game-row').getByTestId('dnp-label').filter({ hasText: p.reasonDetail! }).first();
   await expect(label).toHaveAttribute('data-kind', 'injury');
   await expect(label).toContainText(`${l.tag}${l.detail}`);
   // Inactive-list games (2025-26, with reasons): Franz Wagner's missed games.
-  await page.goto('/#/player/ORL/1630532?s=2025-26');
+  await page.goto('/player/ORL/1630532?s=2025-26');
   await page.locator('details.missed summary').click();
   const missed = page.getByTestId('missed-game');
   await expect(missed.first()).toBeVisible();
@@ -51,7 +51,7 @@ test('player page: DNP rows and missed games carry the same labels', async ({ pa
 });
 
 test('player page: name, headshot and team on the readout line, right above his rows', async ({ page }) => {
-  await page.goto('/#/player/ORL/1630532?s=2025-26');
+  await page.goto('/player/ORL/1630532?s=2025-26');
   const bar = page.getByTestId('player-bar');
   const title = bar.getByTestId('player-title');
   await expect(title).toContainText('Franz Wagner');

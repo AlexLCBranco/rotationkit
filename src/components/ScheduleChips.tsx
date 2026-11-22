@@ -144,6 +144,8 @@ function StretchChip({ m, sets }: { m: MergedThreeInFour; sets: number }) {
                             aria-label={`${words}. Open this game's rotations`}
                             data-testid="tip-game"
                             data-id={game.id}
+                            // the pop-up belongs to a games-list row: the click opens this game, not the row's
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {inner}
                           </a>

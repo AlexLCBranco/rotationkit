@@ -14,7 +14,7 @@ test.describe('RK-13 phone', () => {
   test.skip(post.length === 0, 'no postseason games in data/ yet (the backfill adds them)');
 
   test('phone: a postseason game shows its tag; no sideways scroll', async ({ page }, info) => {
-    await page.goto(`/#/game/${g!.id}?t=${TEAM}`);
+    await page.goto(`/game/${g!.id}?t=${TEAM}`);
     await settle(page);
     await expect(page.locator('h1').getByTestId('kind-tag')).toBeVisible();
     await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
@@ -24,7 +24,7 @@ test.describe('RK-13 phone', () => {
 
   test('phone: the chip switches Averages to the postseason and back; no sideways scroll', async ({ page }, info) => {
     const mine = post.filter((e) => e.home === TEAM || e.away === TEAM).length;
-    await page.goto(`/#/team/${TEAM}?s=${S}`);
+    await page.goto(`/team/${TEAM}?s=${S}`);
     await settle(page);
     const chips = page.getByTestId('set-chips');
     await expect(chips).toBeVisible();
@@ -34,7 +34,7 @@ test.describe('RK-13 phone', () => {
     await page.screenshot({ path: `screenshots/phone/postseason-averages-${info.project.name}.png` });
     await chips.getByRole('radio', { name: 'Regular season' }).tap();
     await expect(page.getByTestId('selection-label')).toContainText('· regular season');
-    for (const url of [`/#/leaders?s=${S}&gs=post`, `/#/fullq4?s=${S}&gs=post`]) {
+    for (const url of [`/leaders?s=${S}&gs=post`, `/fullq4?s=${S}&gs=post`]) {
       await page.goto(url);
       await settle(page);
       await expect(page.getByTestId('set-chips').locator('[aria-checked=true]')).toHaveText('Postseason');

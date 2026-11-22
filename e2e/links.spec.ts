@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test';
 
 test('the score line has the calendarkit icon link after the game-type chips, in Games and in Q4; no hoopsjunkie link', async ({ page }) => {
-  for (const path of ['/#/game/0022600092?t=POR', '/#/q4/0022600092?t=POR']) {
+  for (const path of ['/game/0022600092?t=POR', '/q4/0022600092?t=POR']) {
     await page.goto(path);
     await expect(page.locator('h1')).toContainText('PHX');
     const ck = page.getByTestId('link-calendarkit');
@@ -29,9 +29,9 @@ test('the score line has the calendarkit icon link after the game-type chips, in
 test('clicking opens a new tab (and leaves the app where it was)', async ({ page, context }) => {
   // Don't hit the real site: answer every request to it with a tiny page.
   await context.route(/gauntlet-home\.vercel\.app/, (r) => r.fulfill({ contentType: 'text/html', body: '<title>stub</title>' }));
-  await page.goto('/#/game/0022600092?t=POR');
+  await page.goto('/game/0022600092?t=POR');
   const [popup] = await Promise.all([context.waitForEvent('page'), page.getByTestId('link-calendarkit').click()]);
   await popup.waitForLoadState();
   expect(popup.url()).toContain('gauntlet-home.vercel.app/calendar?view=league&layout=list&date=2026-10-21&game=0022600092');
-  await expect(page).toHaveURL(/#\/game\/0022600092/);
+  await expect(page).toHaveURL(/\/game\/0022600092/);
 });

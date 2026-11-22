@@ -1,19 +1,23 @@
-// App state lives in the URL hash so views are linkable and the back button works.
-//   #/team/ORL?s=2025-26&w=10&v=home&b=0&p=1630532&m=without
-//   #/player/ORL/1630532?…same filters
-//   #/player?name=Luka%20Don%C4%8Di%C4%87&s=…  a player by full name (other apps): resolved, then replaced by the line above
-//   #/game/0022500093?t=ORL&s=2025-26…  main screen: a team's game (t = whose games the picker lists)
-//   #/game/0022500093?t=ORL&day=2026-11-12  same, opened from By day (previous / next game of that day, back link)
-//   #/games?view=day&date=2026-11-12&s=2026-27&nb=1   Games tab, By day (date; nb=1 → No blowouts on the leaders panel)
-//   #/q4/0022500093?t=ORL…               same game, Q4 tab (4th quarter + OT only)
-//   #/leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts|usg&lt=ORL&gt=1   Leaders tab (lt = team filter, gt=1 keeps garbage time)
-//   #/fullq4?s=2026-27&th=11&nb=1   Full Q4 tab (th=11 → 11:00+, nb=1 → exclude blowouts)
-//   #/help?sec=garbage-time   "How to read this" (sec = the section to open at)
-//   #/ (empty) → the main screen with the remembered team's latest game; no remembered team (a first visit) → By day
+// App state lives in the URL (RK-14: a real path + query, not a hash), so every view is linkable, the back button
+// works, and a game / player / team address is a real page the server answers with its own title and preview tags
+// (scripts/lib/pages.ts).
+//   /team/ORL?s=2025-26&w=10&v=home&b=0&p=1630532&m=without&gs=post
+//   /player/ORL/1630532?…same filters
+//   /player?name=Luka%20Don%C4%8Di%C4%87&s=…  a player by full name (other apps): resolved, then replaced by the line above
+//   /game/0022500093?t=ORL&s=2025-26…  main screen: a team's game (t = whose games the picker lists)
+//   /game/0022500093?t=ORL&day=2026-11-12  same, opened from By day (previous / next game of that day, back link)
+//   /games?view=day&date=2026-11-12&s=2026-27&nb=1   By day (date; nb=1 → No blowouts on the leaders panel)
+//   /q4/0022500093?t=ORL…               same game, 4th quarter + OT only
+//   /leaders?s=2025-26&w=10&part=h2&ot=1&sort=pts|usg&lt=ORL&gt=1   Leaders (lt = team filter, gt=1 keeps garbage time)
+//   /fullq4?s=2026-27&th=11&nb=1   Full Q4 (th=11 → 11:00+, nb=1 → exclude blowouts)
+//   /help?sec=garbage   "How to read this" (sec = the part to open at)
+//   / → the remembered team's latest game; no remembered team (a first visit) → By day
+// Old links keep working: `/#/…` (the hash form used until RK-14) and `/?game=<id>` open the same view and the
+// address becomes the new one (here() / DeepLink.tsx).
 
 import { useEffect, useState } from 'react';
 import type { Filters, Venue, Window } from '../domain/patterns.ts';
-import { expect as expectHash, onHashChange } from './pageHistory.ts';
+import { expect as expectUrl, onUrlChange } from './pageHistory.ts';
 
 export type Route =
   | { view: 'team'; team: string | null; season: string | null; filters: Filters; vs?: string | null }
@@ -56,8 +60,9 @@ export interface LeadersQuery {
   noGarbage: boolean;
 }
 
-export function parse(hash: string): Route {
-  const [path = '', query = ''] = hash.replace(/^#\/?/, '').split('?');
+/** A route from an address: the path form ("/game/1?t=ORL") or the old hash form ("#/game/1?t=ORL"). */
+export function parse(url: string): Route {
+  const [path = '', query = ''] = url.replace(/^#?\/*/, '').split('?');
   const q = new URLSearchParams(query);
   const w = q.get('w');
   const window: Window = w === '5' ? 5 : w === '10' ? 10 : 'season';
@@ -142,30 +147,81 @@ export function format(r: Route): string {
     if (r.section) q.set('sec', r.section);
   }
   const qs = q.toString() ? `?${q}` : '';
-  if (r.view === 'help') return `#/help${qs}`;
-  if (r.view === 'player') return `#/player/${r.team}/${r.player}${qs}`;
-  if (r.view === 'playerName') return `#/player${qs}`;
-  if (r.view === 'leaders') return `#/leaders${qs}`;
-  if (r.view === 'fullq4') return `#/fullq4${qs}`;
-  if (r.view === 'day') return `#/games${qs}`;
-  if (r.view === 'game') return `#/${r.tab === 'q4' ? 'q4' : 'game'}/${r.game}${qs}`;
-  return `#/team/${r.team ?? ''}${qs}`;
+  if (r.view === 'help') return `/help${qs}`;
+  if (r.view === 'player') return `/player/${r.team}/${r.player}${qs}`;
+  if (r.view === 'playerName') return `/player${qs}`;
+  if (r.view === 'leaders') return `/leaders${qs}`;
+  if (r.view === 'fullq4') return `/fullq4${qs}`;
+  if (r.view === 'day') return `/games${qs}`;
+  if (r.view === 'game') return `/${r.tab === 'q4' ? 'q4' : 'game'}/${r.game}${qs}`;
+  return `/team${r.team ? `/${r.team}` : ''}${qs}`;
 }
 
-/** True when the URL names no page at all (`/`, `#`, `#/`): the app picks the start page. */
-export const isStart = (hash: string) => hash.replace(/^#\/?/, '') === '';
+/** True when the address names no page at all ("/", or the old "#/"): the app picks the start page. */
+export const isStart = (url: string) => url.replace(/^#?\/*/, '') === '';
 
 export type Nav = (r: Route, opts?: { replace?: boolean }) => void;
 
+/** The current address as the router reads it: path + query. An old hash link ("/#/game/1?t=ORL") is rewritten to
+ * its new address first (no extra history entry), so everything after it only ever sees paths. */
+export function here(): string {
+  if (location.hash.startsWith('#/')) {
+    const url = format(parse(location.hash));
+    history.replaceState(history.state, '', url);
+    expectUrl(url, 'replace');
+    onUrlChange(url);
+    return url;
+  }
+  return location.pathname + location.search;
+}
+
+const listeners = new Set<() => void>();
+
+/** Go to an address of this app without loading a page (links, Go anywhere, the views' own navigation). */
+export function navigate(url: string, how: 'push' | 'replace' = 'push', fromRouter = false) {
+  const same = url === location.pathname + location.search;
+  expectUrl(url, how);
+  if (how === 'replace' || same) history.replaceState(history.state, '', url);
+  else history.pushState(null, '', url);
+  onUrlChange(url);
+  // (the router's own nav has already set its state: no second render)
+  if (!fromRouter) listeners.forEach((f) => f());
+  dispatchEvent(new Event('rk:navigate'));
+}
+
+/** A plain left click on a link to another page of this app: no page load. Links elsewhere, new-tab links, files
+ * and modified clicks are left to the browser. */
+function onLinkClick(e: MouseEvent) {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+  if (!a || a.target || a.hasAttribute('download') || a.origin !== location.origin) return;
+  if ((a.getAttribute('href') ?? '').startsWith('#')) return; // a jump inside the page
+  if (/^\/(data|assets)\//.test(a.pathname) || /\.[a-z0-9]+$/i.test(a.pathname)) return; // a file
+  e.preventDefault();
+  navigate(a.pathname + a.search);
+}
+
 export function useRoute(): [Route, Nav] {
-  const [route, setRoute] = useState(() => parse(location.hash));
+  const [route, setRoute] = useState(() => parse(here()));
   useEffect(() => {
-    const on = () => {
-      onHashChange(location.hash);
-      setRoute(parse(location.hash));
+    const sync = () => setRoute(parse(here()));
+    // back / forward, or an old hash link opened in this tab
+    const moved = () => {
+      const url = here();
+      onUrlChange(url);
+      setRoute(parse(url));
     };
-    addEventListener('hashchange', on);
-    return () => removeEventListener('hashchange', on);
+    listeners.add(sync);
+    addEventListener('popstate', moved);
+    addEventListener('hashchange', moved);
+    // capture: before any handler of the link itself (name links stop the click from reaching their row)
+    document.addEventListener('click', onLinkClick, true);
+    return () => {
+      listeners.delete(sync);
+      removeEventListener('popstate', moved);
+      removeEventListener('hashchange', moved);
+      document.removeEventListener('click', onLinkClick, true);
+    };
   }, []);
   // Update state synchronously too, so a quick second change builds on the first one.
   return [
@@ -173,10 +229,7 @@ export function useRoute(): [Route, Nav] {
     (r, opts) => {
       setRoute(r);
       // replace: fix up the URL (e.g. "latest" → the game id) without adding a history entry.
-      const hash = format(r);
-      expectHash(hash, opts?.replace ? 'replace' : 'push');
-      if (opts?.replace) location.replace(hash);
-      else location.hash = hash;
+      navigate(format(r), opts?.replace ? 'replace' : 'push', true);
     },
   ];
 }

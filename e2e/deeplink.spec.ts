@@ -22,8 +22,10 @@ test('?game=<finished game with data> opens that game chart', async ({ page }) =
   await page.goto('/?game=0022600001');
   await expect(page.locator('h1')).toContainText('BOS 113 @ DET 121');
   await expect(page.getByTestId('game-team')).toHaveCount(2);
-  await expect(page).toHaveURL(/\/#\/game\/0022600001/);
-  expect(new URL(page.url()).search).toBe('');
+  await expect(page).toHaveURL(/\/game\/0022600001/);
+  // the address is the game's own page now (RK-14); ?game= is gone
+  expect(new URL(page.url()).pathname).toBe('/game/0022600001');
+  expect(new URL(page.url()).searchParams.get('game')).toBeNull();
   expect(errors).toEqual([]);
 });
 

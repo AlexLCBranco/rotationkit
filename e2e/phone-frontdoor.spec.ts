@@ -17,12 +17,12 @@ test('phone: a first visit opens By day; a remembered team opens its latest game
   await p2.addInitScript(() => localStorage.setItem('rk.team', 'ORL'));
   await p2.goto('/');
   const orl = index(CURRENT).filter((e) => e.home === 'ORL' || e.away === 'ORL').at(-1)!;
-  await expect(p2).toHaveURL(new RegExp(`#/game/${orl.id}\\?.*t=ORL`));
+  await expect(p2).toHaveURL(new RegExp(`/game/${orl.id}\\?.*t=ORL`));
 });
 
 test('phone: "How to read this" — every part, no sideways scroll, screenshot; its tab label fits', async ({ page }, info) => {
   const errors = trackErrors(page);
-  await page.goto('/#/leaders?s=2025-26');
+  await page.goto('/leaders?s=2025-26');
   await settle(page);
   await page.getByTestId('tab-help').tap();
   await expect(page.locator('h1')).toHaveText('How to read this');
@@ -48,7 +48,7 @@ test('phone: "How to read this" — every part, no sideways scroll, screenshot; 
 });
 
 test('phone: a "?" opens the page at its part by tap; it is big enough to tap', async ({ page }) => {
-  for (const [url, s] of [['/#/game/0022500020?t=IND&s=2025-26', 'garbage'], ['/#/team/ORL?s=2025-26', 'usg'], ['/#/fullq4?s=2025-26', 'fullq4']] as const) {
+  for (const [url, s] of [['/game/0022500020?t=IND&s=2025-26', 'garbage'], ['/team/ORL?s=2025-26', 'usg'], ['/fullq4?s=2025-26', 'fullq4']] as const) {
     await page.goto(url);
     await settle(page);
     const link = page.locator(`[data-testid=help-link][data-section=${s}]`).first();
@@ -56,7 +56,7 @@ test('phone: a "?" opens the page at its part by tap; it is big enough to tap', 
     const box = (await link.boundingBox())!;
     expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(20);
     await link.tap();
-    await expect(page).toHaveURL(new RegExp(`#/help\\?.*sec=${s}`));
+    await expect(page).toHaveURL(new RegExp(`/help\\?.*sec=${s}`));
     await expect(page.locator(`[data-testid=help-section][data-section=${s}] h2`)).toBeInViewport();
     await noSidewaysScroll(page, `help at ${s}`);
   }
@@ -81,7 +81,7 @@ test('phone: the footer on every place, no sideways scroll', async ({ page }, in
 test('phone: "Report a problem" carries the page address; absent without a form', async ({ page, context }) => {
   await page.addInitScript(() => ((window as unknown as { __RK_REPORT_FORM__: string }).__RK_REPORT_FORM__ = 'https://forms.test/f1'));
   await context.route(/forms\.test/, (r) => r.fulfill({ contentType: 'text/html', body: '<title>form</title>' }));
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await settle(page);
   const link = page.getByTestId('footer').getByTestId('report-link');
   await link.scrollIntoViewIfNeeded();
@@ -90,7 +90,7 @@ test('phone: "Report a problem" carries the page address; absent without a form'
   expect(popup.url()).toBe(`https://forms.test/f1?page=${encodeURIComponent(page.url())}`);
   const p2 = await context.newPage();
   await p2.addInitScript(() => ((window as unknown as { __RK_REPORT_FORM__: string }).__RK_REPORT_FORM__ = ''));
-  await p2.goto('/#/team/ORL?s=2025-26');
+  await p2.goto('/team/ORL?s=2025-26');
   await settle(p2);
   await expect(p2.getByTestId('footer')).toBeVisible();
   await expect(p2.getByTestId('report-link')).toHaveCount(0);
@@ -98,17 +98,17 @@ test('phone: "Report a problem" carries the page address; absent without a form'
 
 test('phone: schedule pop-up — a played game\'s square opens that game here; no hoopsjunkie link anywhere', async ({ page }) => {
   const ORL = index('2025-26').filter((e) => e.home === 'ORL' || e.away === 'ORL');
-  await page.goto(`/#/game/${ORL.at(-1)!.id}?t=ORL&s=2025-26`);
+  await page.goto(`/game/${ORL.at(-1)!.id}?t=ORL&s=2025-26`);
   await settle(page);
   // a game of ORL with a 3-in-4 tag in its header
   let chip = page.locator('[data-testid=header-tags][data-team=ORL] [data-testid=tag-3in4]');
   for (const e of [...ORL].reverse()) {
     if (await chip.count()) break;
-    await page.goto(`/#/game/${e.id}?t=ORL&s=2025-26`);
+    await page.goto(`/game/${e.id}?t=ORL&s=2025-26`);
     await settle(page);
     chip = page.locator('[data-testid=header-tags][data-team=ORL] [data-testid=tag-3in4]');
   }
-  const here = /game\/(\d+)/.exec(new URL(page.url()).hash)?.[1] ?? '';
+  const here = /game\/(\d+)/.exec(new URL(page.url()).pathname)?.[1] ?? '';
   await chip.tap();
   const pop = page.getByTestId('tif-pop');
   await expect(pop).toBeVisible();
@@ -117,7 +117,7 @@ test('phone: schedule pop-up — a played game\'s square opens that game here; n
   const other = pop.locator(`a[data-testid=tip-game]:not([data-id="${here}"])`).first();
   const id = await other.getAttribute('data-id');
   await other.tap();
-  await expect(page).toHaveURL(new RegExp(`#/game/${id}\\?.*t=ORL`));
+  await expect(page).toHaveURL(new RegExp(`/game/${id}\\?.*t=ORL`));
   await noSidewaysScroll(page, 'game from the pop-up');
 });
 

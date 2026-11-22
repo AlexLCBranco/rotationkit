@@ -49,7 +49,7 @@ async function noHorizontalScroll(page: Page) {
 
 test('loads on the current season with no console errors', async ({ page }, info) => {
   const errors = trackErrors(page);
-  await page.goto('/#/games');
+  await page.goto('/games');
   // Main screen is the game view; averages are one tab away.
   await expect(page.getByTestId('game-list')).toBeVisible();
   await page.getByTestId('tab-averages').click();
@@ -66,7 +66,7 @@ test('team pattern view renders for all 30 teams in both seasons', async ({ page
   const errors = trackErrors(page);
   for (const season of ['2026-27', '2025-26']) {
     for (const t of TEAMS) {
-      await page.goto(`/#/team/${t}?s=${season}`);
+      await page.goto(`/team/${t}?s=${season}`);
       const n = teamGames(season, t);
       await expect(page.getByTestId('team-picker')).toHaveAttribute('data-team', t);
       await expect(label(page)).toContainText(`based on ${n} game${n === 1 ? '' : 's'}`);
@@ -85,7 +85,7 @@ test('team pattern view renders for all 30 teams in both seasons', async ({ page
 
 test('filters change the "based on N games" count and the plain-words label', async ({ page }, info) => {
   const errors = trackErrors(page);
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await expect(label(page)).toHaveText('All 2025-26 games · based on 82 games · regular season');
   await page.getByRole('button', { name: 'Last 10' }).click();
   await expect(label(page)).toHaveText('Last 10 games · based on 10 games · regular season');
@@ -120,21 +120,21 @@ test('few games in the current season: note + one-click switch to 2025-26 keeps 
   // ORL in 2026-27 with a filter that leaves under 5 games (the with/without filter can only lower the count).
   const sel = findSelection((n) => n > 0 && n < 5, ['ORL']);
   expect(sel.season).toBe('2026-27');
-  await page.goto(`/#/team/ORL?${sel.query}&w=10&p=1630532&m=with`);
+  await page.goto(`/team/ORL?${sel.query}&w=10&p=1630532&m=with`);
   await expect(page.getByTestId('low-sample')).toBeVisible();
   await shot(page, 'low-sample', info.project.name);
   await page.getByRole('button', { name: 'Show the same view for 2025-26' }).click();
   await expect(page.getByTestId('season-chips').locator('[aria-checked=true]')).toHaveText('2025-26');
   await expect(page.getByTestId('team-picker')).toHaveAttribute('data-team', 'ORL');
   await expect(label(page)).toContainText('with F. Wagner');
-  const q = new URLSearchParams(new URL(page.url()).hash.split('?')[1]);
+  const q = new URL(page.url()).searchParams;
   expect([q.get('s'), q.get('v'), q.get('rest'), q.get('w'), q.get('p'), q.get('m')]).toEqual(['2025-26', sel.venue, sel.rest ?? null, '10', '1630532', 'with']);
   expect(errors).toEqual([]);
 });
 
 test('player drill-down and single-game chart open from clicks; flagged game shows its warning', async ({ page }, info) => {
   const errors = trackErrors(page);
-  await page.goto('/#/team/HOU?s=2025-26');
+  await page.goto('/team/HOU?s=2025-26');
   await expect(page.getByTestId('flag-summary')).toContainText('1 game in this selection has a data note');
   await page.getByTestId('pattern-chart').getByRole('link', { name: /^(Kevin )?Durant$/ }).click();
   await expect(page.getByTestId('player-grid')).toBeVisible();
@@ -147,7 +147,7 @@ test('player drill-down and single-game chart open from clicks; flagged game sho
   const flagged = rows.filter({ has: page.getByTestId('flag') });
   await expect(flagged).toHaveCount(1);
   await flagged.getByRole('link').first().click();
-  await expect(page).toHaveURL(/#\/game\/0022500093/);
+  await expect(page).toHaveURL(/\/game\/0022500093/);
   await expect(page.getByTestId('quality-warning')).toContainText('Kevin Durant — minutes: play-by-play 36:48 vs box score 28:08');
   await expect(page.getByTestId('quality-warning')).toContainText('The box score looks wrong');
   await expect(page.getByTestId('game-team')).toHaveCount(2);
@@ -163,12 +163,12 @@ test('player drill-down and single-game chart open from clicks; flagged game sho
 
 test('single-game chart: 2OT game axis, blowout shading, DNP rows with reasons', async ({ page }, info) => {
   const errors = trackErrors(page);
-  await page.goto('/#/game/0022500811');
+  await page.goto('/game/0022500811');
   await expect(page.locator('h1')).toContainText('Final/2OT');
   await expect(page.locator('.gc-qname').filter({ hasText: '2OT' }).first()).toBeAttached();
   await expect(page.getByTestId('dnp-row').first()).toBeAttached();
   await shot(page, 'game-2ot', info.project.name);
-  await page.goto('/#/game/0022600092');
+  await page.goto('/game/0022600092');
   await expect(page.locator('.gc-blowout').first()).toBeAttached();
   await expect(page.getByTestId('garbage-badge').first()).toBeVisible();
   await noHorizontalScroll(page);
@@ -182,7 +182,7 @@ test('team page with one game shows exactly that game\'s stints, numbers inside'
   const sel = findSelection((n) => n === 1);
   const game = sel.games[0]!;
   // Blowout time shown (b=0): the bars must be the game's raw stints (the blowout cut is tested elsewhere).
-  await page.goto(`/#/team/${sel.team}?${sel.query}&b=0`);
+  await page.goto(`/team/${sel.team}?${sel.query}&b=0`);
   await expect(label(page)).toContainText('based on 1 game');
   await expect(page.getByTestId('pattern-chart')).toBeVisible();
   const played = game.players.filter((p) => p.team === sel.team && p.played && p.stints.some(([s, e]) => e > s));
@@ -235,19 +235,19 @@ test('team page: rarely-used group follows the window\'s game count; no pattern 
     expect(Math.min(...bars)).toBeGreaterThanOrEqual(60);
     await expect(page.getByTestId('typical-legend')).toContainText('bars under 1:00 not drawn');
   };
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await expect(page.getByTestId('rare-toggle')).toHaveAttribute('aria-expanded', 'false'); // collapsed by default
   await check(82);
   await noHorizontalScroll(page);
   await shot(page, 'team-rarely-used', info.project.name);
-  await page.goto('/#/team/ORL?s=2025-26&w=10');
+  await page.goto('/team/ORL?s=2025-26&w=10');
   await check(10);
   expect(errors).toEqual([]);
 });
 
 test('heat map: same "Rarely used" group and the same open/closed state as the default view', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto('/#/team/ORL?s=2025-26&w=10');
+  await page.goto('/team/ORL?s=2025-26&w=10');
   await expect(label(page)).toContainText('based on 10 games');
   const rareRows = page.locator('[data-testid=player-row][data-rare=true]');
   const gps = (sel: string) =>
@@ -275,7 +275,7 @@ test('heat map: same "Rarely used" group and the same open/closed state as the d
 });
 
 test('Averages tooltips sit right next to the pointer (Typical stints and Heat map)', async ({ page }) => {
-  await page.goto('/#/team/ATL?s=2025-26&w=5');
+  await page.goto('/team/ATL?s=2025-26&w=5');
   const near = async (x: number, y: number) => {
     const b = (await page.getByTestId('pattern-tip').boundingBox())!;
     const dx = x < b.x ? b.x - x : x > b.x + b.width ? x - (b.x + b.width) : 0;

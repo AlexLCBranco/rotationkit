@@ -21,11 +21,11 @@ function trackErrors(page: Page) {
 
 test('Leaders tab: table and scatter = the leaders computed from the data, for every window and part', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto('/#/game/latest?t=ORL&s=2025-26');
+  await page.goto('/game/latest?t=ORL&s=2025-26');
   await page.getByTestId('tab-leaders').click();
-  await expect(page).toHaveURL(/#\/leaders\?s=2025-26/);
+  await expect(page).toHaveURL(/\/leaders\?s=2025-26/);
   for (const [w, part, sort, ot] of [['season', 'q4', 'min', false], [10, 'q4', 'pts', false], [5, 'h2', 'min', false], ['season', 'h2', 'pts', true]] as const) {
-    await page.goto(`/#/leaders?s=2025-26${w === 'season' ? '' : `&w=${w}`}${part === 'h2' ? '&part=h2' : ''}${sort === 'pts' ? '&sort=pts' : ''}${ot ? '&ot=1' : ''}`);
+    await page.goto(`/leaders?s=2025-26${w === 'season' ? '' : `&w=${w}`}${part === 'h2' ? '&part=h2' : ''}${sort === 'pts' ? '&sort=pts' : ''}${ot ? '&ot=1' : ''}`);
     const exp = want('2025-26', { part, ot, window: w, sort });
     await expect(page.getByTestId('leaders-row').first()).toBeVisible();
     const got = await rows(page);
@@ -41,7 +41,7 @@ test('Leaders tab: table and scatter = the leaders computed from the data, for e
 });
 
 test('filters update the URL and the table; team filter; clicking a player opens his page', async ({ page }) => {
-  await page.goto('/#/leaders?s=2025-26');
+  await page.goto('/leaders?s=2025-26');
   await page.getByRole('button', { name: 'Second half' }).click();
   await expect(page).toHaveURL(/part=h2/);
   await page.getByRole('button', { name: 'Last 10' }).click();
@@ -57,7 +57,7 @@ test('filters update the URL and the table; team filter; clicking a player opens
   expect((await rows(page)).map((r) => r.id)).toEqual(exp.map((r) => r.id));
   // Sorting by clicking the MIN header.
   await page.locator('[data-testid=leaders-table] th.sortable button', { hasText: 'MIN' }).click();
-  await expect(page).toHaveURL(/#\/leaders\?(?!.*sort=pts)/);
+  await expect(page).toHaveURL(/\/leaders\?(?!.*sort=pts)/);
   // Reload keeps everything.
   await page.reload();
   await expect(page.getByTestId('leaders-team')).toHaveAttribute('data-team', 'ORL');
@@ -65,11 +65,11 @@ test('filters update the URL and the table; team filter; clicking a player opens
   await expect(page.getByTestId('leaders-row').first()).toBeVisible();
   const first = (await rows(page))[0]!;
   await page.locator(`[data-testid=leaders-row][data-player="${first.id}"] .ld-player [data-testid=player-link]`).click();
-  await expect(page).toHaveURL(new RegExp(`#/player/ORL/${first.id}`));
+  await expect(page).toHaveURL(new RegExp(`/player/ORL/${first.id}`));
 });
 
 test('scatter: top 12 named without overlapping; hovering a row highlights its dot', async ({ page }) => {
-  await page.goto('/#/leaders?s=2025-26');
+  await page.goto('/leaders?s=2025-26');
   await expect(page.getByTestId('leaders-label')).toHaveCount(12);
   const boxes = await page.getByTestId('leaders-label').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.left, r.top, r.right, r.bottom]));
   for (let i = 0; i < boxes.length; i++)
@@ -84,7 +84,7 @@ test('scatter: top 12 named without overlapping; hovering a row highlights its d
 });
 
 test('"Hide garbage time" is on by default and says the rule; switching it off changes the numbers', async ({ page }) => {
-  await page.goto('/#/leaders?s=2025-26');
+  await page.goto('/leaders?s=2025-26');
   const box = page.getByRole('checkbox', { name: 'Hide garbage time' });
   await expect(box).toBeChecked();
   await expect(page.getByTestId('garbage-note')).toContainText('in the 4th quarter and overtime, with under 6:00 left in the period, while the margin is 20+');

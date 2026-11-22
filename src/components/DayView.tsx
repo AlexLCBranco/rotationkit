@@ -194,6 +194,14 @@ function GameCard({ sg, g, tagsOf, open }: { sg: SlateGame; g: Game | undefined;
         <div className="dv-chips">
           <ScheduleChips tags={tagsOf(tri, sg.id)} rest={false} />
         </div>
+        {/* while the game file loads: five empty lines, so the card already has its height (no jump) */}
+        {!s && sg.finished && (
+          <ul className="dv-closers" aria-hidden="true">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <li key={i} className="fq-player dv-wait" />
+            ))}
+          </ul>
+        )}
         {s && (
           <>
             <ul className="dv-closers" data-testid="dv-closers">

@@ -12,6 +12,8 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: false,
   workers: 2,
+  // On GitHub's shared runners the timing tests (click under 100 ms, layout shift) are noisy: one retry there.
+  retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   use: { baseURL: 'http://localhost:4173', trace: 'off' },
   webServer: { command: 'npm run preview', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 60_000 },

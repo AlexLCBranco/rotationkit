@@ -31,31 +31,31 @@ const leaderRows = (page: Page) =>
   page.getByTestId('dv-leader').evaluateAll((els) => els.map((e) => [Number(e.getAttribute('data-rank')), Number(e.getAttribute('data-player')), e.getAttribute('data-game')]));
 const teamOrder = (page: Page) => page.getByTestId('game-team').evaluateAll((els) => els.map((e) => e.querySelector('[data-testid=team-link]')!.getAttribute('data-team')));
 /** Game page URL with that team selected and the day kept (parameter order not checked). */
-const gameUrl = (id: string, team: string, date: string | null = D) => new RegExp(`#/game/${id}\\?(?=(.*&)?t=${team}(&|$))${date ? `(?=.*day=${date})` : ''}`);
+const gameUrl = (id: string, team: string, date: string | null = D) => new RegExp(`/game/${id}\\?(?=(.*&)?t=${team}(&|$))${date ? `(?=.*day=${date})` : ''}`);
 /** Click a team's half of a card on a spot that is not a link (the area under the team's head). */
 const clickSide = (page: Page, id: string, team: string) => page.locator(`[data-testid=dv-game][data-game="${id}"] [data-testid=dv-side][data-team="${team}"]`).click({ position: { x: 4, y: 4 } });
 
 test('By day tab in the main menu; opens on the latest day with finished games; Games tab goes back', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto('/#/game/latest?t=ORL&s=2026-27');
+  await page.goto('/game/latest?t=ORL&s=2026-27');
   await expect(page.getByTestId('tab-games')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('games-mode')).toHaveCount(0);
   await page.getByTestId('tab-day').click();
-  await expect(page).toHaveURL(/#\/games\?view=day&s=2026-27/);
+  await expect(page).toHaveURL(/\/games\?view=day&s=2026-27/);
   const latest = slateDates(index('2026-27'), schedule('2026-27')).latestFinished!;
   await expect(page.getByTestId('dv-date')).toHaveValue(latest);
   await expect(page.getByTestId('tab-day')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('tab-games')).not.toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('dv-game')).toHaveCount(day('2026-27', latest).length);
   await page.getByTestId('tab-games').click();
-  await expect(page).toHaveURL(/#\/game\/\d+\?.*t=ORL/);
+  await expect(page).toHaveURL(/\/game\/\d+\?.*t=ORL/);
   await expect(page.getByTestId('game-team').first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 
 test('By day tab from a game opened from By day returns to that day', async ({ page }) => {
   const id = day(S, D).find((g) => g.finished)!.id;
-  await page.goto(`/#/game/${id}?t=${game(S, id).home.tri}&s=${S}&day=${D}`);
+  await page.goto(`/game/${id}?t=${game(S, id).home.tri}&s=${S}&day=${D}`);
   await page.getByTestId('tab-day').click();
   await expect(page.getByTestId('dv-date')).toHaveValue(D);
   await expect(page.getByTestId('tab-day')).toHaveAttribute('aria-current', 'page');
@@ -63,7 +63,7 @@ test('By day tab from a game opened from By day returns to that day', async ({ p
 
 test('cards: count and order, scores, closers with full-Q4 marks, coach\'s-decision DNPs', async ({ page }) => {
   const errors = trackErrors(page);
-  await page.goto(`/#/games?view=day&date=${D}&s=${S}`);
+  await page.goto(`/games?view=day&date=${D}&s=${S}`);
   const want = day(S, D);
   await expect(page.getByTestId('dv-game')).toHaveCount(want.length);
   expect(await cardIds(page)).toEqual(want.map((g) => g.id));
@@ -92,7 +92,7 @@ test('cards: count and order, scores, closers with full-Q4 marks, coach\'s-decis
 test('2026-27 cards are in tip-time order with the tip time shown', async ({ page }) => {
   const d = '2026-11-11';
   const want = day('2026-27', d);
-  await page.goto(`/#/games?view=day&date=${d}&s=2026-27`);
+  await page.goto(`/games?view=day&date=${d}&s=2026-27`);
   await expect(page.getByTestId('dv-game')).toHaveCount(want.length);
   expect(await cardIds(page)).toEqual(want.map((g) => g.id));
   const tips = want.map((g) => g.tip!);
@@ -103,7 +103,7 @@ test('2026-27 cards are in tip-time order with the tip time shown', async ({ pag
 test('clicking a team\'s half opens the game with that team first; previous / next game keep the side; back link', async ({ page }) => {
   const want = day(S, D).filter((g) => g.finished);
   const second = want[1]!;
-  await page.goto(`/#/games?view=day&date=${D}&s=${S}`);
+  await page.goto(`/games?view=day&date=${D}&s=${S}`);
   await clickSide(page, second.id, second.away);
   await expect(page).toHaveURL(gameUrl(second.id, second.away));
   await expect.poll(() => teamOrder(page)).toEqual([second.away, second.home]);
@@ -115,7 +115,7 @@ test('clicking a team\'s half opens the game with that team first; previous / ne
   await expect(page.getByTestId('day-prev')).toBeDisabled();
   await expect(page.getByTestId('day-back')).toHaveText('Back to Nov 10 2025');
   await page.getByTestId('day-back').click();
-  await expect(page).toHaveURL(new RegExp(`#/games\\?view=day&date=${D}&s=${S}`));
+  await expect(page).toHaveURL(new RegExp(`/games\\?view=day&date=${D}&s=${S}`));
   await expect(page.getByTestId('dv-game')).toHaveCount(day(S, D).length);
   // Home side, last game: next is disabled.
   const last = want[want.length - 1]!;
@@ -130,7 +130,7 @@ test('clicking a team\'s half opens the game with that team first; previous / ne
 });
 
 test('Q4 minutes leaders: order and ties at 10th; No blowouts applies to the panel only; game link', async ({ page }) => {
-  await page.goto(`/#/games?view=day&date=${D}&s=${S}`);
+  await page.goto(`/games?view=day&date=${D}&s=${S}`);
   const all = dayQ4Leaders(quarters(S), D, false);
   expect(all.length).toBeGreaterThan(10);
   await expect(page.getByTestId('dv-leader')).toHaveCount(all.length);
@@ -150,15 +150,15 @@ test('Q4 minutes leaders: order and ties at 10th; No blowouts applies to the pan
   await expect(page).toHaveURL(gameUrl(first.game, first.team));
   await expect.poll(() => teamOrder(page).then((o) => o[0])).toBe(first.team);
   // Player name → his page.
-  await page.goto(`/#/games?view=day&date=${D}&s=${S}`);
+  await page.goto(`/games?view=day&date=${D}&s=${S}`);
   await page.getByTestId('dv-leader').first().getByTestId('player-link').click();
-  await expect(page).toHaveURL(new RegExp(`#/player/${all[0]!.team}/${all[0]!.id}`));
+  await expect(page).toHaveURL(new RegExp(`/player/${all[0]!.team}/${all[0]!.id}`));
 });
 
 test('arrow keys and ◀ ▶ change the day; a date without games shows the note', async ({ page }) => {
   const { dates } = slateDates(index(S), schedule(S));
   const i = dates.indexOf(D);
-  await page.goto(`/#/games?view=day&date=${D}&s=${S}`);
+  await page.goto(`/games?view=day&date=${D}&s=${S}`);
   await expect(page.getByTestId('dv-game').first()).toBeVisible();
   await page.keyboard.press('ArrowLeft');
   await expect(page).toHaveURL(new RegExp(`date=${dates[i - 1]}`));
@@ -169,7 +169,7 @@ test('arrow keys and ◀ ▶ change the day; a date without games shows the note
   await page.getByTestId('dv-prev').click();
   await expect(page).toHaveURL(new RegExp(`date=${D}`));
   // Christmas Eve 2025: no games.
-  await page.goto(`/#/games?view=day&date=2025-12-24&s=${S}`);
+  await page.goto(`/games?view=day&date=2025-12-24&s=${S}`);
   const latest = slateDates(index(S), schedule(S)).latestFinished!;
   await expect(page.getByTestId('dv-note')).toHaveText(`No games on 2025-12-24; showing ${latest}.`);
 });
@@ -181,7 +181,7 @@ test('a game not played yet is greyed out with its tip time and is not clickable
   const d = dates.find((x) => slateDay(idx, sch, x).some((g) => !g.finished && g.status === 'scheduled'));
   test.skip(!d, 'no scheduled game left in the committed schedule');
   const up = slateDay(idx, sch, d!).find((g) => !g.finished && g.status === 'scheduled')!;
-  await page.goto(`/#/games?view=day&date=${d}&s=2026-27`);
+  await page.goto(`/games?view=day&date=${d}&s=2026-27`);
   const card = page.locator(`[data-testid=dv-game][data-game="${up.id}"]`);
   await expect(card).toHaveAttribute('data-finished', '0');
   await expect(card).toHaveClass(/upcoming/);

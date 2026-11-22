@@ -40,28 +40,28 @@ test.afterEach(async ({ page }) => page.unrouteAll({ behavior: 'ignoreErrors' })
 test('TV and CUP tags: game header, game list and player page rows', async ({ page }) => {
   await serve(page);
   // DET–BOS opener: NBC / Peacock in the feed.
-  await page.goto(`/#/game/0022600001?t=DET&s=${S}`);
+  await page.goto(`/game/0022600001?t=DET&s=${S}`);
   await expect(page.locator('.game-head [data-testid=tv-tag]')).toHaveText('NBC / Peacock');
   await expect(page.locator(`[data-testid=list-row][data-id="0022600001"] [data-testid=tv-tag]`)).toHaveText('NBC / Peacock');
   // WAS–CHA: Cup group game, no national TV.
-  await page.goto(`/#/game/0022600015?t=WAS&s=${S}`);
+  await page.goto(`/game/0022600015?t=WAS&s=${S}`);
   await expect(page.locator('.game-head [data-testid=cup-tag]')).toHaveText('CUP');
   await expect(page.locator('.game-head [data-testid=tv-tag]')).toHaveCount(0);
   await expect(page.locator(`[data-testid=list-row][data-id="0022600015"] [data-testid=cup-tag]`)).toHaveAttribute('data-cup', 'group');
   // A game the feed excerpt has no tags for: none.
-  await page.goto(`/#/game/${GAME}?t=ORL&s=${S}`);
+  await page.goto(`/game/${GAME}?t=ORL&s=${S}`);
   await expect(page.locator('.game-head [data-testid=game-badge]')).toBeVisible();
   await expect(page.locator('.game-head [data-testid=tv-tag], .game-head [data-testid=cup-tag]')).toHaveCount(0);
   // Player page: the row of a tagged game carries the same tag. Cade Cunningham played the DET opener.
   const det = JSON.parse(readFileSync(`data/${S}/games/0022600001.json`, 'utf8')) as Game;
   const p = det.players.find((x) => x.team === 'DET' && x.played && x.stints.length)!;
-  await page.goto(`/#/player/DET/${p.id}?s=${S}`);
+  await page.goto(`/player/DET/${p.id}?s=${S}`);
   await expect(page.getByTestId('game-row').last().getByTestId('tv-tag')).toHaveText('NBC / Peacock');
 });
 
 test('points per stint: game chart readout and bars (option off by default, remembered)', async ({ page }) => {
   await serve(page);
-  await page.goto(`/#/game/${GAME}?t=ORL&s=${S}`);
+  await page.goto(`/game/${GAME}?t=ORL&s=${S}`);
   const p = [...fresh.players].sort((a, b) => b.pts - a.pts)[0]!;
   const row = page.locator(`[data-testid=gc-player-row][data-player="${p.id}"]`);
   const k = p.stints.findIndex((s, i) => s[1] - s[0] >= 300 && (p.ptsS![i] ?? 0) > 0);
@@ -88,7 +88,7 @@ test('points per stint: game chart readout and bars (option off by default, reme
 test('points per stint: player page readout and bars', async ({ page }) => {
   await serve(page);
   const p = [...fresh.players].filter((x) => x.team === 'ORL').sort((a, b) => b.pts - a.pts)[0]!;
-  await page.goto(`/#/player/ORL/${p.id}?s=${S}`);
+  await page.goto(`/player/ORL/${p.id}?s=${S}`);
   const row = page.getByTestId('game-row').last(); // oldest game = the opener (rows newest first)
   await expect(row.locator('a').first()).toContainText('Oct 21');
   const bars = row.getByTestId('pl-stint');

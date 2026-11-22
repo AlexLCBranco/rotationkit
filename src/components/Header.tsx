@@ -131,7 +131,7 @@ export function Header({ route, seasons, season, rememberedTeam, nav }: { route:
   return (
     <header className="rk-header" data-testid="header">
       <div className="rk-head-row">
-        <a className="brand" href="#/" title={`${SITE_NAME}: back to the start`}>
+        <a className="brand" href="/" title={`${SITE_NAME}: back to the start`}>
           <img className="brand-logo" src="/favicon.svg" alt="" width={22} height={22} />
           <span className="brand-text">{SITE_NAME}</span>
         </a>

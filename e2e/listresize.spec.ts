@@ -46,7 +46,7 @@ async function expectFits(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/#/game/latest?t=HOU&s=2026-27');
+  await page.goto('/game/latest?t=HOU&s=2026-27');
   await page.evaluate(() => localStorage.removeItem('rk.listWidth'));
   await page.reload();
   await expect(page.getByTestId('list-row').first()).toBeVisible();
@@ -94,7 +94,7 @@ test('the width survives a reload; ↔ and double-click restore the default', as
 
 test('no horizontal overflow at default, mid and minimum widths, for several teams and both seasons', async ({ page }) => {
   for (const [t, s] of [['HOU', '2026-27'], ['ORL', '2025-26'], ['LAL', '2026-27'], ['BOS', '2025-26']] as const) {
-    await page.goto(`/#/game/latest?t=${t}&s=${s}`);
+    await page.goto(`/game/latest?t=${t}&s=${s}`);
     await expect(page.getByTestId('list-row').first()).toBeVisible();
     const NARROW = await narrowW(page);
     const MIN = await minW(page);

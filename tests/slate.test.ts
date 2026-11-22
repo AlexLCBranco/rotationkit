@@ -130,7 +130,7 @@ describe('route', () => {
   it('By day: #/games?view=day&date=…, round-trips; plain #/games is By team', () => {
     const r = parse('#/games?view=day&date=2026-11-12&s=2026-27&nb=1');
     expect(r).toMatchObject({ view: 'day', season: '2026-27', day: { date: '2026-11-12', noBlowouts: true } });
-    expect(format(r)).toBe('#/games?view=day&date=2026-11-12&s=2026-27&nb=1');
+    expect(format(r)).toBe('/games?view=day&date=2026-11-12&s=2026-27&nb=1');
     expect(parse(format(r))).toEqual(r);
     expect(parse('#/games?view=day&date=bad')).toMatchObject({ view: 'day', day: { date: null } });
     expect(parse('#/games')).toMatchObject({ view: 'game', game: 'latest' });

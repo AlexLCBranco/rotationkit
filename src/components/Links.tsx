@@ -1,4 +1,4 @@
-// The one link component for players and one for teams, used wherever a name is shown. Real <a href="#/…"> links:
+// The one link component for players and one for teams, used wherever a name is shown. Real <a href="/…"> links:
 // Ctrl/middle-click opens a new tab, the back button works. They look like plain text until hovered (underline +
 // pointer). A click on the link never reaches the row/chart under it (no row select, no cursor pin).
 

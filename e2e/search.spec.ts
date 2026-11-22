@@ -13,27 +13,27 @@ async function search(page: Page) {
 const results = (page: Page) => page.getByTestId('search-result');
 
 test('Go anywhere is in the header on every page and on the player page', async ({ page }) => {
-  for (const url of ['/#/game/0022500093', '/#/q4/0022500093', '/#/games?view=day&s=2025-26', '/#/team/ORL?s=2025-26', '/#/leaders?s=2025-26', '/#/fullq4?s=2025-26', '/#/player/ORL/1630532?s=2025-26']) {
+  for (const url of ['/game/0022500093', '/q4/0022500093', '/games?view=day&s=2025-26', '/team/ORL?s=2025-26', '/leaders?s=2025-26', '/fullq4?s=2025-26', '/player/ORL/1630532?s=2025-26']) {
     await page.goto(url);
     await expect(page.locator('header.rk-header').getByTestId('go-anywhere')).toBeVisible();
   }
 });
 
 test('teams and places: "bos" → Boston\'s games or averages; "full q4" → that page', async ({ page }) => {
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await (await search(page)).fill('bos');
   await expect(page.getByTestId('go-item')).toHaveText(['Boston Celtics · gamesTeam', 'Boston Celtics · averagesTeam']);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/#\/team\/BOS\?s=2025-26$/);
+  await expect(page).toHaveURL(/\/team\/BOS\?s=2025-26$/);
   await expect(page.getByTestId('player-search')).toHaveCount(0);
   await (await search(page)).fill('full q4');
   await page.getByTestId('go-item').first().click();
-  await expect(page).toHaveURL(/#\/fullq4\?s=2025-26/);
+  await expect(page).toHaveURL(/\/fullq4\?s=2025-26/);
 });
 
 test('"/" and Ctrl+K open it from anywhere, but not while typing in another field', async ({ page }) => {
-  await page.goto('/#/game/0022500093');
+  await page.goto('/game/0022500093');
   await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('/');
@@ -59,7 +59,7 @@ test('"/" and Ctrl+K open it from anywhere, but not while typing in another fiel
 });
 
 test('case- and accent-insensitive, any part of the name, initials; headshot, name, team; at most 8', async ({ page }) => {
-  await page.goto('/#/team/DEN?s=2026-27');
+  await page.goto('/team/DEN?s=2026-27');
   await (await search(page)).fill('jok');
   // Names compared accent-insensitively: the feed's spelling can change between games ("Jokić" / "Jokic") and the
   // index keeps the latest (tests/players.test.ts).
@@ -79,7 +79,7 @@ test('case- and accent-insensitive, any part of the name, initials; headshot, na
 });
 
 test('players of the selected season first', async ({ page }) => {
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await (await search(page)).fill('jo');
   const seasons = await results(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-season')));
   expect(seasons.length).toBe(8);
@@ -87,7 +87,7 @@ test('players of the selected season first', async ({ page }) => {
 });
 
 test('↑/↓ + Enter opens the player page for the selected season, keeping the filters; Esc closes', async ({ page }) => {
-  await page.goto('/#/team/ORL?s=2025-26&w=10&v=home');
+  await page.goto('/team/ORL?s=2025-26&w=10&v=home');
   await (await search(page)).fill('nikola');
   const sel = page.locator('[role=option][aria-selected=true] [data-testid=search-result]');
   const second = results(page).nth(1);
@@ -98,10 +98,10 @@ test('↑/↓ + Enter opens the player page for the selected season, keeping the
   await page.keyboard.press('ArrowUp');
   await expect(sel).toHaveAttribute('data-player', id!);
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(new RegExp(`#/player/${team}/${id}\\?s=2025-26&w=10&v=home$`));
+  await expect(page).toHaveURL(new RegExp(`/player/${team}/${id}\\?s=2025-26&w=10&v=home$`));
   await (await search(page)).fill('jok');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/#\/player\/DEN\/203999\?s=2025-26&w=10&v=home$/);
+  await expect(page).toHaveURL(/\/player\/DEN\/203999\?s=2025-26&w=10&v=home$/);
   await expect(page.locator('h1')).toContainText('Nikola Jokić');
   await expect(page.getByTestId('search-results')).toHaveCount(0);
   await expect(box(page)).toHaveCount(0);
@@ -112,22 +112,22 @@ test('↑/↓ + Enter opens the player page for the selected season, keeping the
   await expect(page.getByTestId('search-results')).toHaveCount(0);
   // Back goes to the pages before.
   await page.goBack();
-  await expect(page).toHaveURL(/#\/player\/[A-Z]{3}\/\d+\?s=2025-26&w=10&v=home$/);
+  await expect(page).toHaveURL(/\/player\/[A-Z]{3}\/\d+\?s=2025-26&w=10&v=home$/);
   await page.goBack();
-  await expect(page).toHaveURL(/#\/team\/ORL/);
+  await expect(page).toHaveURL(/\/team\/ORL/);
 });
 
 test('mouse: hover highlights, click opens', async ({ page }) => {
-  await page.goto('/#/game/0022600001');
+  await page.goto('/game/0022600001');
   await (await search(page)).fill('gilgeous');
   await results(page).first().hover();
   await expect(page.locator('[role=option][aria-selected=true]')).toContainText('Gilgeous-Alexander');
   await results(page).first().click();
-  await expect(page).toHaveURL(/#\/player\/OKC\/1628983\?s=2026-27/);
+  await expect(page).toHaveURL(/\/player\/OKC\/1628983\?s=2026-27/);
 });
 
 test('empty box shows the last 5 players opened, most recent first; they open the same way', async ({ page }) => {
-  await page.goto('/#/team/ORL?s=2026-27');
+  await page.goto('/team/ORL?s=2026-27');
   const opened: string[] = [];
   for (const q of ['jok', 'gilgeous', 'harden', 'doncic', 'banchero', 'wembanyama']) {
     await (await search(page)).fill(q);
@@ -147,23 +147,23 @@ test('empty box shows the last 5 players opened, most recent first; they open th
 });
 
 test('traded player: search opens his most recent team; his page switches between his teams', async ({ page }) => {
-  await page.goto('/#/team/ORL?s=2025-26');
+  await page.goto('/team/ORL?s=2025-26');
   await (await search(page)).fill('harden');
   await expect(results(page).first()).toContainText('CLE');
   await expect(results(page).first()).toContainText('was LAC');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/#\/player\/CLE\/201935\?s=2025-26$/);
+  await expect(page).toHaveURL(/\/player\/CLE\/201935\?s=2025-26$/);
   const sw = page.getByTestId('team-switch');
   await expect(sw.getByTestId('team-switch-option')).toHaveText(['LAC', 'CLE']);
   await expect(sw.locator('[aria-current=page]')).toHaveText('CLE');
   const cle = await page.getByTestId('game-row').count();
   await sw.getByText('LAC').click();
-  await expect(page).toHaveURL(/#\/player\/LAC\/201935\?s=2025-26$/);
+  await expect(page).toHaveURL(/\/player\/LAC\/201935\?s=2025-26$/);
   await expect(sw.locator('[aria-current=page]')).toHaveText('LAC');
   await expect(page.getByTestId('game-row').first()).toBeVisible();
   expect(await page.getByTestId('game-row').count()).not.toBe(cle);
   // One team only: no switch.
-  await page.goto('/#/player/DEN/203999?s=2025-26');
+  await page.goto('/player/DEN/203999?s=2025-26');
   await expect(page.locator('h1')).toContainText('Nikola Jokić');
   await expect(page.getByTestId('team-switch')).toHaveCount(0);
 });

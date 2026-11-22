@@ -20,7 +20,7 @@ test('the fixture still has the Q2→Q3 stint', () => {
 test('player page: the Q2→Q3 stint is one bar with a notch, per-quarter labels and the split in the readout', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`/#/player/IND/${NESMITH}?s=2025-26`);
+  await page.goto(`/player/IND/${NESMITH}?s=2025-26`);
   const row = page.getByTestId('game-row').filter({ has: page.locator(`a[href*="${GAME}"]`) });
   await expect(row).toHaveCount(1);
   const bar = row.locator('[data-testid=pl-stint][data-parts="2"]');
@@ -42,7 +42,7 @@ test('player page: the Q2→Q3 stint is one bar with a notch, per-quarter labels
 
 test('player page: a part too narrow for its label loses only its label; none fits → the total', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto(`/#/player/IND/${NESMITH}?s=2025-26`);
+  await page.goto(`/player/IND/${NESMITH}?s=2025-26`);
   const row = page.getByTestId('game-row').filter({ has: page.locator(`a[href*="${GAME}"]`) });
   const bar = row.locator('[data-testid=pl-stint][data-parts="2"]');
   await expect(bar).toHaveCount(1);
@@ -60,7 +60,7 @@ test('player page: a part too narrow for its label loses only its label; none fi
 });
 
 test('game chart: hovering a stint that continues across the break gives the whole run and its split', async ({ page }) => {
-  await page.goto(`/#/game/${GAME}?t=IND&s=2025-26`);
+  await page.goto(`/game/${GAME}?t=IND&s=2025-26`);
   await page.getByTestId('list-collapse').click(); // the whole timeline in view at 1280 px
   const row = page.locator(`[data-testid=gc-player-row][data-player="${NESMITH}"]`);
   await expect(page.getByTestId('usual-stint').first()).toBeVisible(); // layout settled

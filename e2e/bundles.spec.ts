@@ -16,7 +16,7 @@ function track(page: Page) {
 
 test('Averages: one bundle request per team-season, no single game files', async ({ page }) => {
   const urls = track(page);
-  await page.goto('/#/team/ORL?s=2025-26&vs=BOS');
+  await page.goto('/team/ORL?s=2025-26&vs=BOS');
   await expect(page.getByTestId('pattern-chart')).toHaveCount(2);
   expect(urls.filter((u) => u.includes('/teams/')).sort()).toEqual(['/data/2025-26/teams/BOS.json', '/data/2025-26/teams/ORL.json']);
   expect(urls.filter((u) => u.includes('/games/'))).toEqual([]);
@@ -24,7 +24,7 @@ test('Averages: one bundle request per team-season, no single game files', async
 
 test('player page: one bundle request', async ({ page }) => {
   const urls = track(page);
-  await page.goto('/#/player/ORL/1630532?s=2025-26');
+  await page.goto('/player/ORL/1630532?s=2025-26');
   await expect(page.getByTestId('game-row').first()).toBeVisible();
   expect(urls.filter((u) => u.includes('/teams/'))).toEqual(['/data/2025-26/teams/ORL.json']);
   expect(urls.filter((u) => u.includes('/games/'))).toEqual([]);
@@ -32,7 +32,7 @@ test('player page: one bundle request', async ({ page }) => {
 
 test('single-game screens keep reading the single game file', async ({ page }) => {
   const urls = track(page);
-  await page.goto('/#/q4/0022500093');
+  await page.goto('/q4/0022500093');
   await expect(page.getByTestId('q4-row').first()).toBeVisible();
   expect(urls).toContain('/data/2025-26/games/0022500093.json');
 });

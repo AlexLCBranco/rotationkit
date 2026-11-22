@@ -105,12 +105,12 @@ describe('player and team links', () => {
   const c = { season: '2025-26', filters: { ...DEFAULT_FILTERS, window: 10 as const, venue: 'home' as const }, team: 'ORL' };
   it('player → his page for that season with the current filters', () => {
     const h = playerHref(c, { id: 203999, team: 'DEN' });
-    expect(h).toBe('#/player/DEN/203999?s=2025-26&w=10&v=home');
+    expect(h).toBe('/player/DEN/203999?s=2025-26&w=10&v=home');
     expect(parse(h)).toMatchObject({ view: 'player', team: 'DEN', player: 203999, season: '2025-26', filters: c.filters });
-    expect(playerHref(c, { id: 1, team: 'DEN', season: '2026-27' })).toBe('#/player/DEN/1?s=2026-27&w=10&v=home');
+    expect(playerHref(c, { id: 1, team: 'DEN', season: '2026-27' })).toBe('/player/DEN/1?s=2026-27&w=10&v=home');
   });
   it('team → its Averages view for that season', () => {
-    expect(teamHref(c, 'BOS')).toBe('#/team/BOS?s=2025-26&w=10&v=home');
+    expect(teamHref(c, 'BOS')).toBe('/team/BOS?s=2025-26&w=10&v=home');
     expect(parse(teamHref(c, 'BOS', '2026-27'))).toMatchObject({ view: 'team', team: 'BOS', season: '2026-27' });
   });
   it('a with/without filter only carries over to its own team', () => {

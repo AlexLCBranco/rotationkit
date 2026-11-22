@@ -33,10 +33,15 @@ function useBox<T extends HTMLElement>() {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const measure = () => setBox({ w: el.clientWidth, top: el.getBoundingClientRect().top + scrollY, vh: innerHeight });
+    const measure = () => {
+      const next = { w: el.clientWidth, top: el.getBoundingClientRect().top + scrollY, vh: innerHeight };
+      setBox((b) => (b.w === next.w && b.top === next.top && b.vh === next.vh ? b : next));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    // also when the page above changes height (rows or the game header filling in move this box down)
+    ro.observe(document.body);
     addEventListener('resize', measure);
     return () => {
       ro.disconnect();
