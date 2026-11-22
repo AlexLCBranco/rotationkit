@@ -170,8 +170,11 @@ test.describe('RK-10: footer', () => {
     await expect(page.locator('h1')).toHaveText('How to read this');
   });
   test('headshots and logos still come from cdn.nba.com (not copied into the site)', async ({ page }) => {
+    // (answer cdn.nba.com with a small picture: where the real one cannot be reached, the app swaps the <img> for initials)
+    await page.route(/cdn\.nba\.com/, (r) => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"><rect width="26" height="26" fill="#555"/></svg>' }));
     await page.goto('/game/0022500020?t=IND&s=2025-26');
     await settle(page);
+    await expect(page.getByTestId('gc-player-row').first()).toBeVisible();
     const srcs = await page.locator('img.headshot, img.logo').evaluateAll((els) => els.map((e) => (e as HTMLImageElement).src));
     expect(srcs.length).toBeGreaterThan(10);
     expect(srcs.every((s) => s.startsWith('https://cdn.nba.com/'))).toBe(true);

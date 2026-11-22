@@ -960,3 +960,5 @@ th .help-q { margin-left: 2px; }
 .dv-team-head { min-height: 24px; }
 .gc-team-title { min-height: 30px; }
 .gc-compact .gc-team-title { min-height: 18px; }
+/* in chips the fallback is an empty box of the logo's size (the code is already written next to it) */
+.rk-chip .logo-fallback { display: inline-block; width: 18px; height: 18px; padding: 0; border: 0; font-size: 0; visibility: hidden; flex: none; }

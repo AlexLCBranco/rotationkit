@@ -23,6 +23,7 @@ spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Featu
   A first-time visitor lands on last night's games; a new "How to read this" page explains every bar, color, tag and number, a small "?" next to each term opens its part, and shared links show the site's name, description and a preview image.
 
 ### Internal
+- Team chips keep their size when a logo cannot load (the strip shifted on GitHub's machines); the image-source test no longer needs cdn.nba.com to answer
 - New-tab browser test waits for the tab's real address (it failed on GitHub only)
 - Fix right after v0.7.0 went live: a direct load or reload of Leaders, By day, Full Q4, the help page or a 4th-quarter view answered "not found"; each now has its own file (v0.7.1)
 - 4th-quarter screen: the side panel re-measures when the page above it changes (it could end up taller than the window)
