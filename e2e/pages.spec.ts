@@ -123,7 +123,8 @@ test('links move without loading a page; back, forward and reload keep the view 
   await expect(page).toHaveURL(/\/team\/ORL\?s=2025-26&w=10&v=home$/);
   // Ctrl-click still opens a new tab (the link is a real address)
   const [tab] = await Promise.all([page.context().waitForEvent('page'), page.getByTestId('player-link').first().click({ modifiers: ['ControlOrMeta'] })]);
-  await tab.waitForLoadState();
+  // (a new tab starts on about:blank: wait for its real address)
+  await tab.waitForURL(/\/player\/ORL\/\d+/);
   expect(new URL(tab.url()).pathname).toMatch(/^\/player\/ORL\/\d+$/);
   await expect(page).toHaveURL(/\/team\/ORL/);
 });

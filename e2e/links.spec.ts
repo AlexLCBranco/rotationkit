@@ -31,7 +31,7 @@ test('clicking opens a new tab (and leaves the app where it was)', async ({ page
   await context.route(/gauntlet-home\.vercel\.app/, (r) => r.fulfill({ contentType: 'text/html', body: '<title>stub</title>' }));
   await page.goto('/game/0022600092?t=POR');
   const [popup] = await Promise.all([context.waitForEvent('page'), page.getByTestId('link-calendarkit').click()]);
-  await popup.waitForLoadState();
+  await popup.waitForURL(/gauntlet-home/);
   expect(popup.url()).toContain('gauntlet-home.vercel.app/calendar?view=league&layout=list&date=2026-10-21&game=0022600092');
   await expect(page).toHaveURL(/\/game\/0022600092/);
 });
