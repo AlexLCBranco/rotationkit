@@ -6,7 +6,14 @@ import { appearancesFromFile, buildAppearances, type AppearanceIndex } from '../
 export interface SeasonInfo {
   season: string;
   games: number;
+  /** RK-13: the season has postseason games (play-in or playoffs) in the data. */
+  post?: true;
 }
+
+// Seasons with postseason games, known as soon as seasons.json is in (before any page renders), so the
+// "Regular season | Postseason" chip never pops in later.
+const postSeasons = new Set<string>();
+export const seasonHasPostseason = (season: string) => postSeasons.has(season);
 
 const memo = new Map<string, Promise<unknown>>();
 function get<T>(path: string): Promise<T> {
@@ -22,7 +29,11 @@ function get<T>(path: string): Promise<T> {
   return memo.get(path) as Promise<T>;
 }
 
-export const loadSeasons = () => get<SeasonInfo[]>('seasons.json');
+export const loadSeasons = () =>
+  get<SeasonInfo[]>('seasons.json').then((list) => {
+    for (const s of list) if (s.post) postSeasons.add(s.season);
+    return list;
+  });
 export const loadIndex = (season: string) => get<GameIndexEntry[]>(`${season}/index.json`);
 /** Schedule of a season incl. unplayed games (only for seasons the feed was cached for). */
 export const loadQuarters = (season: string) => get<import('../domain/leaders.ts').QuartersFile>(`${season}/quarters.json`);

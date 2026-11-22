@@ -6,9 +6,8 @@ import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { TEAM_CODES, teamName } from '../app/teams.ts';
 import { TEAM_BY_TRI } from '../data/teams.ts';
 import { TeamLogo } from './Headshot.tsx';
-import { loadIndex } from '../app/data.ts';
-import { useAsync } from '../app/hooks.ts';
-import { hasPostseason, type GameSet } from '../domain/gameSet.ts';
+import { seasonHasPostseason } from '../app/data.ts';
+import type { GameSet } from '../domain/gameSet.ts';
 
 export type Option<T> = [value: T, text: ReactNode, tip?: string, label?: string];
 
@@ -83,9 +82,7 @@ export function SeasonChips({ seasons, season, onChange }: { seasons: string[]; 
 /** RK-13: "Regular season | Postseason" next to the season chips. Only for a season that has postseason games
  * (play-in or playoffs) in the data; picking one switches every average on the page to that set of games. */
 export function SetChips({ season, value, onChange }: { season: string; value: GameSet; onChange: (s: GameSet) => void }) {
-  const index = useAsync(() => loadIndex(season), [season]);
-  const has = index.status === 'ok' && hasPostseason(index.value.map((e) => e.id));
-  if (!has && value !== 'post') return null;
+  if (!seasonHasPostseason(season) && value !== 'post') return null;
   return (
     <Chips
       label="Games counted"

@@ -3,6 +3,7 @@
 // other kinds are real fixture games with their id rewritten (only the id: it alone decides the kind).
 
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { loadSeason } from './data.ts';
 import { loadFixtureGame, loadRawFixture } from './fixtures.ts';
 import { basedOn } from '../src/app/labels.ts';
@@ -130,6 +131,11 @@ describe('the set lives in the URL and in the "based on" label', () => {
 });
 
 describe('pipeline', () => {
+  it('seasons.json says which seasons have postseason games (the chip shows at once for them)', () => {
+    const seasons = JSON.parse(readFileSync('data/seasons.json', 'utf8')) as { season: string; games: number; post?: true }[];
+    for (const s of seasons) expect(!!s.post, s.season).toBe(hasPostseason(loadSeason(s.season).map((g) => g.id)));
+    expect(seasons.find((s) => s.season === '2025-26')).toMatchObject({ games: loadSeason('2025-26').length, post: true });
+  });
   it('a past season without a feed: backfilled games join its schedule as final, in date order; the rest is untouched', () => {
     const sched = [
       { id: '0022500001', date: '2025-10-21', home: 'OKC', away: 'HOU', status: 'final' as const },

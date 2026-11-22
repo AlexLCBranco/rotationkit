@@ -14,6 +14,7 @@ import { qualityNotes } from '../src/domain/quality.ts';
 import { buildQuartersFile } from '../src/domain/leaders.ts';
 import { parseSchedule } from '../src/shared/nba-schedule/parse.ts';
 import { CACHE_DIR } from './lib/cache.ts';
+import { hasPostseason } from '../src/domain/gameSet.ts';
 import type { Game, GameIndexEntry, ScheduleEntry } from '../src/domain/types.ts';
 
 /** Compact schedule per season for ?game= deep links and rest days: the feed's season has every game (played or not). */
@@ -88,5 +89,14 @@ for (const season of seasons) {
 }
 
 const all = dataSeasons();
-writeFileSync(join(DATA_DIR, 'seasons.json'), JSON.stringify(all.map((s) => ({ season: s, games: readdirSync(join(DATA_DIR, s, 'games')).length }))));
+// `post` (RK-13): the season has play-in or playoff games, so the app shows its "Regular season | Postseason" chip at once.
+writeFileSync(
+  join(DATA_DIR, 'seasons.json'),
+  JSON.stringify(
+    all.map((s) => {
+      const files = readdirSync(join(DATA_DIR, s, 'games'));
+      return { season: s, games: files.length, ...(hasPostseason(files) ? { post: true as const } : {}) };
+    }),
+  ),
+);
 if (failedAny) process.exitCode = 1;
