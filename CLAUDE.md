@@ -9,6 +9,11 @@ Read PROJECT.md first (what the app is, data pipeline, testing). docs/DECISIONS.
   data update commits to `main`, hourly on game nights), `git pull --no-rebase origin main`, rerun the checks, push again. The same
   checks run on GitHub after each push (`.github/workflows/pr.yml`, "Checks"); if they go red, fix `main` at once.
   `main` deploys to production on every push.
+- **Vercel requests are a budget** (owner's rule, 2026-11-24). Vercel's free plan gives 1M CDN requests per rolling
+  30 days, shared by all the owner's projects; going over pauses all of them. The full suite (`npm test`,
+  `npm run build`, `npm run e2e`) runs locally, never against the live site unless the owner asks. After a push the
+  live site gets only a small smoke check. To see if the new version is live, check at most every 30 s and stop
+  once it shows the new version.
 - Dark mode only. Desktop and phone (RK-4, shipped 2026-11-19): every change must work at 390 px and at 1280 px, and
   the Playwright `phone` project (Pixel 7, 390 × 844, `e2e/phone*.spec.ts`) must pass along with `desktop`. New screens
   and routes get a phone test (no page-level sideways scroll + screenshot). Automate every test that can be automated.
