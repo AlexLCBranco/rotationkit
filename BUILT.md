@@ -4,6 +4,10 @@ Shipped work only, newest first. Planned work is in `FEATURE_BACKLOG.md`, never 
 Entries dated before 2026-11-16 were backfilled from the git commit messages (data, docs, test-only, merge and
 spec commits left out). New entries name their backlog ID (see CLAUDE.md, "Feature backlog, built list and ideas").
 
+## 2026-11-24
+### Internal
+- docs: new "Blocked" rule in CLAUDE.md: a Blocked line that only waits for other items unblocks itself at the next build; a question needs a "?" and still waits for the owner
+
 ## 2026-11-22
 - RK-14 — Links that preview: one real page per game, player and team (v0.7.0)
   Addresses are now plain paths like /game/<id> (old links still open the same page); a pasted link to a game shows its teams, score and date, a player or team link shows the name, and a sitemap lets Google find every page.
