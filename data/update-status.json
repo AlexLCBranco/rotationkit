@@ -1,9 +1,14 @@
 {
-  "lastRun": "2026-11-24T20:58:05.224Z",
+  "lastRun": "2026-11-25T09:24:04.059Z",
   "result": "ok",
   "failingStep": null,
   "error": null,
-  "lastSuccess": "2026-11-24T20:58:05.224Z",
+  "lastSuccess": "2026-11-25T09:24:04.059Z",
   "failingSince": null,
-  "runId": "45486143245"
+  "runId": "45584894869",
+  "pending": [
+    "0022600052",
+    "0022600053",
+    "0022600054"
+  ]
 }
